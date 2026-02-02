@@ -8,7 +8,7 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { CheckpointMCPTools } from "@graph-flow/checkpoint";
-import { KnowledgeMCPTools } from "@graph-flow/knowledge";
+import { KnowledgeMCPTools, getCurrentProviderType } from "@graph-flow/knowledge";
 import { GraphMCPTools } from "@graph-flow/graph";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -160,7 +160,8 @@ class GraphFlowServer {
   async run(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("graph-flow MCP server running on stdio");
+    const provider = getCurrentProviderType() ?? "tfidf";
+    console.error(`graph-flow MCP server running on stdio (embeddings: ${provider})`);
   }
 }
 

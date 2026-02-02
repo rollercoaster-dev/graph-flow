@@ -17,3 +17,4 @@ export {
   type MCPToolResult,
 } from "./mcp-tools.ts";
 export { EmbeddingStorage } from "./embeddings-storage.ts";
+export { getCurrentProviderType } from "./embeddings/index.ts";
