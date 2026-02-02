@@ -13,7 +13,8 @@ import { GraphMCPTools } from "@graph-flow/graph";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const pkg = await import("../package.json");
+const pkgModule = await import("../package.json");
+const pkg = pkgModule.default ?? pkgModule;
 
 // Storage directories
 const CLAUDE_DIR = join(homedir(), ".claude");
@@ -172,8 +173,15 @@ await server.init();
 await server.run();
 
 // Graceful shutdown
+let shuttingDown = false;
 const shutdown = async () => {
-  await server.close();
+  if (shuttingDown) return;
+  shuttingDown = true;
+  try {
+    await server.close();
+  } catch {
+    // Best-effort cleanup
+  }
   process.exit(0);
 };
 process.on("SIGINT", shutdown);

@@ -52,37 +52,45 @@ export class GraphQuery {
   }
 
   /**
+   * Parse all files matching the given patterns and collect entities and relationships.
+   */
+  private async parseFiles(files: string[]): Promise<{
+    entities: GraphEntity[];
+    relationships: GraphRelationship[];
+  }> {
+    const expandedFiles = await expandGlobs(files);
+    const entities: GraphEntity[] = [];
+    const relationships: GraphRelationship[] = [];
+
+    for (const file of expandedFiles) {
+      const result = await this.parser.parse(file, {
+        includeCallGraph: true,
+      });
+      entities.push(...result.entities);
+      relationships.push(...result.relationships);
+    }
+
+    return { entities, relationships };
+  }
+
+  /**
    * Find what calls a given entity
    */
   async whatCalls(
     entityName: string,
     files: string[]
   ): Promise<WhatCallsResult | null> {
-    const expandedFiles = await expandGlobs(files);
+    const { entities, relationships } = await this.parseFiles(files);
 
-    // Parse all files
-    const allEntities: GraphEntity[] = [];
-    const allRelationships: GraphRelationship[] = [];
-
-    for (const file of expandedFiles) {
-      const { entities, relationships } = await this.parser.parse(file, {
-        includeCallGraph: true,
-      });
-      allEntities.push(...entities);
-      allRelationships.push(...relationships);
-    }
-
-    // Find target entity
-    const entity = allEntities.find(e => e.name === entityName);
+    const entity = entities.find(e => e.name === entityName);
     if (!entity) {
       return null;
     }
 
-    // Find all callers
-    const callers = allRelationships
+    const callers = relationships
       .filter(r => r.type === "calls" && r.to === entityName)
       .map(relationship => {
-        const caller = allEntities.find(e => e.name === relationship.from);
+        const caller = entities.find(e => e.name === relationship.from);
         return caller ? { caller, relationship } : null;
       })
       .filter((c): c is { caller: GraphEntity; relationship: GraphRelationship } => c !== null);
@@ -98,22 +106,9 @@ export class GraphQuery {
     files: string[],
     maxDepth: number = 3
   ): Promise<BlastRadiusResult | null> {
-    const expandedFiles = await expandGlobs(files);
+    const { entities, relationships } = await this.parseFiles(files);
 
-    // Parse all files
-    const allEntities: GraphEntity[] = [];
-    const allRelationships: GraphRelationship[] = [];
-
-    for (const file of expandedFiles) {
-      const { entities, relationships } = await this.parser.parse(file, {
-        includeCallGraph: true,
-      });
-      allEntities.push(...entities);
-      allRelationships.push(...relationships);
-    }
-
-    // Find target entity
-    const entity = allEntities.find(e => e.name === entityName);
+    const entity = entities.find(e => e.name === entityName);
     if (!entity) {
       return null;
     }
@@ -135,13 +130,13 @@ export class GraphQuery {
       visited.add(current.name);
 
       // Find all entities that call current
-      const callers = allRelationships
+      const callers = relationships
         .filter(r => r.type === "calls" && r.to === current.name)
         .map(r => r.from);
 
       for (const caller of callers) {
         if (!visited.has(caller)) {
-          const callerEntity = allEntities.find(e => e.name === caller);
+          const callerEntity = entities.find(e => e.name === caller);
           if (callerEntity && caller !== entityName) {
             impactedEntities.push({
               entity: callerEntity,

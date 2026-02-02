@@ -13,8 +13,8 @@ import { Buffer } from "buffer";
 // Simple logger replacement
 const logger = {
   info: (msg: string, meta?: unknown) => console.error(`[INFO] ${msg}`, meta || ""),
-  warn: (msg: string, meta?: unknown) => console.warn(`[WARN] ${msg}`, meta || ""),
-  debug: (msg: string, meta?: unknown) => console.debug(`[DEBUG] ${msg}`, meta || ""),
+  warn: (msg: string, meta?: unknown) => console.error(`[WARN] ${msg}`, meta || ""),
+  debug: (msg: string, meta?: unknown) => console.error(`[DEBUG] ${msg}`, meta || ""),
 };
 
 /**
@@ -317,32 +317,24 @@ export async function getDefaultEmbedder(
     !defaultEmbedder || currentProviderType !== requestedType;
 
   if (needsNewProvider) {
-    if (requestedType === "openrouter") {
-      if (!apiKey) {
-        logger.warn(
-          "OpenRouter provider requested but no API key available, falling back to TF-IDF",
-        );
-        defaultEmbedder = new TfIdfEmbedding({ dimensions });
-        currentProviderType = "tfidf";
+    const isApiProvider =
+      requestedType === "openrouter" || requestedType === "openai";
+
+    if (isApiProvider && !apiKey) {
+      logger.warn(
+        `${requestedType} provider requested but no API key available, falling back to TF-IDF`,
+      );
+      defaultEmbedder = new TfIdfEmbedding({ dimensions });
+      currentProviderType = "tfidf";
+    } else if (isApiProvider && apiKey) {
+      // Dynamically import to avoid loading when not needed
+      const providers = await import("./api-providers");
+      if (requestedType === "openrouter") {
+        defaultEmbedder = new providers.OpenRouterEmbedding(apiKey, { dimensions });
       } else {
-        // Dynamically import to avoid loading when not needed
-        const { OpenRouterEmbedding } = await import("./api-providers");
-        defaultEmbedder = new OpenRouterEmbedding(apiKey, { dimensions });
-        currentProviderType = "openrouter";
+        defaultEmbedder = new providers.OpenAIEmbedding(apiKey, { dimensions });
       }
-    } else if (requestedType === "openai") {
-      if (!apiKey) {
-        logger.warn(
-          "OpenAI provider requested but no API key available, falling back to TF-IDF",
-        );
-        defaultEmbedder = new TfIdfEmbedding({ dimensions });
-        currentProviderType = "tfidf";
-      } else {
-        // Dynamically import to avoid loading when not needed
-        const { OpenAIEmbedding } = await import("./api-providers");
-        defaultEmbedder = new OpenAIEmbedding(apiKey, { dimensions });
-        currentProviderType = "openai";
-      }
+      currentProviderType = requestedType;
     } else {
       defaultEmbedder = new TfIdfEmbedding({ dimensions });
       currentProviderType = "tfidf";

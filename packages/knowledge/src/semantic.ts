@@ -46,7 +46,7 @@ export class SemanticSearch {
         await this.embeddingStorage.store(learning.area, learning.id, embedding);
       }
     } catch (error) {
-      console.warn(`Failed to generate embedding for learning ${learning.id}:`, error);
+      console.error(`Failed to generate embedding for learning ${learning.id}:`, error);
       // Non-blocking - learning still stored without embedding
     }
   }
@@ -65,7 +65,7 @@ export class SemanticSearch {
     const queryEmbedding = await embedder.generate(queryText);
 
     if (!queryEmbedding) {
-      console.warn("Failed to generate query embedding");
+      console.error("Failed to generate query embedding");
       return [];
     }
 

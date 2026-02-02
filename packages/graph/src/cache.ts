@@ -106,6 +106,7 @@ export class GraphCache {
    * Invalidate cache for a file (delete all cache entries)
    */
   async invalidate(filepath: string): Promise<void> {
+    if (!existsSync(this.baseDir)) return;
     const prefix = filepath.replace(/[^a-zA-Z0-9]/g, "_");
     const files = await readdir(this.baseDir);
     for (const file of files) {
