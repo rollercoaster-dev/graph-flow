@@ -12,7 +12,7 @@ export interface CachedGraphData {
 
 export interface GraphEntity {
   name: string;
-  type: "function" | "class" | "interface" | "type" | "variable";
+  type: "function" | "class" | "interface" | "type" | "variable" | "component";
   location: {
     file: string;
     line: number;

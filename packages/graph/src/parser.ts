@@ -1,5 +1,7 @@
+import { basename } from "node:path";
 import { Project, SyntaxKind, type SourceFile } from "ts-morph";
 import { GraphCache, type GraphEntity, type GraphRelationship } from "./cache.ts";
+import { parseVueSFC as parseVueSFCContent } from "./vue.ts";
 
 export interface ParseOptions {
   includeImports?: boolean;
@@ -47,13 +49,18 @@ export class CodeParser {
       };
     }
 
-    // Parse file
-    const sourceFile = this.project.createSourceFile("temp.ts", content, {
-      overwrite: true,
-    });
+    let entities: GraphEntity[];
+    let relationships: GraphRelationship[];
 
-    const entities = this.extractEntities(sourceFile, filepath);
-    const relationships = this.extractRelationships(sourceFile, filepath, options);
+    if (filepath.endsWith(".vue")) {
+      ({ entities, relationships } = this.parseVueSFC(filepath, content, options));
+    } else {
+      const sourceFile = this.project.createSourceFile("temp.ts", content, {
+        overwrite: true,
+      });
+      entities = this.extractEntities(sourceFile, filepath);
+      relationships = this.extractRelationships(sourceFile, filepath, options);
+    }
 
     // Cache results
     await this.cache.write(filepath, content, { entities, relationships });
@@ -62,9 +69,59 @@ export class CodeParser {
   }
 
   /**
+   * Parse a Vue SFC and extract entities/relationships from script blocks and template.
+   */
+  private parseVueSFC(
+    filepath: string,
+    content: string,
+    options: ParseOptions
+  ): { entities: GraphEntity[]; relationships: GraphRelationship[] } {
+    const { scripts, templateComponents } = parseVueSFCContent(content);
+
+    const entities: GraphEntity[] = [];
+    const relationships: GraphRelationship[] = [];
+
+    for (const script of scripts) {
+      const ext = script.lang === "ts" ? "ts" : "js";
+      const sourceFile = this.project.createSourceFile(`temp.${ext}`, script.content, {
+        overwrite: true,
+      });
+
+      // startLine points to the <script> tag line. The extracted content begins with a
+      // leading newline, so ts-morph line 1 = that newline, line 2 = first real code.
+      // Subtract 1 so that (ts-morph line + offset) equals the .vue file line.
+      const lineOffset = script.startLine - 1;
+      entities.push(...this.extractEntities(sourceFile, filepath, lineOffset));
+      relationships.push(...this.extractRelationships(sourceFile, filepath, options, lineOffset));
+
+      // For <script setup> files, add a component entity derived from the filename
+      if (script.setup) {
+        const componentName = basename(filepath, ".vue");
+        entities.push({
+          name: componentName,
+          type: "component",
+          location: { file: filepath, line: 1 },
+        });
+      }
+    }
+
+    // Template component usage → "uses" relationships
+    for (const name of templateComponents.names) {
+      relationships.push({
+        from: filepath,
+        to: name,
+        type: "uses",
+        location: { file: filepath, line: 1 },
+      });
+    }
+
+    return { entities, relationships };
+  }
+
+  /**
    * Extract entities (functions, classes, etc.)
    */
-  private extractEntities(sourceFile: SourceFile, filepath: string): GraphEntity[] {
+  private extractEntities(sourceFile: SourceFile, filepath: string, lineOffset = 0): GraphEntity[] {
     const entities: GraphEntity[] = [];
 
     // Functions
@@ -76,7 +133,7 @@ export class CodeParser {
           type: "function",
           location: {
             file: filepath,
-            line: fn.getStartLineNumber(),
+            line: fn.getStartLineNumber() + lineOffset,
           },
           signature: fn.getSignature().getDeclaration().getText(),
         });
@@ -90,7 +147,7 @@ export class CodeParser {
         type: "class",
         location: {
           file: filepath,
-          line: cls.getStartLineNumber(),
+          line: cls.getStartLineNumber() + lineOffset,
         },
       });
     });
@@ -102,7 +159,7 @@ export class CodeParser {
         type: "interface",
         location: {
           file: filepath,
-          line: iface.getStartLineNumber(),
+          line: iface.getStartLineNumber() + lineOffset,
         },
       });
     });
@@ -114,7 +171,7 @@ export class CodeParser {
         type: "type",
         location: {
           file: filepath,
-          line: typeAlias.getStartLineNumber(),
+          line: typeAlias.getStartLineNumber() + lineOffset,
         },
       });
     });
@@ -126,7 +183,7 @@ export class CodeParser {
         type: "variable",
         location: {
           file: filepath,
-          line: varDecl.getStartLineNumber(),
+          line: varDecl.getStartLineNumber() + lineOffset,
         },
       });
     });
@@ -140,7 +197,8 @@ export class CodeParser {
   private extractRelationships(
     sourceFile: SourceFile,
     filepath: string,
-    options: ParseOptions
+    options: ParseOptions,
+    lineOffset = 0
   ): GraphRelationship[] {
     const relationships: GraphRelationship[] = [];
 
@@ -155,7 +213,7 @@ export class CodeParser {
             type: "imports",
             location: {
               file: filepath,
-              line: importDecl.getStartLineNumber(),
+              line: importDecl.getStartLineNumber() + lineOffset,
             },
           });
         });
@@ -179,7 +237,7 @@ export class CodeParser {
               type: "calls",
               location: {
                 file: filepath,
-                line: call.getStartLineNumber(),
+                line: call.getStartLineNumber() + lineOffset,
               },
             });
           }

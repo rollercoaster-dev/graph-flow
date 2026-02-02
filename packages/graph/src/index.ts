@@ -15,3 +15,11 @@ export {
   type MCPTool,
   type MCPToolResult,
 } from "./mcp-tools.ts";
+export {
+  parseVueSFC,
+  extractVueScripts,
+  extractTemplateComponents,
+  type VueSFCResult,
+  type VueScriptBlock,
+  type VueTemplateComponents,
+} from "./vue.ts";

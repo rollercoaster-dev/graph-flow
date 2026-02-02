@@ -20,12 +20,14 @@
     "./cache": "./src/cache.ts",
     "./parser": "./src/parser.ts",
     "./query": "./src/query.ts",
-    "./mcp-tools": "./src/mcp-tools.ts"
+    "./mcp-tools": "./src/mcp-tools.ts",
+    "./vue": "./src/vue.ts"
   },
   "scripts": {
     "test": "bun test"
   },
   "dependencies": {
+    "@vue/compiler-sfc": "^3.5.0",
     "ts-morph": "^21.0.0"
   },
   "devDependencies": {
