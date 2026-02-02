@@ -5,6 +5,10 @@ export {
   type WorkflowState,
   type WorkflowPhase,
   type WorkflowEvent,
+  type WorkflowStatus,
+  type WorkflowAction,
+  type WorkflowCommit,
+  type RecoveryPlan,
 } from "./workflow.ts";
 export {
   CheckpointMCPTools,

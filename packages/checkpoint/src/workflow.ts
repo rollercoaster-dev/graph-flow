@@ -1,7 +1,33 @@
 import { JSONLStorage, type JSONLRecord } from "./storage.ts";
 import { LRUCache } from "./cache.ts";
 
-export type WorkflowPhase = "research" | "implement" | "review" | "finalize" | "completed";
+export type WorkflowPhase =
+  | "research" | "implement" | "review" | "finalize"     // issue workflows
+  | "planning" | "execute" | "merge" | "cleanup"          // milestone workflows
+  | "completed";
+
+export type WorkflowStatus = "running" | "paused" | "completed" | "failed";
+
+export interface WorkflowAction {
+  action: string;
+  result: "success" | "failed" | "pending";
+  metadata?: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface WorkflowCommit {
+  sha: string;
+  message: string;
+  timestamp: string;
+}
+
+export interface RecoveryPlan {
+  workflow: WorkflowState;
+  resumePhase: WorkflowPhase;
+  pendingActions: WorkflowAction[];
+  lastCommit: WorkflowCommit | null;
+  summary: string;
+}
 
 export interface WorkflowState {
   id: string;
@@ -13,11 +39,24 @@ export interface WorkflowState {
   blockers: string[];
   createdAt: string;
   updatedAt: string;
+  branch?: string;
+  worktree?: string;
+  status: WorkflowStatus;
+  retryCount: number;
+  taskId?: string;
+  actions: WorkflowAction[];
+  commits: WorkflowCommit[];
 }
 
 export interface WorkflowEvent extends JSONLRecord {
-  type: "created" | "phase_change" | "context_added" | "decision_made" | "blocker_added" | "blocker_resolved" | "completed";
-  data: Partial<WorkflowState>;
+  type:
+    | "created" | "phase_change" | "context_added" | "decision_made"
+    | "blocker_added" | "blocker_resolved" | "completed"
+    | "status_changed" | "action_logged" | "commit_logged";
+  data: Partial<WorkflowState> & {
+    logAction?: WorkflowAction;
+    logCommit?: WorkflowCommit;
+  };
 }
 
 /**
@@ -44,6 +83,10 @@ export class WorkflowManager {
     issueNumber?: number;
     title: string;
     phase?: WorkflowPhase;
+    branch?: string;
+    worktree?: string;
+    status?: WorkflowStatus;
+    taskId?: string;
   }): Promise<WorkflowState> {
     const now = new Date().toISOString();
     const workflow: WorkflowState = {
@@ -56,6 +99,13 @@ export class WorkflowManager {
       blockers: [],
       createdAt: now,
       updatedAt: now,
+      branch: params.branch,
+      worktree: params.worktree,
+      status: params.status || "running",
+      retryCount: 0,
+      taskId: params.taskId,
+      actions: [],
+      commits: [],
     };
 
     const event: WorkflowEvent = {
@@ -100,6 +150,12 @@ export class WorkflowManager {
     context?: string[];
     decisions?: string[];
     blockers?: string[];
+    status?: WorkflowStatus;
+    branch?: string;
+    worktree?: string;
+    taskId?: string;
+    logAction?: WorkflowAction;
+    logCommit?: WorkflowCommit;
   }): Promise<WorkflowState> {
     const current = await this.get(id);
     if (!current) {
@@ -115,19 +171,33 @@ export class WorkflowManager {
       context: update.context ? [...current.context, ...update.context] : current.context,
       decisions: update.decisions ? [...current.decisions, ...update.decisions] : current.decisions,
       blockers: update.blockers ? [...current.blockers, ...update.blockers] : current.blockers,
+      status: update.status ?? current.status,
+      branch: update.branch ?? current.branch,
+      worktree: update.worktree ?? current.worktree,
+      taskId: update.taskId ?? current.taskId,
+      actions: update.logAction ? [...current.actions, update.logAction] : current.actions,
+      commits: update.logCommit ? [...current.commits, update.logCommit] : current.commits,
+      retryCount: update.status === "failed" ? current.retryCount + 1 : current.retryCount,
       updatedAt: now,
     };
 
-    // Determine event type
+    // Determine event type (priority: logCommit > logAction > status > blocker > decision > context > phase)
     let eventType: WorkflowEvent["type"] = "phase_change";
     if (update.context) eventType = "context_added";
     if (update.decisions) eventType = "decision_made";
     if (update.blockers) eventType = "blocker_added";
+    if (update.status) eventType = "status_changed";
+    if (update.logAction) eventType = "action_logged";
+    if (update.logCommit) eventType = "commit_logged";
 
     const event: WorkflowEvent = {
       timestamp: now,
       type: eventType,
-      data: update,
+      data: {
+        ...update,
+        logAction: update.logAction,
+        logCommit: update.logCommit,
+      },
     };
 
     await this.storage.append(`${id}.jsonl`, event);
@@ -149,7 +219,7 @@ export class WorkflowManager {
     const event: WorkflowEvent = {
       timestamp: now,
       type: "completed",
-      data: { phase: "completed" },
+      data: { phase: "completed", status: "completed" },
     };
 
     await this.storage.append(`${id}.jsonl`, event);
@@ -173,7 +243,7 @@ export class WorkflowManager {
     for (const file of files) {
       const id = file.replace(".jsonl", "");
       const workflow = await this.get(id);
-      if (workflow && workflow.phase !== "completed") {
+      if (workflow && workflow.phase !== "completed" && workflow.status !== "completed") {
         workflows.push(workflow);
       }
     }
@@ -190,6 +260,41 @@ export class WorkflowManager {
   }
 
   /**
+   * Build a recovery plan for resuming a workflow after interruption
+   */
+  async recover(id: string): Promise<RecoveryPlan | null> {
+    // Read directly from disk, bypassing cache for freshest state
+    const events = await this.storage.read<WorkflowEvent>(`${id}.jsonl`);
+    if (events.length === 0) {
+      return null;
+    }
+
+    const workflow = this.reconstructState(events);
+    const pendingActions = workflow.actions.filter(a => a.result === "pending");
+    const lastCommit = workflow.commits.length > 0
+      ? workflow.commits[workflow.commits.length - 1]
+      : null;
+
+    const parts: string[] = [
+      `Workflow "${workflow.title}" (${workflow.id})`,
+      `Phase: ${workflow.phase}, Status: ${workflow.status}`,
+    ];
+    if (workflow.branch) parts.push(`Branch: ${workflow.branch}`);
+    if (lastCommit) parts.push(`Last commit: ${lastCommit.sha.substring(0, 7)} - ${lastCommit.message}`);
+    if (pendingActions.length > 0) parts.push(`${pendingActions.length} pending action(s) to resume`);
+    if (workflow.blockers.length > 0) parts.push(`${workflow.blockers.length} blocker(s) present`);
+    if (workflow.retryCount > 0) parts.push(`Retry count: ${workflow.retryCount}`);
+
+    return {
+      workflow,
+      resumePhase: workflow.phase,
+      pendingActions,
+      lastCommit,
+      summary: parts.join(". ") + ".",
+    };
+  }
+
+  /**
    * Reconstruct workflow state from events
    */
   private reconstructState(events: WorkflowEvent[]): WorkflowState {
@@ -197,9 +302,16 @@ export class WorkflowManager {
 
     for (const event of events) {
       if (event.type === "created") {
-        state = event.data as WorkflowState;
+        const data = event.data as WorkflowState;
+        // Backward compat: ensure new fields have defaults for old events
+        state = {
+          ...data,
+          status: data.status ?? "running",
+          retryCount: data.retryCount ?? 0,
+          actions: data.actions ?? [],
+          commits: data.commits ?? [],
+        };
       } else if (state) {
-        // Merge arrays when reconstructing
         const update = event.data;
         state = {
           ...state,
@@ -207,8 +319,27 @@ export class WorkflowManager {
           context: update.context ? [...state.context, ...update.context] : state.context,
           decisions: update.decisions ? [...state.decisions, ...update.decisions] : state.decisions,
           blockers: update.blockers ? [...state.blockers, ...update.blockers] : state.blockers,
+          status: update.status ?? state.status,
+          branch: update.branch ?? state.branch,
+          worktree: update.worktree ?? state.worktree,
+          taskId: update.taskId ?? state.taskId,
           updatedAt: event.timestamp,
         };
+
+        // Handle action_logged events
+        if (event.type === "action_logged" && update.logAction) {
+          state.actions = [...state.actions, update.logAction];
+        }
+
+        // Handle commit_logged events
+        if (event.type === "commit_logged" && update.logCommit) {
+          state.commits = [...state.commits, update.logCommit];
+        }
+
+        // Handle status_changed: increment retryCount on failure
+        if (event.type === "status_changed" && update.status === "failed") {
+          state.retryCount = (state.retryCount ?? 0) + 1;
+        }
       }
     }
 
