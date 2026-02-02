@@ -3,6 +3,15 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rollercoaster-dev/graph-flow.git"
+  },
+  "author": "rollercoaster.dev",
+  "engines": {
+    "bun": ">=1.0"
+  },
   "workspaces": [
     "packages/*"
   ],
@@ -13,7 +22,7 @@
     "mcp": "bun run packages/mcp/src/index.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/bun": "^1.0.0",
     "typescript": "^5.0.0"
   },
   "description": "File-based workflow checkpoint, knowledge management, and code graph analysis for Claude Code"

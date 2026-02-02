@@ -1,6 +1,25 @@
 import { CodeParser } from "./parser.ts";
 import type { GraphEntity, GraphRelationship } from "./cache.ts";
 
+/**
+ * Expand glob patterns in file list using Bun.Glob.
+ * Non-glob paths are returned as-is.
+ */
+async function expandGlobs(patterns: string[]): Promise<string[]> {
+  const files: string[] = [];
+  for (const pattern of patterns) {
+    if (pattern.includes("*") || pattern.includes("?") || pattern.includes("{")) {
+      const glob = new Bun.Glob(pattern);
+      for await (const path of glob.scan({ dot: false })) {
+        files.push(path);
+      }
+    } else {
+      files.push(pattern);
+    }
+  }
+  return [...new Set(files)];
+}
+
 export interface WhatCallsResult {
   entity: GraphEntity;
   callers: Array<{
@@ -39,11 +58,13 @@ export class GraphQuery {
     entityName: string,
     files: string[]
   ): Promise<WhatCallsResult | null> {
+    const expandedFiles = await expandGlobs(files);
+
     // Parse all files
     const allEntities: GraphEntity[] = [];
     const allRelationships: GraphRelationship[] = [];
 
-    for (const file of files) {
+    for (const file of expandedFiles) {
       const { entities, relationships } = await this.parser.parse(file, {
         includeCallGraph: true,
       });
@@ -77,11 +98,13 @@ export class GraphQuery {
     files: string[],
     maxDepth: number = 3
   ): Promise<BlastRadiusResult | null> {
+    const expandedFiles = await expandGlobs(files);
+
     // Parse all files
     const allEntities: GraphEntity[] = [];
     const allRelationships: GraphRelationship[] = [];
 
-    for (const file of files) {
+    for (const file of expandedFiles) {
       const { entities, relationships } = await this.parser.parse(file, {
         includeCallGraph: true,
       });

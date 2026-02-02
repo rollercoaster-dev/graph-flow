@@ -2,6 +2,18 @@
   "name": "@graph-flow/checkpoint",
   "version": "2.0.0",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rollercoaster-dev/graph-flow.git",
+    "directory": "packages/checkpoint"
+  },
+  "author": "rollercoaster.dev",
+  "engines": {
+    "bun": ">=1.0"
+  },
+  "keywords": ["mcp", "checkpoint", "workflow", "jsonl"],
+  "files": ["src", "package.json", "README.md"],
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
@@ -15,7 +27,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "^1.0.0"
   },
   "description": "JSONL-based workflow checkpoint and recovery system"
 }

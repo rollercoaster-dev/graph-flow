@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
@@ -106,9 +106,12 @@ export class GraphCache {
    * Invalidate cache for a file (delete all cache entries)
    */
   async invalidate(filepath: string): Promise<void> {
-    const filename = filepath.replace(/[^a-zA-Z0-9]/g, "_");
-    const files = await Bun.file(this.baseDir).arrayBuffer();
-    // This is a simplified implementation - in production would use readdir
-    // For now, cache entries auto-invalidate when hash doesn't match
+    const prefix = filepath.replace(/[^a-zA-Z0-9]/g, "_");
+    const files = await readdir(this.baseDir);
+    for (const file of files) {
+      if (file.startsWith(prefix) && file.endsWith(".json")) {
+        await unlink(join(this.baseDir, file));
+      }
+    }
   }
 }

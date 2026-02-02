@@ -1,4 +1,4 @@
-import { mkdir, readdir } from "node:fs/promises";
+import { mkdir, readdir, appendFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -32,11 +32,7 @@ export class LearningStorage {
     const filename = `${learning.area}.jsonl`;
     const filepath = join(this.baseDir, filename);
     const line = JSON.stringify(learning) + "\n";
-
-    // Append to file
-    const file = Bun.file(filepath);
-    const existing = existsSync(filepath) ? await file.text() : "";
-    await Bun.write(filepath, existing + line);
+    await appendFile(filepath, line, "utf-8");
   }
 
   /**

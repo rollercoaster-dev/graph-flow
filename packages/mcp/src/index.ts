@@ -13,6 +13,8 @@ import { GraphMCPTools } from "@graph-flow/graph";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+const pkg = await import("../package.json");
+
 // Storage directories
 const CLAUDE_DIR = join(homedir(), ".claude");
 const WORKFLOWS_DIR = join(CLAUDE_DIR, "workflows");
@@ -33,7 +35,7 @@ class GraphFlowServer {
     this.server = new Server(
       {
         name: "graph-flow",
-        version: "2.0.0",
+        version: pkg.version,
       },
       {
         capabilities: {
@@ -91,6 +93,7 @@ class GraphFlowServer {
               text: `Error: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
+          isError: true,
         };
       }
     });
@@ -110,12 +113,6 @@ class GraphFlowServer {
             name: "Learnings",
             mimeType: "application/json",
             description: "Browse stored learnings by area",
-          },
-          {
-            uri: "graph://entities",
-            name: "Code Graph Entities",
-            mimeType: "application/json",
-            description: "Browse code graph entities and relationships",
           },
         ],
       };
@@ -163,9 +160,21 @@ class GraphFlowServer {
     const provider = getCurrentProviderType() ?? "tfidf";
     console.error(`graph-flow MCP server running on stdio (embeddings: ${provider})`);
   }
+
+  async close(): Promise<void> {
+    await this.server.close();
+  }
 }
 
 // Start server
 const server = new GraphFlowServer();
 await server.init();
 await server.run();
+
+// Graceful shutdown
+const shutdown = async () => {
+  await server.close();
+  process.exit(0);
+};
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

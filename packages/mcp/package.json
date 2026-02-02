@@ -2,6 +2,18 @@
   "name": "@graph-flow/mcp",
   "version": "2.0.0",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rollercoaster-dev/graph-flow.git",
+    "directory": "packages/mcp"
+  },
+  "author": "rollercoaster.dev",
+  "engines": {
+    "bun": ">=1.0"
+  },
+  "keywords": ["mcp", "model-context-protocol", "graph-flow", "claude-code"],
+  "files": ["src", "package.json", "README.md"],
   "main": "./src/index.ts",
   "bin": {
     "graph-flow": "./src/index.ts"
@@ -17,7 +29,7 @@
     "@modelcontextprotocol/sdk": "^1.0.4"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "^1.0.0"
   },
   "description": "Unified MCP server for graph-flow tools (checkpoint, knowledge, graph)"
 }
