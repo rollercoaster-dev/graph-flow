@@ -20,7 +20,8 @@
     "./cache": "./src/cache.ts",
     "./parser": "./src/parser.ts",
     "./query": "./src/query.ts",
-    "./mcp-tools": "./src/mcp-tools.ts"
+    "./mcp-tools": "./src/mcp-tools.ts",
+    "./vue": "./src/vue.ts"
   },
   "scripts": {
     "test": "bun test"
