@@ -17,22 +17,24 @@ const pkgModule = await import("../package.json");
 const pkg = pkgModule.default ?? pkgModule;
 
 // Storage directories
-const CLAUDE_DIR = join(homedir(), ".claude");
-const WORKFLOWS_DIR = join(CLAUDE_DIR, "workflows");
-const LEARNINGS_DIR = join(CLAUDE_DIR, "learnings");
-const EMBEDDINGS_DIR = join(CLAUDE_DIR, "embeddings");
-const GRAPHS_DIR = join(CLAUDE_DIR, "graphs");
+const DEFAULT_CLAUDE_DIR = join(homedir(), ".claude");
 
 /**
  * Unified MCP server for graph-flow
  */
-class GraphFlowServer {
+export class GraphFlowServer {
   private server: Server;
   private checkpoint: CheckpointMCPTools;
   private knowledge: KnowledgeMCPTools;
   private graph: GraphMCPTools;
 
-  constructor() {
+  constructor(options: { baseDir?: string } = {}) {
+    const baseDir = options.baseDir ?? DEFAULT_CLAUDE_DIR;
+    const workflowsDir = join(baseDir, "workflows");
+    const learningsDir = join(baseDir, "learnings");
+    const embeddingsDir = join(baseDir, "embeddings");
+    const graphsDir = join(baseDir, "graphs");
+
     this.server = new Server(
       {
         name: "graph-flow",
@@ -46,9 +48,9 @@ class GraphFlowServer {
       }
     );
 
-    this.checkpoint = new CheckpointMCPTools(WORKFLOWS_DIR);
-    this.knowledge = new KnowledgeMCPTools(LEARNINGS_DIR, EMBEDDINGS_DIR);
-    this.graph = new GraphMCPTools(GRAPHS_DIR);
+    this.checkpoint = new CheckpointMCPTools(workflowsDir);
+    this.knowledge = new KnowledgeMCPTools(learningsDir, embeddingsDir);
+    this.graph = new GraphMCPTools(graphsDir);
 
     this.setupHandlers();
   }
@@ -101,58 +103,85 @@ class GraphFlowServer {
 
     // List resources
     this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
-      return {
-        resources: [
-          {
-            uri: "checkpoint://workflows",
-            name: "Active Workflows",
-            mimeType: "application/json",
-            description: "Browse active workflow checkpoints",
-          },
-          {
-            uri: "knowledge://learnings",
-            name: "Learnings",
-            mimeType: "application/json",
-            description: "Browse stored learnings by area",
-          },
-        ],
-      };
+      return this.listResourcesImpl();
     });
 
     // Read resources
     this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       const { uri } = request.params;
-
-      if (uri.startsWith("checkpoint://")) {
-        // Return list of active workflows
-        const result = await this.checkpoint.handleToolCall("checkpoint-find", {});
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: "application/json",
-              text: result.content[0].text,
-            },
-          ],
-        };
-      } else if (uri.startsWith("knowledge://")) {
-        // Return learnings (optionally filtered by area)
-        const area = uri.replace("knowledge://learnings/", "");
-        const args = area && area !== "learnings" ? { area } : {};
-        const result = await this.knowledge.handleToolCall("knowledge-query", args);
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: "application/json",
-              text: result.content[0].text,
-            },
-          ],
-        };
-      } else {
-        throw new Error(`Unknown resource: ${uri}`);
-      }
+      return this.readResourceImpl(uri);
     });
+  }
+
+  private listResourcesImpl(): { resources: Array<{ uri: string; name: string; mimeType: string; description: string }> } {
+    return {
+      resources: [
+        {
+          uri: "checkpoint://workflows",
+          name: "Active Workflows",
+          mimeType: "application/json",
+          description: "Browse active workflow checkpoints",
+        },
+        {
+          uri: "knowledge://learnings",
+          name: "Learnings",
+          mimeType: "application/json",
+          description: "Browse stored learnings by area",
+        },
+      ],
+    };
+  }
+
+  private async readResourceImpl(
+    uri: string
+  ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+    if (uri.startsWith("checkpoint://")) {
+      // Return list of active workflows
+      const result = await this.checkpoint.handleToolCall("checkpoint-find", {});
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: "application/json",
+            text: result.content[0].text,
+          },
+        ],
+      };
+    } else if (uri.startsWith("knowledge://")) {
+      // Return learnings (optionally filtered by area)
+      const base = "knowledge://learnings";
+      let args: Record<string, unknown> = {};
+      if (uri === base || uri === `${base}/`) {
+        args = {};
+      } else if (uri.startsWith(`${base}/`)) {
+        const area = uri.slice(base.length + 1);
+        args = area ? { area } : {};
+      } else {
+        throw new Error(`Unknown knowledge resource: ${uri}`);
+      }
+      const result = await this.knowledge.handleToolCall("knowledge-query", args);
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: "application/json",
+            text: result.content[0].text,
+          },
+        ],
+      };
+    } else {
+      throw new Error(`Unknown resource: ${uri}`);
+    }
+  }
+
+  listResourcesForTests(): { resources: Array<{ uri: string; name: string; mimeType: string; description: string }> } {
+    return this.listResourcesImpl();
+  }
+
+  async readResourceForTests(
+    uri: string
+  ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+    return this.readResourceImpl(uri);
   }
 
   async run(): Promise<void> {
@@ -167,22 +196,24 @@ class GraphFlowServer {
   }
 }
 
-// Start server
-const server = new GraphFlowServer();
-await server.init();
-await server.run();
+// Start server when executed directly
+if (import.meta.main) {
+  const server = new GraphFlowServer();
+  await server.init();
+  await server.run();
 
-// Graceful shutdown
-let shuttingDown = false;
-const shutdown = async () => {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  try {
-    await server.close();
-  } catch {
-    // Best-effort cleanup
-  }
-  process.exit(0);
-};
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+  // Graceful shutdown
+  let shuttingDown = false;
+  const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    try {
+      await server.close();
+    } catch {
+      // Best-effort cleanup
+    }
+    process.exit(0);
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+}

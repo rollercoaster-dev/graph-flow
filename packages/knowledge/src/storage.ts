@@ -21,6 +21,18 @@ export class LearningStorage {
     this.baseDir = baseDir;
   }
 
+  private normalizeArea(area: string): string {
+    const trimmed = area.trim();
+    const isSafe = trimmed.length > 0
+      && !trimmed.includes("..")
+      && !trimmed.includes("/")
+      && !trimmed.includes("\\");
+    if (!isSafe) {
+      throw new Error(`Invalid area: ${area}`);
+    }
+    return trimmed;
+  }
+
   async init(): Promise<void> {
     await mkdir(this.baseDir, { recursive: true });
   }
@@ -29,7 +41,8 @@ export class LearningStorage {
    * Store a learning (append to area-specific file)
    */
   async store(learning: LearningRecord): Promise<void> {
-    const filename = `${learning.area}.jsonl`;
+    const area = this.normalizeArea(learning.area);
+    const filename = `${area}.jsonl`;
     const filepath = join(this.baseDir, filename);
     const line = JSON.stringify(learning) + "\n";
     await appendFile(filepath, line, "utf-8");
@@ -39,7 +52,8 @@ export class LearningStorage {
    * Read all learnings for a specific area
    */
   async readArea(area: string): Promise<LearningRecord[]> {
-    const filepath = join(this.baseDir, `${area}.jsonl`);
+    const safeArea = this.normalizeArea(area);
+    const filepath = join(this.baseDir, `${safeArea}.jsonl`);
 
     if (!existsSync(filepath)) {
       return [];

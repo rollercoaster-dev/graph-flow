@@ -122,8 +122,17 @@ export class SemanticSearch {
       return [];
     }
 
+    // Load embeddings for all areas so we can compare across the full corpus
+    const allEmbeddings = new Map<string, Float32Array>();
+    const areas = await this.learningStorage.listAreas();
+    for (const areaName of areas) {
+      const areaEmbeddings = await this.embeddingStorage.readAll(areaName);
+      for (const [id, embedding] of areaEmbeddings) {
+        allEmbeddings.set(id, embedding);
+      }
+    }
+
     // Get target embedding
-    const allEmbeddings = await this.embeddingStorage.readAll(targetLearning.area);
     const targetEmbedding = allEmbeddings.get(learningId);
 
     if (!targetEmbedding) {

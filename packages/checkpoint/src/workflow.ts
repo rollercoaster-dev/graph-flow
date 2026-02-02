@@ -71,6 +71,17 @@ export class WorkflowManager {
     this.cache = new LRUCache(cacheSize);
   }
 
+  private assertSafeId(id: string): void {
+    const trimmed = id.trim();
+    const isSafe = trimmed.length > 0
+      && !trimmed.includes("..")
+      && !trimmed.includes("/")
+      && !trimmed.includes("\\");
+    if (!isSafe) {
+      throw new Error(`Invalid workflow id: ${id}`);
+    }
+  }
+
   async init(): Promise<void> {
     await this.storage.init();
   }
@@ -88,6 +99,7 @@ export class WorkflowManager {
     status?: WorkflowStatus;
     taskId?: string;
   }): Promise<WorkflowState> {
+    this.assertSafeId(params.id);
     const now = new Date().toISOString();
     const workflow: WorkflowState = {
       id: params.id,
@@ -124,6 +136,7 @@ export class WorkflowManager {
    * Get workflow by ID (from cache or disk)
    */
   async get(id: string): Promise<WorkflowState | null> {
+    this.assertSafeId(id);
     // Check cache first
     const cached = this.cache.get(id);
     if (cached) {
@@ -157,6 +170,7 @@ export class WorkflowManager {
     logAction?: WorkflowAction;
     logCommit?: WorkflowCommit;
   }): Promise<WorkflowState> {
+    this.assertSafeId(id);
     const current = await this.get(id);
     if (!current) {
       throw new Error(`Workflow ${id} not found`);
@@ -210,6 +224,7 @@ export class WorkflowManager {
    * Mark workflow as completed and optionally delete
    */
   async complete(id: string, deleteFile: boolean = true): Promise<void> {
+    this.assertSafeId(id);
     const workflow = await this.get(id);
     if (!workflow) {
       return;
@@ -263,6 +278,7 @@ export class WorkflowManager {
    * Build a recovery plan for resuming a workflow after interruption
    */
   async recover(id: string): Promise<RecoveryPlan | null> {
+    this.assertSafeId(id);
     // Read directly from disk, bypassing cache for freshest state
     const events = await this.storage.read<WorkflowEvent>(`${id}.jsonl`);
     if (events.length === 0) {

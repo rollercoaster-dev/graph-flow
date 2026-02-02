@@ -14,6 +14,18 @@ export class EmbeddingStorage {
     this.baseDir = baseDir;
   }
 
+  private normalizeArea(area: string): string {
+    const trimmed = area.trim();
+    const isSafe = trimmed.length > 0
+      && !trimmed.includes("..")
+      && !trimmed.includes("/")
+      && !trimmed.includes("\\");
+    if (!isSafe) {
+      throw new Error(`Invalid area: ${area}`);
+    }
+    return trimmed;
+  }
+
   async init(): Promise<void> {
     await mkdir(this.baseDir, { recursive: true });
   }
@@ -23,7 +35,8 @@ export class EmbeddingStorage {
    * Format: [id_length(4 bytes)][id][embedding_length(4 bytes)][embedding]
    */
   async store(area: string, learningId: string, embedding: Float32Array): Promise<void> {
-    const filepath = join(this.baseDir, `${area}.bin`);
+    const safeArea = this.normalizeArea(area);
+    const filepath = join(this.baseDir, `${safeArea}.bin`);
 
     // Convert embedding to buffer
     const embeddingBuffer = floatArrayToBuffer(embedding);
@@ -46,7 +59,8 @@ export class EmbeddingStorage {
    * Read all embeddings for an area
    */
   async readAll(area: string): Promise<Map<string, Float32Array>> {
-    const filepath = join(this.baseDir, `${area}.bin`);
+    const safeArea = this.normalizeArea(area);
+    const filepath = join(this.baseDir, `${safeArea}.bin`);
     const embeddings = new Map<string, Float32Array>();
 
     if (!existsSync(filepath)) {
@@ -84,6 +98,7 @@ export class EmbeddingStorage {
    * Check if embeddings exist for an area
    */
   exists(area: string): boolean {
-    return existsSync(join(this.baseDir, `${area}.bin`));
+    const safeArea = this.normalizeArea(area);
+    return existsSync(join(this.baseDir, `${safeArea}.bin`));
   }
 }
