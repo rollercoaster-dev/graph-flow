@@ -1,0 +1,23 @@
+{
+  "name": "@graph-flow/graph",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./cache": "./src/cache.ts",
+    "./parser": "./src/parser.ts",
+    "./query": "./src/query.ts",
+    "./mcp-tools": "./src/mcp-tools.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "ts-morph": "^21.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "description": "Code graph analysis with hash-based caching"
+}

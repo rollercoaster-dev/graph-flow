@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# File-based storage (keep structure, ignore content in dev)
+.claude/workflows/*.jsonl
+.claude/learnings/*.jsonl
+.claude/graphs/*.json
+
+# Keep directory structure
+!.claude/workflows/.gitkeep
+!.claude/learnings/.gitkeep
+!.claude/graphs/.gitkeep

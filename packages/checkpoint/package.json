@@ -1,0 +1,21 @@
+{
+  "name": "@graph-flow/checkpoint",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./storage": "./src/storage.ts",
+    "./cache": "./src/cache.ts",
+    "./workflow": "./src/workflow.ts",
+    "./mcp-tools": "./src/mcp-tools.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "description": "JSONL-based workflow checkpoint and recovery system"
+}

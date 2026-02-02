@@ -1,0 +1,20 @@
+{
+  "name": "graph-flow",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "bun run build --filter=./packages/*",
+    "test": "bun test",
+    "migrate": "bun run scripts/migrate-to-v2.ts",
+    "mcp": "bun run packages/mcp/src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "description": "File-based workflow checkpoint, knowledge management, and code graph analysis for Claude Code"
+}

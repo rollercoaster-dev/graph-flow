@@ -1,0 +1,21 @@
+{
+  "name": "@graph-flow/knowledge",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./storage": "./src/storage.ts",
+    "./search": "./src/search.ts",
+    "./learning": "./src/learning.ts",
+    "./mcp-tools": "./src/mcp-tools.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "description": "JSONL-based learning persistence with TF-IDF search"
+}
