@@ -26,6 +26,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@vue/compiler-sfc": "^3.5.0",
     "ts-morph": "^21.0.0"
   },
   "devDependencies": {
