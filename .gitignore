@@ -6,9 +6,11 @@ dist/
 # File-based storage (keep structure, ignore content in dev)
 .claude/workflows/*.jsonl
 .claude/learnings/*.jsonl
+.claude/embeddings/*.bin
 .claude/graphs/*.json
 
 # Keep directory structure
 !.claude/workflows/.gitkeep
 !.claude/learnings/.gitkeep
+!.claude/embeddings/.gitkeep
 !.claude/graphs/.gitkeep

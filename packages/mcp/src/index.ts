@@ -17,6 +17,7 @@ import { join } from "node:path";
 const CLAUDE_DIR = join(homedir(), ".claude");
 const WORKFLOWS_DIR = join(CLAUDE_DIR, "workflows");
 const LEARNINGS_DIR = join(CLAUDE_DIR, "learnings");
+const EMBEDDINGS_DIR = join(CLAUDE_DIR, "embeddings");
 const GRAPHS_DIR = join(CLAUDE_DIR, "graphs");
 
 /**
@@ -43,7 +44,7 @@ class GraphFlowServer {
     );
 
     this.checkpoint = new CheckpointMCPTools(WORKFLOWS_DIR);
-    this.knowledge = new KnowledgeMCPTools(LEARNINGS_DIR);
+    this.knowledge = new KnowledgeMCPTools(LEARNINGS_DIR, EMBEDDINGS_DIR);
     this.graph = new GraphMCPTools(GRAPHS_DIR);
 
     this.setupHandlers();

@@ -23,8 +23,8 @@ export interface MCPToolResult {
 export class KnowledgeMCPTools {
   private manager: LearningManager;
 
-  constructor(storageDir: string) {
-    this.manager = new LearningManager(storageDir);
+  constructor(storageDir: string, embeddingsDir: string) {
+    this.manager = new LearningManager(storageDir, embeddingsDir);
   }
 
   async init(): Promise<void> {
@@ -38,13 +38,13 @@ export class KnowledgeMCPTools {
     return [
       {
         name: "knowledge-query",
-        description: "Search learnings by text, area, or type",
+        description: "Search learnings by text, area, or type. Supports both keyword (fast) and semantic (quality) search.",
         inputSchema: {
           type: "object",
           properties: {
             text: {
               type: "string",
-              description: "Search text (TF-IDF search)",
+              description: "Search text",
             },
             area: {
               type: "string",
@@ -58,6 +58,10 @@ export class KnowledgeMCPTools {
             limit: {
               type: "number",
               description: "Maximum results (default: 10)",
+            },
+            semantic: {
+              type: "boolean",
+              description: "Use semantic search with embeddings (default: false, uses TF-IDF)",
             },
           },
         },

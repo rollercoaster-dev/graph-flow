@@ -1,5 +1,6 @@
 import { LearningStorage, type LearningRecord } from "./storage.ts";
 import { LearningSearch } from "./search.ts";
+import { SemanticSearch } from "./semantic.ts";
 import { randomUUID } from "node:crypto";
 
 export type LearningType = "entity" | "relationship" | "pattern" | "decision";
@@ -16,6 +17,7 @@ export interface QueryParams {
   area?: string;
   type?: LearningType;
   limit?: number;
+  semantic?: boolean; // Use semantic search instead of TF-IDF
 }
 
 /**
@@ -24,14 +26,17 @@ export interface QueryParams {
 export class LearningManager {
   private storage: LearningStorage;
   private search: LearningSearch;
+  private semanticSearch: SemanticSearch;
 
-  constructor(storageDir: string) {
+  constructor(storageDir: string, embeddingsDir: string) {
     this.storage = new LearningStorage(storageDir);
     this.search = new LearningSearch();
+    this.semanticSearch = new SemanticSearch(storageDir, embeddingsDir);
   }
 
   async init(): Promise<void> {
     await this.storage.init();
+    await this.semanticSearch.init();
   }
 
   /**
@@ -49,6 +54,9 @@ export class LearningManager {
 
     await this.storage.store(learning);
 
+    // Generate and store embedding (non-blocking)
+    await this.semanticSearch.generateAndStoreEmbedding(learning);
+
     // Clear search cache since learnings have changed
     this.search.clearCache();
 
@@ -59,6 +67,23 @@ export class LearningManager {
    * Query learnings
    */
   async query(params: QueryParams): Promise<LearningRecord[]> {
+    // If semantic search requested and we have a text query, use semantic search
+    if (params.semantic && params.text) {
+      const results = await this.semanticSearch.search(params.text, {
+        limit: params.limit,
+        area: params.area,
+      });
+
+      // Filter by type if specified
+      let learnings = results.map(r => r.learning);
+      if (params.type) {
+        learnings = learnings.filter(l => l.type === params.type);
+      }
+
+      return learnings;
+    }
+
+    // Otherwise use TF-IDF search
     let learnings: LearningRecord[];
 
     // Filter by area if specified

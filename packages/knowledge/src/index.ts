@@ -1,6 +1,11 @@
 export { LearningStorage, type LearningRecord } from "./storage.ts";
 export { LearningSearch } from "./search.ts";
 export {
+  SemanticSearch,
+  type SemanticSearchOptions,
+  type SemanticSearchResult,
+} from "./semantic.ts";
+export {
   LearningManager,
   type LearningType,
   type StoreLearningParams,
@@ -11,3 +16,4 @@ export {
   type MCPTool,
   type MCPToolResult,
 } from "./mcp-tools.ts";
+export { EmbeddingStorage } from "./embeddings-storage.ts";
