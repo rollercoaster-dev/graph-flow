@@ -1,4 +1,4 @@
-import { parse as sfcParse } from "@vue/compiler-sfc";
+import { parse as sfcParse, type SFCDescriptor } from "@vue/compiler-sfc";
 
 // Vue compiler-core enum values (avoids direct dependency on @vue/compiler-core)
 const NODE_ELEMENT = 1;   // NodeTypes.ELEMENT
@@ -18,11 +18,39 @@ export interface VueTemplateComponents {
   names: string[];
 }
 
+export interface VueSFCResult {
+  scripts: VueScriptBlock[];
+  templateComponents: VueTemplateComponents;
+}
+
+/**
+ * Parse a Vue SFC once and return both script blocks and template component names.
+ */
+export function parseVueSFC(sfcContent: string): VueSFCResult {
+  const { descriptor } = sfcParse(sfcContent);
+  return {
+    scripts: extractScriptBlocks(descriptor),
+    templateComponents: extractComponentNames(descriptor),
+  };
+}
+
 /**
  * Extract script blocks from a Vue SFC.
  */
 export function extractVueScripts(sfcContent: string): VueScriptBlock[] {
   const { descriptor } = sfcParse(sfcContent);
+  return extractScriptBlocks(descriptor);
+}
+
+/**
+ * Extract component names used in the template of a Vue SFC.
+ */
+export function extractTemplateComponents(sfcContent: string): VueTemplateComponents {
+  const { descriptor } = sfcParse(sfcContent);
+  return extractComponentNames(descriptor);
+}
+
+function extractScriptBlocks(descriptor: SFCDescriptor): VueScriptBlock[] {
   const blocks: VueScriptBlock[] = [];
 
   if (descriptor.script) {
@@ -109,23 +137,17 @@ function walkTemplate(nodes: any[], components: Set<string>): void {
       if (node.children) {
         walkTemplate(node.children, components);
       }
-    }
-    if (node.type === NODE_IF && node.branches) {
+    } else if (node.type === NODE_IF && node.branches) {
       for (const branch of node.branches) {
         walkTemplate(branch.children, components);
       }
-    }
-    if (node.type === NODE_FOR && node.children) {
+    } else if (node.type === NODE_FOR && node.children) {
       walkTemplate(node.children, components);
     }
   }
 }
 
-/**
- * Extract component names used in the template of a Vue SFC.
- */
-export function extractTemplateComponents(sfcContent: string): VueTemplateComponents {
-  const { descriptor } = sfcParse(sfcContent);
+function extractComponentNames(descriptor: SFCDescriptor): VueTemplateComponents {
   const components = new Set<string>();
 
   if (descriptor.template?.ast) {

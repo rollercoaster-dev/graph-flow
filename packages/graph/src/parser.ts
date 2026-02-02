@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import { Project, SyntaxKind, type SourceFile } from "ts-morph";
 import { GraphCache, type GraphEntity, type GraphRelationship } from "./cache.ts";
-import { extractVueScripts, extractTemplateComponents } from "./vue.ts";
+import { parseVueSFC as parseVueSFCContent } from "./vue.ts";
 
 export interface ParseOptions {
   includeImports?: boolean;
@@ -76,8 +76,7 @@ export class CodeParser {
     content: string,
     options: ParseOptions
   ): { entities: GraphEntity[]; relationships: GraphRelationship[] } {
-    const scripts = extractVueScripts(content);
-    const { names: templateComponents } = extractTemplateComponents(content);
+    const { scripts, templateComponents } = parseVueSFCContent(content);
 
     const entities: GraphEntity[] = [];
     const relationships: GraphRelationship[] = [];
@@ -88,8 +87,10 @@ export class CodeParser {
         overwrite: true,
       });
 
-      // startLine is the line of the <script> tag itself; the content starts on the next line
-      const lineOffset = script.startLine;
+      // startLine points to the <script> tag line. The extracted content begins with a
+      // leading newline, so ts-morph line 1 = that newline, line 2 = first real code.
+      // Subtract 1 so that (ts-morph line + offset) equals the .vue file line.
+      const lineOffset = script.startLine - 1;
       entities.push(...this.extractEntities(sourceFile, filepath, lineOffset));
       relationships.push(...this.extractRelationships(sourceFile, filepath, options, lineOffset));
 
@@ -105,12 +106,12 @@ export class CodeParser {
     }
 
     // Template component usage → "uses" relationships
-    for (const name of templateComponents) {
+    for (const name of templateComponents.names) {
       relationships.push({
         from: filepath,
         to: name,
         type: "uses",
-        location: { file: filepath, line: 0 },
+        location: { file: filepath, line: 1 },
       });
     }
 

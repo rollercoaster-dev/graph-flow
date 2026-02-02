@@ -1,10 +1,9 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { join } from "node:path";
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extractVueScripts, extractTemplateComponents } from "../src/vue.ts";
 import { CodeParser } from "../src/parser.ts";
-import { GraphCache } from "../src/cache.ts";
 
 const CACHE_DIR = "/tmp/graph-flow-test-vue-cache";
 
@@ -212,9 +211,13 @@ describe("CodeParser with .vue files", () => {
     const filepath = await writeFixture("Offset.vue", SCRIPT_TS);
     const { entities } = await parser.parse(filepath);
 
-    // The <script> tag is on line 5, so entities should have line > 5
+    // In SCRIPT_TS: <script> is line 5, greet function is on line 12
     const fn = entities.find(e => e.name === "greet")!;
-    expect(fn.location.line).toBeGreaterThan(5);
+    expect(fn.location.line).toBe(12);
+
+    // Props interface is on line 8
+    const iface = entities.find(e => e.name === "Props")!;
+    expect(iface.location.line).toBe(8);
   });
 
   test("template component usage creates 'uses' relationships", async () => {
