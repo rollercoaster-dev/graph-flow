@@ -10,14 +10,24 @@ import {
 import { CheckpointMCPTools } from "@graph-flow/checkpoint";
 import { KnowledgeMCPTools, getCurrentProviderType } from "@graph-flow/knowledge";
 import { GraphMCPTools } from "@graph-flow/graph";
+import { PlanningMCPTools } from "@graph-flow/planning";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 const pkgModule = await import("../package.json");
 const pkg = pkgModule.default ?? pkgModule;
 
-// Storage directories
-const DEFAULT_CLAUDE_DIR = join(homedir(), ".claude");
+function resolveBaseDir(): string {
+  const explicit = process.env.GRAPH_FLOW_DIR?.trim();
+  if (explicit) {
+    return explicit;
+  }
+  const projectDir = process.env.CLAUDE_PROJECT_DIR?.trim();
+  if (projectDir) {
+    return join(projectDir, ".claude");
+  }
+  return join(homedir(), ".claude");
+}
 
 /**
  * Unified MCP server for graph-flow
@@ -27,13 +37,15 @@ export class GraphFlowServer {
   private checkpoint: CheckpointMCPTools;
   private knowledge: KnowledgeMCPTools;
   private graph: GraphMCPTools;
+  private planning: PlanningMCPTools;
 
   constructor(options: { baseDir?: string } = {}) {
-    const baseDir = options.baseDir ?? DEFAULT_CLAUDE_DIR;
+    const baseDir = options.baseDir ?? resolveBaseDir();
     const workflowsDir = join(baseDir, "workflows");
     const learningsDir = join(baseDir, "learnings");
     const embeddingsDir = join(baseDir, "embeddings");
     const graphsDir = join(baseDir, "graphs");
+    const planningDir = join(baseDir, "planning");
 
     this.server = new Server(
       {
@@ -51,6 +63,7 @@ export class GraphFlowServer {
     this.checkpoint = new CheckpointMCPTools(workflowsDir);
     this.knowledge = new KnowledgeMCPTools(learningsDir, embeddingsDir);
     this.graph = new GraphMCPTools(graphsDir);
+    this.planning = new PlanningMCPTools(planningDir);
 
     this.setupHandlers();
   }
@@ -59,6 +72,7 @@ export class GraphFlowServer {
     await this.checkpoint.init();
     await this.knowledge.init();
     await this.graph.init();
+    await this.planning.init();
   }
 
   private setupHandlers(): void {
@@ -67,9 +81,10 @@ export class GraphFlowServer {
       const checkpointTools = this.checkpoint.getTools();
       const knowledgeTools = this.knowledge.getTools();
       const graphTools = this.graph.getTools();
+      const planningTools = this.planning.getTools();
 
       return {
-        tools: [...checkpointTools, ...knowledgeTools, ...graphTools],
+        tools: [...checkpointTools, ...knowledgeTools, ...graphTools, ...planningTools],
       };
     });
 
@@ -85,6 +100,8 @@ export class GraphFlowServer {
           return await this.knowledge.handleToolCall(name, args || {});
         } else if (name.startsWith("graph-")) {
           return await this.graph.handleToolCall(name, args || {});
+        } else if (name.startsWith("planning-")) {
+          return await this.planning.handleToolCall(name, args || {});
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
@@ -198,7 +215,7 @@ export class GraphFlowServer {
 
 // Start server when executed directly
 if (import.meta.main) {
-  const server = new GraphFlowServer();
+  const server = new GraphFlowServer({ baseDir: resolveBaseDir() });
   await server.init();
   await server.run();
 

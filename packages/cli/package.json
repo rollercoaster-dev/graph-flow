@@ -1,36 +1,33 @@
 {
-  "name": "@graph-flow/mcp",
+  "name": "@graph-flow/cli",
   "version": "2.0.0",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/rollercoaster-dev/graph-flow.git",
-    "directory": "packages/mcp"
+    "directory": "packages/cli"
   },
   "author": "rollercoaster.dev",
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "model-context-protocol", "graph-flow", "claude-code"],
+  "keywords": ["mcp", "checkpoint", "knowledge", "graph", "planning", "cli"],
   "files": ["src", "package.json", "README.md"],
-  "main": "./src/index.ts",
   "bin": {
-    "graph-flow": "./src/index.ts"
+    "graph-flow": "src/index.ts"
   },
   "scripts": {
-    "dev": "bun run src/index.ts",
-    "start": "bun run src/index.ts"
+    "test": "bun test"
   },
   "dependencies": {
     "@graph-flow/checkpoint": "workspace:*",
     "@graph-flow/knowledge": "workspace:*",
     "@graph-flow/graph": "workspace:*",
-    "@graph-flow/planning": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.4"
+    "@graph-flow/planning": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.0.0"
   },
-  "description": "Unified MCP server for graph-flow tools (checkpoint, knowledge, graph, planning)"
+  "description": "CLI wrapper for graph-flow checkpoint, knowledge, graph, and planning tools"
 }

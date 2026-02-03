@@ -22,6 +22,7 @@ Instead of a shared SQLite database, each subsystem uses its own file-based stor
 Checkpoint → .claude/workflows/*.jsonl    (append-only, in-memory cache)
 Knowledge  → .claude/learnings/*.jsonl    (append-only, TF-IDF search)
 Graph      → .claude/graphs/*.json        (content-hash cache)
+Planning   → .claude/planning/*.jsonl     (stack-based, in-memory cache)
 ```
 
 This eliminates lock contention entirely:
@@ -76,9 +77,28 @@ Each package is <500 LOC and does one thing:
 ├── query.ts        (graph queries)
 └── mcp-tools.ts    (MCP integration)
 
+@graph-flow/planning
+├── storage.ts      (JSONL operations)
+├── manager.ts      (stack + plan CRUD)
+├── progress.ts     (plan progress computation)
+├── stale.ts        (stale item detection)
+├── resolvers.ts    (external completion resolvers)
+└── mcp-tools.ts    (MCP integration)
+
 @graph-flow/mcp
 └── index.ts        (unified MCP server)
 ```
+
+
+## Storage Root Resolution
+
+By default, graph-flow stores data under `~/.claude`.
+
+Override the base directory with:
+
+- `GRAPH_FLOW_DIR` (absolute path)
+- `CLAUDE_PROJECT_DIR` (uses `$CLAUDE_PROJECT_DIR/.claude`)
+
 
 ## Storage Layer
 
@@ -188,6 +208,8 @@ All tools are namespaced by subsystem:
 checkpoint-*    (checkpoint-find, checkpoint-update, checkpoint-complete)
 knowledge-*     (knowledge-query, knowledge-store, knowledge-related)
 graph-*         (graph-calls, graph-blast, graph-defs)
+planning-*      (planning-goal, planning-interrupt, planning-done, planning-stack,
+                 planning-plan, planning-steps, planning-planget, planning-progress)
 ```
 
 This enables:
@@ -204,6 +226,7 @@ async handleToolCall(name: string, args: object) {
   if (name.startsWith("checkpoint-")) return this.checkpoint.handleToolCall(name, args);
   if (name.startsWith("knowledge-")) return this.knowledge.handleToolCall(name, args);
   if (name.startsWith("graph-")) return this.graph.handleToolCall(name, args);
+  if (name.startsWith("planning-")) return this.planning.handleToolCall(name, args);
 }
 ```
 
@@ -215,6 +238,57 @@ MCP resources provide browseable views:
 checkpoint://workflows          → List active workflows
 knowledge://learnings/{area}    → Browse learnings by area
 graph://entities/{file}         → Entities in a file
+```
+
+## Planning Subsystem
+
+The planning package provides a goal/interrupt stack for managing work focus:
+
+### Stack Model
+
+```text
+┌─────────────────────────┐
+│ Interrupt: "prod bug"   │ ← Active (stackOrder: 0)
+├─────────────────────────┤
+│ Goal: "feature X"       │ ← Paused (stackOrder: 1)
+├─────────────────────────┤
+│ Goal: "refactor Y"      │ ← Paused (stackOrder: 2)
+└─────────────────────────┘
+```
+
+**Push:** New item goes to top, current top becomes paused
+**Pop:** Top item marked completed, next item resumes as active
+
+### Plan and Steps
+
+Goals can have associated Plans with Steps:
+
+```text
+Goal → Plan → Steps
+              ├── Step 1 (wave 1, issue #123)
+              ├── Step 2 (wave 1, issue #124)
+              └── Step 3 (wave 2, manual criteria)
+```
+
+- **Waves** group parallelizable work
+- **External refs** link to GitHub issues or manual completion criteria
+- **Progress** is computed by resolving external completion status
+
+### Stale Detection
+
+Items are flagged as stale when:
+- Linked issue is closed but goal still on stack
+- Item paused for >7 days with no activity
+
+### Storage
+
+```text
+.claude/planning/
+├── stack.jsonl        # goals and interrupts
+├── plans.jsonl        # plan definitions
+├── steps.jsonl        # plan steps
+├── relationships.jsonl # entity relationships
+└── completions.jsonl  # manual completion markers
 ```
 
 ## Performance Characteristics

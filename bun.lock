@@ -23,9 +23,10 @@
         "graph-flow": "src/index.ts",
       },
       "dependencies": {
-        "@graph-flow/checkpoint": "2.0.0",
-        "@graph-flow/graph": "2.0.0",
-        "@graph-flow/knowledge": "2.0.0",
+        "@graph-flow/checkpoint": "workspace:*",
+        "@graph-flow/graph": "workspace:*",
+        "@graph-flow/knowledge": "workspace:*",
+        "@graph-flow/planning": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.0.0",
@@ -59,8 +60,16 @@
         "@graph-flow/checkpoint": "workspace:*",
         "@graph-flow/graph": "workspace:*",
         "@graph-flow/knowledge": "workspace:*",
+        "@graph-flow/planning": "workspace:*",
         "@modelcontextprotocol/sdk": "^1.0.4",
       },
+      "devDependencies": {
+        "@types/bun": "^1.0.0",
+      },
+    },
+    "packages/planning": {
+      "name": "@graph-flow/planning",
+      "version": "2.0.0",
       "devDependencies": {
         "@types/bun": "^1.0.0",
       },
@@ -84,6 +93,8 @@
     "@graph-flow/knowledge": ["@graph-flow/knowledge@workspace:packages/knowledge"],
 
     "@graph-flow/mcp": ["@graph-flow/mcp@workspace:packages/mcp"],
+
+    "@graph-flow/planning": ["@graph-flow/planning@workspace:packages/planning"],
 
     "@hono/node-server": ["@hono/node-server@1.19.9", "", { "peerDependencies": { "hono": "^4" } }, "sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw=="],
 
