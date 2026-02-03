@@ -16,5 +16,11 @@ export {
   type MCPTool,
   type MCPToolResult,
 } from "./mcp-tools.ts";
+export {
+  DocsIndexer,
+  type DocsIndexOptions,
+  type DocsIndexProgress,
+  type DocsIndexResult,
+} from "./docs-indexer.ts";
 export { EmbeddingStorage } from "./embeddings-storage.ts";
 export { getCurrentProviderType } from "./embeddings/index.ts";

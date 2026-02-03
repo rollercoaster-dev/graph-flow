@@ -6,6 +6,7 @@ import { CheckpointMCPTools } from "@graph-flow/checkpoint";
 import { KnowledgeMCPTools } from "@graph-flow/knowledge";
 import { GraphMCPTools } from "@graph-flow/graph";
 import { PlanningMCPTools } from "@graph-flow/planning";
+import { runInit, formatInitResult, type InitOptions } from "./init.ts";
 
 function resolveBaseDir(): string {
   const explicit = process.env.GRAPH_FLOW_DIR?.trim();
@@ -23,10 +24,22 @@ function printHelp(): void {
   const text = `graph-flow CLI
 
 Usage:
+  graph-flow init [--skip-code] [--skip-docs] [--project <path>]
   graph-flow tools
   graph-flow <tool> [--json '{...}'] [--file path] [--pretty]
 
+Commands:
+  init                Initialize graph-flow for a project
+  tools               List available MCP tools
+
+Init options:
+  --skip-code         Skip code indexing
+  --skip-docs         Skip docs indexing
+  --project <path>    Project root (default: current directory)
+
 Examples:
+  graph-flow init
+  graph-flow init --skip-code
   graph-flow checkpoint-find --json '{"issue": 123}'
   graph-flow knowledge-store --file ./learning.json
   cat ./args.json | graph-flow graph-calls
@@ -67,6 +80,9 @@ async function main(): Promise<void> {
       file: { type: "string" },
       pretty: { type: "boolean" },
       help: { type: "boolean" },
+      "skip-code": { type: "boolean" },
+      "skip-docs": { type: "boolean" },
+      project: { type: "string" },
     },
     allowPositionals: true,
   });
@@ -80,6 +96,18 @@ async function main(): Promise<void> {
   if (!tool) {
     printHelp();
     process.exit(1);
+  }
+
+  // Handle init command
+  if (tool === "init") {
+    const initOptions: InitOptions = {
+      projectRoot: values.project,
+      indexCode: !values["skip-code"],
+      indexDocs: !values["skip-docs"],
+    };
+    const result = await runInit(initOptions);
+    console.log(formatInitResult(result));
+    return;
   }
 
   const baseDir = resolveBaseDir();

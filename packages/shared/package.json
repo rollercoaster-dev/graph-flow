@@ -1,0 +1,30 @@
+{
+  "name": "@graph-flow/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rollercoaster-dev/graph-flow.git",
+    "directory": "packages/shared"
+  },
+  "author": "rollercoaster.dev",
+  "engines": {
+    "bun": ">=1.0"
+  },
+  "keywords": ["mcp", "utilities", "shared"],
+  "files": ["src", "package.json"],
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./glob": "./src/glob.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "^1.0.0"
+  },
+  "description": "Shared utilities for graph-flow packages"
+}
