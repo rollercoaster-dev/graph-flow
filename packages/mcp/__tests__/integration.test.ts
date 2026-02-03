@@ -41,8 +41,9 @@ describe("MCP Integration", () => {
     await graph.init();
 
     const tools = graph.getTools();
-    expect(tools.length).toBe(3);
+    expect(tools.length).toBe(4);
     expect(tools.map(t => t.name)).toContain("graph-calls");
+    expect(tools.map(t => t.name)).toContain("graph-index");
 
     // Clean up
     await rm(TEST_GRAPHS_DIR, { recursive: true, force: true });
@@ -67,7 +68,7 @@ describe("MCP Integration", () => {
     const uniqueNames = new Set(names);
 
     expect(names.length).toBe(uniqueNames.size);
-    expect(names.length).toBe(10); // 4 checkpoint + 3 knowledge + 3 graph
+    expect(names.length).toBe(11); // 4 checkpoint + 3 knowledge + 4 graph
 
     // Clean up
     await rm(TEST_WORKFLOWS_DIR, { recursive: true, force: true });

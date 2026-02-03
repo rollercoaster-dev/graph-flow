@@ -16,6 +16,12 @@ export {
   type MCPToolResult,
 } from "./mcp-tools.ts";
 export {
+  CodeIndexer,
+  type IndexOptions,
+  type IndexProgress,
+  type IndexResult,
+} from "./indexer.ts";
+export {
   parseVueSFC,
   extractVueScripts,
   extractTemplateComponents,

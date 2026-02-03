@@ -1,4 +1,5 @@
 import { GraphQuery } from "./query.ts";
+import { CodeIndexer } from "./indexer.ts";
 
 export interface MCPTool {
   name: string;
@@ -22,13 +23,16 @@ export interface MCPToolResult {
  */
 export class GraphMCPTools {
   private query: GraphQuery;
+  private indexer: CodeIndexer;
 
   constructor(cacheDir: string) {
     this.query = new GraphQuery(cacheDir);
+    this.indexer = new CodeIndexer(cacheDir);
   }
 
   async init(): Promise<void> {
     await this.query.init();
+    await this.indexer.init();
   }
 
   /**
@@ -92,6 +96,25 @@ export class GraphMCPTools {
           required: ["file"],
         },
       },
+      {
+        name: "graph-index",
+        description: "Batch index code files to populate graph cache",
+        inputSchema: {
+          type: "object",
+          properties: {
+            patterns: {
+              type: "array",
+              items: { type: "string" },
+              description: "Glob patterns for files to index (e.g., ['src/**/*.ts'])",
+            },
+            cwd: {
+              type: "string",
+              description: "Working directory for glob expansion (optional)",
+            },
+          },
+          required: ["patterns"],
+        },
+      },
     ];
   }
 
@@ -106,6 +129,8 @@ export class GraphMCPTools {
         return this.handleBlastRadius(args);
       case "graph-defs":
         return this.handleDefinitions(args);
+      case "graph-index":
+        return this.handleIndex(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -192,6 +217,30 @@ export class GraphMCPTools {
         type: d.type,
         line: d.location.line,
       })),
+    };
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(summary, null, 2),
+      }],
+    };
+  }
+
+  private async handleIndex(args: Record<string, unknown>): Promise<MCPToolResult> {
+    const { patterns, cwd } = args as { patterns: string[]; cwd?: string };
+
+    const result = await this.indexer.index({ patterns, cwd });
+
+    const summary = {
+      totalFiles: result.totalFiles,
+      cachedFiles: result.cachedFiles,
+      parsedFiles: result.parsedFiles,
+      failedFiles: result.failedFiles,
+      totalEntities: result.totalEntities,
+      totalRelationships: result.totalRelationships,
+      totalTime: Math.round(result.totalTime),
+      errors: result.errors.length > 0 ? result.errors : undefined,
     };
 
     return {
