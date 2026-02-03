@@ -13,6 +13,7 @@ export interface IndexProgress {
   index: number;
   total: number;
   cached: boolean;
+  failed: boolean;
 }
 
 export interface IndexResult {
@@ -92,6 +93,7 @@ export class CodeIndexer {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       let cached = false;
+      let failed = false;
 
       try {
         // Read file content to check cache
@@ -113,6 +115,7 @@ export class CodeIndexer {
           result.totalRelationships += parseResult.relationships.length;
         }
       } catch (error) {
+        failed = true;
         result.failedFiles++;
         result.errors.push({
           file,
@@ -127,6 +130,7 @@ export class CodeIndexer {
           index: i,
           total: files.length,
           cached,
+          failed,
         });
       }
     }

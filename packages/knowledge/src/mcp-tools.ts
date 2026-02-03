@@ -219,6 +219,16 @@ export class KnowledgeMCPTools {
       defaultType?: LearningType;
     };
 
+    // Validate patterns is present and non-empty
+    if (!Array.isArray(options.patterns) || options.patterns.length === 0) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ error: "patterns must be a non-empty array of glob patterns" }, null, 2),
+        }],
+      };
+    }
+
     const result = await this.indexer.index(options);
 
     return {

@@ -1,4 +1,4 @@
-import { join, isAbsolute, basename, dirname } from "node:path";
+import { join, isAbsolute, basename, dirname, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { LearningManager, type LearningType } from "./learning.ts";
 
@@ -91,7 +91,7 @@ function extractSections(content: string, minLength: number = 50): Section[] {
       contentLines.push(line);
     } else {
       // Content before first heading - treat as intro section
-      if (!currentSection && line.trim()) {
+      if (line.trim()) {
         currentSection = {
           title: "Introduction",
           content: "",
@@ -127,7 +127,8 @@ function computeHash(content: string): string {
 function areaFromPath(filepath: string): string {
   // Get first meaningful directory component
   const dir = dirname(filepath);
-  const parts = dir.split("/").filter(Boolean);
+  // Split by platform separator, handling both / and \ for cross-platform compatibility
+  const parts = dir.split(/[/\\]/).filter(Boolean);
 
   // Skip common directories
   const skipDirs = ["docs", "documentation", "src", "lib", "packages"];
@@ -185,15 +186,20 @@ function detectType(content: string, title: string): LearningType {
     return "decision";
   }
 
-  // Pattern patterns
-  if (
+  // Pattern patterns - code blocks alone are not sufficient
+  const hasPatternKeyword =
     lowerTitle.includes("pattern") ||
     lowerTitle.includes("best practice") ||
     lowerTitle.includes("guideline") ||
     lowerContent.includes("pattern:") ||
-    lowerContent.includes("example:") ||
-    lowerContent.includes("```")
-  ) {
+    lowerContent.includes("example:");
+  const hasCodeBlockWithPatternContext =
+    lowerContent.includes("```") &&
+    (lowerTitle.includes("example") ||
+      lowerTitle.includes("usage") ||
+      lowerContent.includes("how to"));
+
+  if (hasPatternKeyword || hasCodeBlockWithPatternContext) {
     return "pattern";
   }
 
@@ -298,7 +304,7 @@ export class DocsIndexer {
             }
             this.seenHashes.add(hash);
 
-            const type = detectType(section.content, section.title) || defaultType;
+            const type = detectType(section.content, section.title);
 
             await this.manager.store({
               area,
@@ -326,7 +332,7 @@ export class DocsIndexer {
           } else {
             this.seenHashes.add(hash);
 
-            const type = detectType(content, basename(file)) || defaultType;
+            const type = detectType(content, basename(file));
 
             await this.manager.store({
               area,

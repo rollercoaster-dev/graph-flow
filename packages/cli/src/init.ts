@@ -55,12 +55,12 @@ async function isWritable(path: string): Promise<boolean> {
 }
 
 /**
- * Count files in a directory (non-recursive).
+ * Count files in a directory (non-recursive, excludes subdirectories).
  */
 async function countFiles(path: string): Promise<number> {
   try {
-    const entries = await readdir(path);
-    return entries.length;
+    const entries = await readdir(path, { withFileTypes: true });
+    return entries.filter((e) => e.isFile()).length;
   } catch {
     return 0;
   }
@@ -102,6 +102,7 @@ async function detectCodePatterns(projectRoot: string): Promise<string[]> {
     patterns.push("**/*.tsx");
     patterns.push("**/*.js");
     patterns.push("**/*.jsx");
+    patterns.push("**/*.vue");
   }
 
   return patterns;

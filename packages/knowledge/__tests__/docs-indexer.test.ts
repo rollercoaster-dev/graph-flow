@@ -4,22 +4,23 @@ import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { DocsIndexer, type DocsIndexProgress } from "../src/docs-indexer.ts";
 
-const STORAGE_DIR = "/tmp/graph-flow-test-docs-storage";
-const EMBEDDINGS_DIR = "/tmp/graph-flow-test-docs-embeddings";
-
 describe("DocsIndexer", () => {
   let indexer: DocsIndexer;
   let fixtureDir: string;
+  let storageDir: string;
+  let embeddingsDir: string;
 
   beforeEach(async () => {
-    indexer = new DocsIndexer(STORAGE_DIR, EMBEDDINGS_DIR);
+    storageDir = await mkdtemp(join(tmpdir(), "docs-indexer-storage-"));
+    embeddingsDir = await mkdtemp(join(tmpdir(), "docs-indexer-embeddings-"));
+    indexer = new DocsIndexer(storageDir, embeddingsDir);
     await indexer.init();
     fixtureDir = await mkdtemp(join(tmpdir(), "docs-indexer-test-"));
   });
 
   afterEach(async () => {
-    await rm(STORAGE_DIR, { recursive: true, force: true });
-    await rm(EMBEDDINGS_DIR, { recursive: true, force: true });
+    await rm(storageDir, { recursive: true, force: true });
+    await rm(embeddingsDir, { recursive: true, force: true });
     await rm(fixtureDir, { recursive: true, force: true });
   });
 
