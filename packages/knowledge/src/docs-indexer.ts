@@ -1,6 +1,7 @@
-import { join, isAbsolute, basename, dirname, sep } from "node:path";
+import { basename, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { LearningManager, type LearningType } from "./learning.ts";
+import { expandGlobs } from "@graph-flow/shared";
 
 export interface DocsIndexOptions {
   patterns: string[];
@@ -33,29 +34,6 @@ interface Section {
   title: string;
   content: string;
   level: number;
-}
-
-/**
- * Expand glob patterns in file list using Bun.Glob.
- * Non-glob paths are returned as-is.
- */
-async function expandGlobs(patterns: string[], cwd?: string): Promise<string[]> {
-  const files: string[] = [];
-  for (const pattern of patterns) {
-    if (pattern.includes("*") || pattern.includes("?") || pattern.includes("{")) {
-      const glob = new Bun.Glob(pattern);
-      for await (const path of glob.scan({ cwd, dot: false })) {
-        // Make path absolute if cwd is provided
-        const fullPath = cwd && !isAbsolute(path) ? join(cwd, path) : path;
-        files.push(fullPath);
-      }
-    } else {
-      // Non-glob path: make absolute if cwd provided and path is relative
-      const fullPath = cwd && !isAbsolute(pattern) ? join(cwd, pattern) : pattern;
-      files.push(fullPath);
-    }
-  }
-  return [...new Set(files)];
 }
 
 /**

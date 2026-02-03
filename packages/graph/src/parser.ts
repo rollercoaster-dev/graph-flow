@@ -31,17 +31,19 @@ export class CodeParser {
   }
 
   /**
-   * Parse a file and extract entities and relationships
+   * Parse a file and extract entities and relationships.
+   * If content is provided, it will be used instead of reading the file.
    */
   async parse(
     filepath: string,
-    options: ParseOptions = {}
+    options: ParseOptions = {},
+    content?: string
   ): Promise<{ entities: GraphEntity[]; relationships: GraphRelationship[] }> {
-    // Read file content
-    const content = await Bun.file(filepath).text();
+    // Read file content if not provided
+    const fileContent = content ?? await Bun.file(filepath).text();
 
     // Check cache
-    const cached = await this.cache.read(filepath, content);
+    const cached = await this.cache.read(filepath, fileContent);
     if (cached) {
       return {
         entities: cached.entities,
@@ -53,9 +55,9 @@ export class CodeParser {
     let relationships: GraphRelationship[];
 
     if (filepath.endsWith(".vue")) {
-      ({ entities, relationships } = this.parseVueSFC(filepath, content, options));
+      ({ entities, relationships } = this.parseVueSFC(filepath, fileContent, options));
     } else {
-      const sourceFile = this.project.createSourceFile("temp.ts", content, {
+      const sourceFile = this.project.createSourceFile("temp.ts", fileContent, {
         overwrite: true,
       });
       entities = this.extractEntities(sourceFile, filepath);
@@ -63,7 +65,7 @@ export class CodeParser {
     }
 
     // Cache results
-    await this.cache.write(filepath, content, { entities, relationships });
+    await this.cache.write(filepath, fileContent, { entities, relationships });
 
     return { entities, relationships };
   }

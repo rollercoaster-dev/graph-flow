@@ -1,6 +1,6 @@
-import { join, isAbsolute } from "node:path";
 import { CodeParser } from "./parser.ts";
 import { GraphCache } from "./cache.ts";
+import { expandGlobs } from "@graph-flow/shared";
 
 export interface IndexOptions {
   patterns: string[];
@@ -25,29 +25,6 @@ export interface IndexResult {
   totalRelationships: number;
   totalTime: number;
   errors: Array<{ file: string; error: string }>;
-}
-
-/**
- * Expand glob patterns in file list using Bun.Glob.
- * Non-glob paths are returned as-is.
- */
-async function expandGlobs(patterns: string[], cwd?: string): Promise<string[]> {
-  const files: string[] = [];
-  for (const pattern of patterns) {
-    if (pattern.includes("*") || pattern.includes("?") || pattern.includes("{")) {
-      const glob = new Bun.Glob(pattern);
-      for await (const path of glob.scan({ cwd, dot: false })) {
-        // Make path absolute if cwd is provided
-        const fullPath = cwd && !isAbsolute(path) ? join(cwd, path) : path;
-        files.push(fullPath);
-      }
-    } else {
-      // Non-glob path: make absolute if cwd provided and path is relative
-      const fullPath = cwd && !isAbsolute(pattern) ? join(cwd, pattern) : pattern;
-      files.push(fullPath);
-    }
-  }
-  return [...new Set(files)];
 }
 
 /**
@@ -108,8 +85,8 @@ export class CodeIndexer {
           result.totalEntities += cachedData.entities.length;
           result.totalRelationships += cachedData.relationships.length;
         } else {
-          // Parse file (this will also cache the result)
-          const parseResult = await this.parser.parse(file);
+          // Parse file, passing content to avoid re-reading
+          const parseResult = await this.parser.parse(file, {}, content);
           result.parsedFiles++;
           result.totalEntities += parseResult.entities.length;
           result.totalRelationships += parseResult.relationships.length;

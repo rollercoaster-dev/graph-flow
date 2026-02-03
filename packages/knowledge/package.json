@@ -25,7 +25,9 @@
   "scripts": {
     "test": "bun test"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@graph-flow/shared": "workspace:*"
+  },
   "devDependencies": {
     "@types/bun": "^1.0.0"
   },
