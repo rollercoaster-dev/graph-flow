@@ -1,4 +1,5 @@
-import { LearningManager, type StoreLearningParams, type QueryParams } from "./learning.ts";
+import { LearningManager, type StoreLearningParams, type QueryParams, type LearningType } from "./learning.ts";
+import { DocsIndexer, type DocsIndexOptions, type DocsIndexResult } from "./docs-indexer.ts";
 
 export interface MCPTool {
   name: string;
@@ -22,13 +23,16 @@ export interface MCPToolResult {
  */
 export class KnowledgeMCPTools {
   private manager: LearningManager;
+  private indexer: DocsIndexer;
 
   constructor(storageDir: string, embeddingsDir: string) {
     this.manager = new LearningManager(storageDir, embeddingsDir);
+    this.indexer = new DocsIndexer(storageDir, embeddingsDir);
   }
 
   async init(): Promise<void> {
     await this.manager.init();
+    await this.indexer.init();
   }
 
   /**
@@ -111,6 +115,43 @@ export class KnowledgeMCPTools {
           required: ["id"],
         },
       },
+      {
+        name: "knowledge-index",
+        description: "Index markdown documentation files as learnings with embeddings. Extracts sections from markdown and stores them with automatic area detection.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            patterns: {
+              type: "array",
+              items: { type: "string" },
+              description: "Glob patterns for markdown files (e.g., ['docs/**/*.md', 'README.md'])",
+            },
+            cwd: {
+              type: "string",
+              description: "Working directory for glob patterns (defaults to current directory)",
+            },
+            extractSections: {
+              type: "boolean",
+              description: "Extract sections by headings (default: true). If false, indexes entire file as one learning.",
+            },
+            minSectionLength: {
+              type: "number",
+              description: "Minimum section content length to index (default: 50)",
+            },
+            areaStrategy: {
+              type: "string",
+              enum: ["path", "filename", "content"],
+              description: "Strategy for determining learning area: 'path' (from directory), 'filename', or 'content' (from first heading)",
+            },
+            defaultType: {
+              type: "string",
+              enum: ["entity", "relationship", "pattern", "decision"],
+              description: "Default learning type when auto-detection doesn't match (default: 'entity')",
+            },
+          },
+          required: ["patterns"],
+        },
+      },
     ];
   }
 
@@ -125,6 +166,8 @@ export class KnowledgeMCPTools {
         return this.handleStore(args);
       case "knowledge-related":
         return this.handleRelated(args);
+      case "knowledge-index":
+        return this.handleIndex(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -162,6 +205,26 @@ export class KnowledgeMCPTools {
       content: [{
         type: "text",
         text: JSON.stringify(related, null, 2),
+      }],
+    };
+  }
+
+  private async handleIndex(args: Record<string, unknown>): Promise<MCPToolResult> {
+    const options = args as {
+      patterns: string[];
+      cwd?: string;
+      extractSections?: boolean;
+      minSectionLength?: number;
+      areaStrategy?: "path" | "filename" | "content";
+      defaultType?: LearningType;
+    };
+
+    const result = await this.indexer.index(options);
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(result, null, 2),
       }],
     };
   }
