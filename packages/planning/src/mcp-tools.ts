@@ -44,6 +44,7 @@ export interface MCPToolResult {
 export class PlanningMCPTools {
   private manager: PlanningManager;
   private resolverFactory!: ResolverFactory;
+  private initialized = false;
 
   constructor(storageDir: string) {
     this.manager = new PlanningManager(storageDir);
@@ -52,6 +53,13 @@ export class PlanningMCPTools {
   async init(): Promise<void> {
     await this.manager.init();
     this.resolverFactory = new ResolverFactory(this.manager.getStorage());
+    this.initialized = true;
+  }
+
+  private ensureInitialized(): void {
+    if (!this.initialized) {
+      throw new Error("PlanningMCPTools not initialized. Call init() first.");
+    }
   }
 
   /**
@@ -255,6 +263,7 @@ export class PlanningMCPTools {
     name: string,
     args: Record<string, unknown>
   ): Promise<MCPToolResult> {
+    this.ensureInitialized();
     switch (name) {
       case "planning-goal":
         return this.handleGoal(args);

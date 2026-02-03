@@ -6,7 +6,8 @@
  */
 
 import { randomUUID } from "crypto";
-import { PlanningStorage, type StorageOptions } from "./storage";
+import { PlanningStorage } from "./storage";
+import { clearStatusCache } from "./resolvers";
 import type {
   Goal,
   Interrupt,
@@ -129,6 +130,7 @@ export class PlanningManager {
     };
 
     this.storage.setEntity(interrupt);
+    await this.storage.persistEntities();
 
     // Create INTERRUPTED_BY relationship if there was a top item
     if (currentTop) {
@@ -142,8 +144,6 @@ export class PlanningManager {
       this.storage.setRelationship(rel);
       await this.storage.persistRelationships();
     }
-
-    await this.storage.persistEntities();
 
     return {
       interrupt,
@@ -404,6 +404,8 @@ export class PlanningManager {
   async setManuallyCompleted(stepId: string): Promise<void> {
     this.storage.setManuallyCompleted(stepId);
     await this.storage.persistCompletions();
+    // Invalidate resolver cache so progress reflects the change immediately
+    clearStatusCache();
   }
 
   /**

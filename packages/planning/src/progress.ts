@@ -54,9 +54,11 @@ export async function computePlanProgress(
     }
   }
 
-  // Compute current wave (first wave with non-done steps)
-  const currentWave =
-    steps.find((s) => statusMap.get(s.id) !== "done")?.wave ?? null;
+  // Compute current wave (lowest wave number with non-done steps)
+  const nonDoneWaves = steps
+    .filter((s) => statusMap.get(s.id) !== "done")
+    .map((s) => s.wave);
+  const currentWave = nonDoneWaves.length > 0 ? Math.min(...nonDoneWaves) : null;
 
   // Build blocked set and next steps in one pass
   const blockedStepIds = new Set<string>();

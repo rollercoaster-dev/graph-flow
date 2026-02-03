@@ -102,18 +102,31 @@ export class PlanningStorage {
 
   /**
    * Read all records from a JSONL file.
+   * Handles missing files and corrupted lines gracefully.
    */
   private async readJSONL<T extends JSONLRecord>(filename: string): Promise<T[]> {
     const filepath = join(this.baseDir, filename);
 
-    if (!existsSync(filepath)) {
+    let content: string;
+    try {
+      content = await Bun.file(filepath).text();
+    } catch {
+      // File doesn't exist or can't be read - start fresh
       return [];
     }
 
-    const content = await Bun.file(filepath).text();
     const lines = content.trim().split("\n").filter(Boolean);
+    const results: T[] = [];
 
-    return lines.map((line) => JSON.parse(line) as T);
+    for (const line of lines) {
+      try {
+        results.push(JSON.parse(line) as T);
+      } catch {
+        // Skip corrupted lines - graceful degradation
+      }
+    }
+
+    return results;
   }
 
   /**
