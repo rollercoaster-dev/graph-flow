@@ -47,6 +47,32 @@ bun run migrate
 bun run mcp
 ```
 
+
+## CLI
+
+Install the CLI (workspace or published package):
+
+```bash
+graph-flow tools
+```
+
+Examples:
+
+```bash
+graph-flow checkpoint-find --json '{"issue": 123}'
+graph-flow knowledge-store --file ./learning.json
+cat ./args.json | graph-flow graph-calls
+```
+
+## Storage Location
+
+By default, data is stored in `~/.claude`.
+
+Override with:
+
+- `GRAPH_FLOW_DIR` (absolute path)
+- `CLAUDE_PROJECT_DIR` (uses `$CLAUDE_PROJECT_DIR/.claude`)
+
 ## MCP Integration
 
 Add to your `~/.claude/config.json`:
