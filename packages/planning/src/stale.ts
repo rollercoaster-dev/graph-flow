@@ -23,6 +23,7 @@ const issueStateCache = new Map<
 >();
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const STALE_INACTIVITY_DAYS = 7; // Days of inactivity before flagging as stale
 
 /**
  * Check if a GitHub issue is closed (with caching).
@@ -134,8 +135,10 @@ export async function detectStaleItems(
               continue;
             }
           }
-        } catch {
-          // If resolver fails, skip this goal
+        } catch (error) {
+          // Resolver failed - skip this goal but log for diagnostics
+          // Using console.debug to avoid noise in normal operation
+          console.debug?.(`[stale] Failed to resolve step ${goal.planStepId}:`, error);
         }
       }
 
@@ -153,11 +156,11 @@ export async function detectStaleItems(
       }
     }
 
-    // Check for items with no recent activity (> 7 days since last update)
+    // Check for items with no recent activity
     const ageMs = Date.now() - new Date(item.updatedAt).getTime();
     const ageDays = ageMs / (24 * 60 * 60 * 1000);
 
-    if (ageDays > 7 && item.status === "paused") {
+    if (ageDays > STALE_INACTIVITY_DAYS && item.status === "paused") {
       staleItems.push({
         item,
         staleSince: item.updatedAt,

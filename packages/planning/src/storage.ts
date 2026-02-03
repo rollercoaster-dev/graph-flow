@@ -219,6 +219,10 @@ export class PlanningStorage {
       .sort((a, b) => (a.stackOrder ?? 0) - (b.stackOrder ?? 0));
   }
 
+  /**
+   * Get the currently active item on the stack.
+   * Returns null if there are no active items (even if paused items exist).
+   */
   getStackTop(): PlanningEntity | null {
     const stack = this.getStack();
     return stack.find((e) => e.status === "active") ?? null;

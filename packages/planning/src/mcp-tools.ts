@@ -130,13 +130,13 @@ export class PlanningMCPTools {
       {
         name: "planning-stack",
         description:
-          "Get the current planning stack state with stale item detection.",
+          "Get the current planning stack state. Set includeStale=true to check for stale items (slower, requires GitHub API calls).",
         inputSchema: {
           type: "object",
           properties: {
             includeStale: {
               type: "boolean",
-              description: "Include stale item detection (default: true)",
+              description: "Include stale item detection (default: false for faster response)",
             },
           },
         },
@@ -221,7 +221,7 @@ export class PlanningMCPTools {
       },
       {
         name: "planning-planget",
-        description: "Get a Plan and its steps by Goal ID.",
+        description: "Get a Plan and its steps. Requires either goalId or planId.",
         inputSchema: {
           type: "object",
           properties: {
@@ -238,7 +238,7 @@ export class PlanningMCPTools {
       },
       {
         name: "planning-progress",
-        description: "Get progress metrics for a Plan.",
+        description: "Get progress metrics for a Plan. Requires either goalId or planId.",
         inputSchema: {
           type: "object",
           properties: {
@@ -410,7 +410,7 @@ export class PlanningMCPTools {
   private async handleStack(
     args: Record<string, unknown>
   ): Promise<MCPToolResult> {
-    const { includeStale = true } = args as { includeStale?: boolean };
+    const { includeStale = false } = args as { includeStale?: boolean };
 
     const stack = this.manager.peekStack();
     let staleItems: StaleItem[] = [];

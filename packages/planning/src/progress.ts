@@ -17,13 +17,13 @@ import type { ResolverFactory } from "./resolvers";
 /**
  * Compute plan progress by resolving step completion status.
  *
- * @param plan - The plan to compute progress for
+ * @param _plan - The plan (reserved for future plan-level metadata)
  * @param steps - The plan's steps
  * @param resolverFactory - Factory to get appropriate resolvers
  * @returns Promise resolving to progress metrics
  */
 export async function computePlanProgress(
-  plan: Plan,
+  _plan: Plan,
   steps: PlanStep[],
   resolverFactory: ResolverFactory
 ): Promise<PlanProgress> {

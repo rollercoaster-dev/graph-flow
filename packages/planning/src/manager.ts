@@ -36,6 +36,24 @@ export class PlanningManager {
   // ============================================================================
 
   /**
+   * Shift all stack items down by one position and pause the active item.
+   * Used when pushing a new goal or interrupt onto the stack.
+   */
+  private shiftStackDown(now: string): void {
+    const stack = this.storage.getStack();
+    for (const item of stack) {
+      const newStatus = item.status === "active" ? "paused" : item.status;
+      const newStackOrder = item.stackOrder !== null ? item.stackOrder + 1 : null;
+      this.storage.setEntity({
+        ...item,
+        status: newStatus,
+        stackOrder: newStackOrder,
+        updatedAt: now,
+      });
+    }
+  }
+
+  /**
    * Push a new goal onto the planning stack.
    * The current top item (if any) becomes paused.
    */
@@ -49,18 +67,7 @@ export class PlanningManager {
     const now = new Date().toISOString();
     const id = `goal-${randomUUID()}`;
 
-    // Shift existing active/paused items down and pause the active one
-    const stack = this.storage.getStack();
-    for (const item of stack) {
-      const newStatus = item.status === "active" ? "paused" : item.status;
-      const newStackOrder = item.stackOrder !== null ? item.stackOrder + 1 : null;
-      this.storage.setEntity({
-        ...item,
-        status: newStatus,
-        stackOrder: newStackOrder,
-        updatedAt: now,
-      });
-    }
+    this.shiftStackDown(now);
 
     // Create new goal at top of stack
     const goal: Goal = {
@@ -99,21 +106,10 @@ export class PlanningManager {
     const now = new Date().toISOString();
     const id = `interrupt-${randomUUID()}`;
 
-    // Get current top item
+    // Get current top item before shifting
     const currentTop = this.storage.getStackTop();
 
-    // Shift existing active/paused items down and pause the active one
-    const stack = this.storage.getStack();
-    for (const item of stack) {
-      const newStatus = item.status === "active" ? "paused" : item.status;
-      const newStackOrder = item.stackOrder !== null ? item.stackOrder + 1 : null;
-      this.storage.setEntity({
-        ...item,
-        status: newStatus,
-        stackOrder: newStackOrder,
-        updatedAt: now,
-      });
-    }
+    this.shiftStackDown(now);
 
     // Create new interrupt at top of stack
     const interrupt: Interrupt = {
@@ -177,6 +173,8 @@ export class PlanningManager {
     });
 
     // Promote the next item to active and shift stack orders
+    // Note: getStack() filters by status, but we check top.id defensively
+    // in case the in-memory state hasn't fully propagated
     const stack = this.storage.getStack();
     for (const item of stack) {
       if (item.id === top.id) continue;
@@ -353,7 +351,9 @@ export class PlanningManager {
   }
 
   /**
-   * Find a PlanStep by issue number from active/paused goals.
+   * Find a PlanStep by issue number from active/paused goals only.
+   * Completed goals are not searched - this is intentional to only
+   * find steps that are part of currently actionable work.
    */
   findStepByIssueNumber(issueNumber: number): {
     plan: Plan;

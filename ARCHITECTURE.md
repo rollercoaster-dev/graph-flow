@@ -246,7 +246,7 @@ The planning package provides a goal/interrupt stack for managing work focus:
 
 ### Stack Model
 
-```
+```text
 ┌─────────────────────────┐
 │ Interrupt: "prod bug"   │ ← Active (stackOrder: 0)
 ├─────────────────────────┤
@@ -263,7 +263,7 @@ The planning package provides a goal/interrupt stack for managing work focus:
 
 Goals can have associated Plans with Steps:
 
-```
+```text
 Goal → Plan → Steps
               ├── Step 1 (wave 1, issue #123)
               ├── Step 2 (wave 1, issue #124)
@@ -282,13 +282,13 @@ Items are flagged as stale when:
 
 ### Storage
 
-```
+```text
 .claude/planning/
-├── stack.jsonl        (goals and interrupts)
-├── plans.jsonl        (plan definitions)
-├── steps.jsonl        (plan steps)
-├── relationships.jsonl (entity relationships)
-└── completions.jsonl  (manual completion markers)
+├── stack.jsonl        # goals and interrupts
+├── plans.jsonl        # plan definitions
+├── steps.jsonl        # plan steps
+├── relationships.jsonl # entity relationships
+└── completions.jsonl  # manual completion markers
 ```
 
 ## Performance Characteristics
