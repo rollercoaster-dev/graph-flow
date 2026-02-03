@@ -23,9 +23,10 @@
         "graph-flow": "src/index.ts",
       },
       "dependencies": {
-        "@graph-flow/checkpoint": "2.0.0",
-        "@graph-flow/graph": "2.0.0",
-        "@graph-flow/knowledge": "2.0.0",
+        "@graph-flow/checkpoint": "workspace:*",
+        "@graph-flow/graph": "workspace:*",
+        "@graph-flow/knowledge": "workspace:*",
+        "@graph-flow/planning": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.0.0",

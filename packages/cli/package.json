@@ -1,0 +1,33 @@
+{
+  "name": "@graph-flow/cli",
+  "version": "2.0.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rollercoaster-dev/graph-flow.git",
+    "directory": "packages/cli"
+  },
+  "author": "rollercoaster.dev",
+  "engines": {
+    "bun": ">=1.0"
+  },
+  "keywords": ["mcp", "checkpoint", "knowledge", "graph", "cli"],
+  "files": ["src", "package.json", "README.md"],
+  "bin": {
+    "graph-flow": "src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@graph-flow/checkpoint": "workspace:*",
+    "@graph-flow/knowledge": "workspace:*",
+    "@graph-flow/graph": "workspace:*",
+    "@graph-flow/planning": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.0.0"
+  },
+  "description": "CLI wrapper for graph-flow checkpoint, knowledge, and graph tools"
+}
