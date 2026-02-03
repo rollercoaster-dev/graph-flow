@@ -12,7 +12,7 @@
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "checkpoint", "knowledge", "graph", "cli"],
+  "keywords": ["mcp", "checkpoint", "knowledge", "graph", "planning", "cli"],
   "files": ["src", "package.json", "README.md"],
   "bin": {
     "graph-flow": "src/index.ts"
@@ -29,5 +29,5 @@
   "devDependencies": {
     "@types/bun": "^1.0.0"
   },
-  "description": "CLI wrapper for graph-flow checkpoint, knowledge, and graph tools"
+  "description": "CLI wrapper for graph-flow checkpoint, knowledge, graph, and planning tools"
 }

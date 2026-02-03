@@ -50,7 +50,7 @@ bun run mcp
 
 ## CLI
 
-Install the CLI (workspace or published package):
+Use the CLI:
 
 ```bash
 graph-flow tools

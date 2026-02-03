@@ -29,9 +29,6 @@ function resolveBaseDir(): string {
   return join(homedir(), ".claude");
 }
 
-// Storage directories
-const DEFAULT_CLAUDE_DIR = join(homedir(), ".claude");
-
 /**
  * Unified MCP server for graph-flow
  */
@@ -43,7 +40,7 @@ export class GraphFlowServer {
   private planning: PlanningMCPTools;
 
   constructor(options: { baseDir?: string } = {}) {
-    const baseDir = options.baseDir ?? DEFAULT_CLAUDE_DIR;
+    const baseDir = options.baseDir ?? resolveBaseDir();
     const workflowsDir = join(baseDir, "workflows");
     const learningsDir = join(baseDir, "learnings");
     const embeddingsDir = join(baseDir, "embeddings");
