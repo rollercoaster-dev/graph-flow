@@ -111,7 +111,7 @@ graph-calls {
 
 When `CLAUDE_PROJECT_DIR` is set, data is stored per-project:
 
-```
+```text
 <project-root>/.claude/
 ├── workflows/     # Your workflow checkpoints (auto-deleted on complete)
 ├── learnings/     # Your accumulated knowledge (persistent)
@@ -184,15 +184,15 @@ graph-blast {
 
 ### Tools not appearing?
 
-1. Check `~/.claude/config.json` has correct path
+1. Check `.mcp.json` in your project root has correct path
 2. Restart Claude Code completely
-3. Check logs: `~/.claude/logs/`
+3. Check logs: `<project-root>/.claude/logs/` (or `~/.claude/logs/` if `CLAUDE_PROJECT_DIR` not set)
 
 ### Slow search?
 
 ```bash
-# Check learning count
-ls -l ~/.claude/learnings/*.jsonl | wc -l
+# Check learning count (use your project root if CLAUDE_PROJECT_DIR is set)
+ls -l <project-root>/.claude/learnings/*.jsonl | wc -l
 
 # TF-IDF is fast for <50k learnings
 # If you have more, consider archiving old learnings
@@ -202,7 +202,7 @@ ls -l ~/.claude/learnings/*.jsonl | wc -l
 
 ```bash
 # Clear graph cache (rebuilds on next parse)
-rm -rf ~/.claude/graphs/*.json
+rm -rf <project-root>/.claude/graphs/*.json
 ```
 
 ## Migration from v1.x
