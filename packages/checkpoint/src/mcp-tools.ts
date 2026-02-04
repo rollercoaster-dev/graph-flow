@@ -40,6 +40,13 @@ export class CheckpointMCPTools {
   }
 
   /**
+   * Get the underlying WorkflowManager for shared access.
+   */
+  getManager(): WorkflowManager {
+    return this.manager;
+  }
+
+  /**
    * Get all MCP tool definitions
    */
   getTools(): MCPTool[] {

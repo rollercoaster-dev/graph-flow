@@ -9,6 +9,17 @@
         "typescript": "^5.0.0",
       },
     },
+    "packages/automation": {
+      "name": "@graph-flow/automation",
+      "version": "2.0.0",
+      "dependencies": {
+        "@graph-flow/checkpoint": "workspace:*",
+        "@graph-flow/planning": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.0.0",
+      },
+    },
     "packages/checkpoint": {
       "name": "@graph-flow/checkpoint",
       "version": "2.0.0",
@@ -23,6 +34,7 @@
         "graph-flow": "src/index.ts",
       },
       "dependencies": {
+        "@graph-flow/automation": "workspace:*",
         "@graph-flow/checkpoint": "workspace:*",
         "@graph-flow/graph": "workspace:*",
         "@graph-flow/knowledge": "workspace:*",
@@ -61,6 +73,7 @@
         "graph-flow": "./src/index.ts",
       },
       "dependencies": {
+        "@graph-flow/automation": "workspace:*",
         "@graph-flow/checkpoint": "workspace:*",
         "@graph-flow/graph": "workspace:*",
         "@graph-flow/knowledge": "workspace:*",
@@ -94,6 +107,8 @@
     "@babel/parser": ["@babel/parser@7.29.0", "", { "dependencies": { "@babel/types": "^7.29.0" }, "bin": "./bin/babel-parser.js" }, "sha512-IyDgFV5GeDUVX4YdF/3CPULtVGSXXMLh1xVIgdCgxApktqnQV0r7/8Nqthg+8YLGaAtdyIlo2qIdZrbCv4+7ww=="],
 
     "@babel/types": ["@babel/types@7.29.0", "", { "dependencies": { "@babel/helper-string-parser": "^7.27.1", "@babel/helper-validator-identifier": "^7.28.5" } }, "sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A=="],
+
+    "@graph-flow/automation": ["@graph-flow/automation@workspace:packages/automation"],
 
     "@graph-flow/checkpoint": ["@graph-flow/checkpoint@workspace:packages/checkpoint"],
 

@@ -56,6 +56,14 @@ export class PlanningMCPTools {
     this.initialized = true;
   }
 
+  /**
+   * Get the underlying PlanningManager for shared access.
+   */
+  getManager(): PlanningManager {
+    this.ensureInitialized();
+    return this.manager;
+  }
+
   private ensureInitialized(): void {
     if (!this.initialized) {
       throw new Error("PlanningMCPTools not initialized. Call init() first.");
