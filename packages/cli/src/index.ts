@@ -6,6 +6,7 @@ import { CheckpointMCPTools } from "@graph-flow/checkpoint";
 import { KnowledgeMCPTools } from "@graph-flow/knowledge";
 import { GraphMCPTools } from "@graph-flow/graph";
 import { PlanningMCPTools } from "@graph-flow/planning";
+import { AutomationMCPTools } from "@graph-flow/automation";
 import { runInit, formatInitResult, type InitOptions } from "./init.ts";
 
 function resolveBaseDir(): string {
@@ -127,12 +128,19 @@ async function main(): Promise<void> {
   await graph.init();
   await planning.init();
 
+  const automation = new AutomationMCPTools(
+    planning.getManager(),
+    checkpoint.getManager()
+  );
+  await automation.init();
+
   if (tool === "tools") {
     const tools = [
       ...checkpoint.getTools(),
       ...knowledge.getTools(),
       ...graph.getTools(),
       ...planning.getTools(),
+      ...automation.getTools(),
     ];
     console.log(JSON.stringify(tools, null, values.pretty ? 2 : 0));
     return;
@@ -160,6 +168,8 @@ async function main(): Promise<void> {
     result = await graph.handleToolCall(tool, args);
   } else if (tool.startsWith("planning-")) {
     result = await planning.handleToolCall(tool, args);
+  } else if (tool.startsWith("automation-")) {
+    result = await automation.handleToolCall(tool, args);
   } else {
     throw new Error(`Unknown tool: ${tool}`);
   }

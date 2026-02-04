@@ -24,10 +24,11 @@
     "@graph-flow/checkpoint": "workspace:*",
     "@graph-flow/knowledge": "workspace:*",
     "@graph-flow/graph": "workspace:*",
-    "@graph-flow/planning": "workspace:*"
+    "@graph-flow/planning": "workspace:*",
+    "@graph-flow/automation": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.0.0"
   },
-  "description": "CLI wrapper for graph-flow checkpoint, knowledge, graph, and planning tools"
+  "description": "CLI wrapper for graph-flow checkpoint, knowledge, graph, planning, and automation tools"
 }

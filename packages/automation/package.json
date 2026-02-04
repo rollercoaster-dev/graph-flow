@@ -1,0 +1,36 @@
+{
+  "name": "@graph-flow/automation",
+  "version": "2.0.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rollercoaster-dev/graph-flow.git",
+    "directory": "packages/automation"
+  },
+  "author": "rollercoaster.dev",
+  "engines": {
+    "bun": ">=1.0"
+  },
+  "keywords": ["mcp", "automation", "github", "milestone", "epic", "cli"],
+  "files": ["src", "package.json", "README.md"],
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./github": "./src/github.ts",
+    "./orchestrator": "./src/orchestrator.ts",
+    "./mcp-tools": "./src/mcp-tools.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@graph-flow/planning": "workspace:*",
+    "@graph-flow/checkpoint": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.0.0"
+  },
+  "description": "GitHub automation orchestrator for milestones, epics, and issue workflows"
+}

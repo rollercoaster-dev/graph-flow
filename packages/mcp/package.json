@@ -27,10 +27,11 @@
     "@graph-flow/knowledge": "workspace:*",
     "@graph-flow/graph": "workspace:*",
     "@graph-flow/planning": "workspace:*",
+    "@graph-flow/automation": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.4"
   },
   "devDependencies": {
     "@types/bun": "^1.0.0"
   },
-  "description": "Unified MCP server for graph-flow tools (checkpoint, knowledge, graph, planning)"
+  "description": "Unified MCP server for graph-flow tools (checkpoint, knowledge, graph, planning, automation)"
 }

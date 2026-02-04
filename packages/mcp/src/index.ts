@@ -11,6 +11,7 @@ import { CheckpointMCPTools } from "@graph-flow/checkpoint";
 import { KnowledgeMCPTools, getCurrentProviderType } from "@graph-flow/knowledge";
 import { GraphMCPTools } from "@graph-flow/graph";
 import { PlanningMCPTools } from "@graph-flow/planning";
+import { AutomationMCPTools } from "@graph-flow/automation";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -38,6 +39,7 @@ export class GraphFlowServer {
   private knowledge: KnowledgeMCPTools;
   private graph: GraphMCPTools;
   private planning: PlanningMCPTools;
+  private automation!: AutomationMCPTools;
 
   constructor(options: { baseDir?: string } = {}) {
     const baseDir = options.baseDir ?? resolveBaseDir();
@@ -73,6 +75,11 @@ export class GraphFlowServer {
     await this.knowledge.init();
     await this.graph.init();
     await this.planning.init();
+    this.automation = new AutomationMCPTools(
+      this.planning.getManager(),
+      this.checkpoint.getManager()
+    );
+    await this.automation.init();
   }
 
   private setupHandlers(): void {
@@ -82,9 +89,10 @@ export class GraphFlowServer {
       const knowledgeTools = this.knowledge.getTools();
       const graphTools = this.graph.getTools();
       const planningTools = this.planning.getTools();
+      const automationTools = this.automation.getTools();
 
       return {
-        tools: [...checkpointTools, ...knowledgeTools, ...graphTools, ...planningTools],
+        tools: [...checkpointTools, ...knowledgeTools, ...graphTools, ...planningTools, ...automationTools],
       };
     });
 
@@ -102,6 +110,8 @@ export class GraphFlowServer {
           return await this.graph.handleToolCall(name, args || {});
         } else if (name.startsWith("planning-")) {
           return await this.planning.handleToolCall(name, args || {});
+        } else if (name.startsWith("automation-")) {
+          return await this.automation.handleToolCall(name, args || {});
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
