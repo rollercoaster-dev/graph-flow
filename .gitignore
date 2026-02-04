@@ -3,6 +3,9 @@ dist/
 *.log
 .DS_Store
 
+# Local MCP config (contains user-specific absolute paths)
+.mcp.json
+
 # File-based storage (keep structure, ignore content in dev)
 .claude/workflows/*.jsonl
 .claude/learnings/*.jsonl

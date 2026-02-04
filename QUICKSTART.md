@@ -5,26 +5,30 @@ Get up and running in 5 minutes.
 ## Installation
 
 ```bash
-cd /Users/hailmary/Code/rollercoaster.dev/graph-flow
+cd <path-to-graph-flow>
 bun install
-bun test  # Verify: 31 pass, 0 fail
+bun test
 ```
 
 ## Configuration
 
-Add to `~/.claude/config.json`:
+Add a `.mcp.json` to your project root (or run `graph-flow init` to generate one):
 
 ```json
 {
   "mcpServers": {
     "graph-flow": {
       "command": "bun",
-      "args": ["run", "packages/mcp/src/index.ts"],
-      "cwd": "/Users/hailmary/Code/rollercoaster.dev/graph-flow"
+      "args": ["run", "<path-to-graph-flow>/packages/mcp/src/index.ts"],
+      "env": {
+        "CLAUDE_PROJECT_DIR": "<your-project-root>"
+      }
     }
   }
 }
 ```
+
+Setting `CLAUDE_PROJECT_DIR` ensures each project stores its data in its own `.claude/` directory, preventing cross-project data leaks.
 
 Restart Claude Code.
 
@@ -105,12 +109,18 @@ graph-calls {
 
 ## Storage Locations
 
+When `CLAUDE_PROJECT_DIR` is set, data is stored per-project:
+
 ```
-~/.claude/
+<project-root>/.claude/
 ├── workflows/     # Your workflow checkpoints (auto-deleted on complete)
 ├── learnings/     # Your accumulated knowledge (persistent)
-└── graphs/        # Cached code analysis (auto-invalidated on changes)
+├── embeddings/    # Vector embeddings for semantic search
+├── graphs/        # Cached code analysis (auto-invalidated on changes)
+└── planning/      # Planning stack state
 ```
+
+Falls back to `~/.claude/` if `CLAUDE_PROJECT_DIR` is not set (shared across all projects).
 
 ## Common Workflows
 
