@@ -26,6 +26,10 @@ function resolveBaseDir(): string {
   if (projectDir) {
     return join(projectDir, ".claude");
   }
+  console.error(
+    "warning: CLAUDE_PROJECT_DIR not set, using ~/.claude (data will be shared across all projects). " +
+      "Set CLAUDE_PROJECT_DIR in your .mcp.json env or run 'graph-flow init' in your project."
+  );
   return join(homedir(), ".claude");
 }
 
