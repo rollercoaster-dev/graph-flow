@@ -43,7 +43,8 @@ function shouldExclude(
 
   for (const { glob, dirOnly } of patterns) {
     if (dirOnly) {
-      // Directory pattern (e.g. "dist/"): exclude if any segment matches
+      // Directory pattern (e.g. "dist/"): exclude if any path segment matches.
+      // This mirrors standard gitignore: patterns without leading "/" match at any depth.
       if (segments.some((s) => glob.match(s))) return true;
     } else {
       // File pattern: match against full relative path or just filename
@@ -75,7 +76,7 @@ export async function expandGlobs(
       pattern.includes("{")
     ) {
       const glob = new Bun.Glob(pattern);
-      for await (const path of glob.scan({ cwd, dot: false })) {
+      for await (const path of glob.scan({ cwd: effectiveCwd, dot: false })) {
         if (!shouldExclude(path, ignorePatterns)) {
           // Make path absolute if cwd is provided
           const fullPath = cwd && !isAbsolute(path) ? join(cwd, path) : path;

@@ -17,6 +17,7 @@ import { join } from "node:path";
 const pkgModule = await import("../package.json");
 const pkg = pkgModule.default ?? pkgModule;
 
+/** Resolve the base directory for graph-flow data storage. */
 function resolveBaseDir(): string {
   const explicit = process.env.GRAPH_FLOW_DIR?.trim();
   if (explicit) {

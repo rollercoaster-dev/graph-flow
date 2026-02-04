@@ -21,7 +21,7 @@ Add a `.mcp.json` to your project root (or run `graph-flow init` to generate one
       "command": "bun",
       "args": ["run", "<path-to-graph-flow>/packages/mcp/src/index.ts"],
       "env": {
-        "CLAUDE_PROJECT_DIR": "<your-project-root>"
+        "CLAUDE_PROJECT_DIR": "<project-root>"
       }
     }
   }

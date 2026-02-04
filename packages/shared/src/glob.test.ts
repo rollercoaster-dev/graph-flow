@@ -32,9 +32,7 @@ afterAll(() => {
 });
 
 describe("expandGlobs", () => {
-  it("excludes node_modules even without .gitignore", async () => {
-    // Create a temp dir without .gitignore
-    const bareDir = join(TEST_DIR, "lib");
+  it("always excludes node_modules (hard-coded exclusion)", async () => {
     const results = await expandGlobs(["**/*.ts"], TEST_DIR);
     const hasNodeModules = results.some((f) => f.includes("node_modules"));
     expect(hasNodeModules).toBe(false);
