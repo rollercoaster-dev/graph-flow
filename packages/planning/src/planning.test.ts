@@ -147,9 +147,9 @@ describe("PlanningMCPTools", () => {
     await rm(TEST_DIR, { recursive: true, force: true });
   });
 
-  test("getTools returns all 8 planning tools", () => {
+  test("getTools returns all 10 planning tools", () => {
     const toolList = tools.getTools();
-    expect(toolList.length).toBe(8);
+    expect(toolList.length).toBe(10);
 
     const names = toolList.map((t) => t.name);
     expect(names).toContain("planning-goal");
@@ -160,6 +160,8 @@ describe("PlanningMCPTools", () => {
     expect(names).toContain("planning-steps");
     expect(names).toContain("planning-planget");
     expect(names).toContain("planning-progress");
+    expect(names).toContain("planning-step-update");
+    expect(names).toContain("planning-sync");
   });
 
   test("planning-goal creates goal via MCP", async () => {

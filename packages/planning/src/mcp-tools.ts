@@ -2,8 +2,9 @@
  * Planning MCP Tools
  *
  * MCP tool definitions for the planning stack system.
- * 8 tools: planning-goal, planning-interrupt, planning-done, planning-stack,
- * planning-plan, planning-steps, planning-planget, planning-progress
+ * 10 tools: planning-goal, planning-interrupt, planning-done, planning-stack,
+ * planning-plan, planning-steps, planning-planget, planning-progress,
+ * planning-step-update, planning-sync
  */
 
 import { PlanningManager } from "./manager";
@@ -261,6 +262,49 @@ export class PlanningMCPTools {
           },
         },
       },
+      {
+        name: "planning-step-update",
+        description:
+          "Manually set step status, overriding external sources. Use to mark steps as done/in-progress/not-started or clear overrides.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            stepId: {
+              type: "string",
+              description: "The step ID to update",
+            },
+            status: {
+              type: "string",
+              enum: ["done", "in-progress", "not-started"],
+              description: "Status to set",
+            },
+            clearOverride: {
+              type: "boolean",
+              description:
+                "If true, remove manual override and revert to external source",
+            },
+          },
+          required: ["stepId"],
+        },
+      },
+      {
+        name: "planning-sync",
+        description:
+          "Force-refresh all issue-type steps from GitHub. Clears cache and fetches fresh state.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            planId: {
+              type: "string",
+              description: "Sync specific plan (optional)",
+            },
+            goalId: {
+              type: "string",
+              description: "Alternative to planId, sync plan for this goal",
+            },
+          },
+        },
+      },
     ];
   }
 
@@ -289,6 +333,10 @@ export class PlanningMCPTools {
         return this.handlePlanGet(args);
       case "planning-progress":
         return this.handleProgress(args);
+      case "planning-step-update":
+        return this.handleStepUpdate(args);
+      case "planning-sync":
+        return this.handleSync(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -642,6 +690,122 @@ export class PlanningMCPTools {
             null,
             2
           ),
+        },
+      ],
+    };
+  }
+
+  private async handleStepUpdate(
+    args: Record<string, unknown>
+  ): Promise<MCPToolResult> {
+    const { stepId, status, clearOverride } = args as {
+      stepId: string;
+      status?: "done" | "in-progress" | "not-started";
+      clearOverride?: boolean;
+    };
+
+    // Get the step
+    const step = this.manager.getStep(stepId);
+    if (!step) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Step not found: ${stepId}`,
+          },
+        ],
+      };
+    }
+
+    // Clear override if requested
+    if (clearOverride) {
+      await this.manager.clearStepStatus(stepId);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                step,
+                message: "Manual override cleared. Step will use external source.",
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+
+    // Set status
+    if (!status) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Either 'status' or 'clearOverride' must be provided.",
+          },
+        ],
+      };
+    }
+
+    await this.manager.setStepStatus(stepId, status);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              step: {
+                id: step.id,
+                title: step.title,
+                status,
+                manualOverride: true,
+                updatedAt: new Date().toISOString(),
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  private async handleSync(
+    args: Record<string, unknown>
+  ): Promise<MCPToolResult> {
+    const { planId, goalId } = args as {
+      planId?: string;
+      goalId?: string;
+    };
+
+    // If goalId provided, resolve to planId
+    let targetPlanId = planId;
+    if (goalId && !planId) {
+      const plan = this.manager.getPlanByGoal(goalId);
+      if (!plan) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No plan found for goal: ${goalId}`,
+            },
+          ],
+        };
+      }
+      targetPlanId = plan.id;
+    }
+
+    // Sync from GitHub
+    const results = await this.manager.syncFromGitHub(targetPlanId);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(results, null, 2),
         },
       ],
     };

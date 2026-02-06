@@ -13,6 +13,8 @@ import type {
   PlanningRelationship,
   Plan,
   PlanStep,
+  ManualStatus,
+  CompletionStatus,
 } from "./types";
 
 export interface StorageOptions {
@@ -32,7 +34,8 @@ const FILES = {
   plans: "plans.jsonl",
   steps: "steps.jsonl",
   relationships: "relationships.jsonl",
-  completions: "completions.jsonl", // Manual completion markers
+  completions: "completions.jsonl", // Manual completion markers (legacy)
+  manualStatus: "manual-status.jsonl", // Manual status overrides
 } as const;
 
 /**
@@ -46,7 +49,8 @@ export class PlanningStorage {
   private plans: Map<string, Plan> = new Map();
   private steps: Map<string, PlanStep> = new Map();
   private relationships: Map<string, PlanningRelationship> = new Map();
-  private manualCompletions: Set<string> = new Set(); // step IDs marked as done
+  private manualCompletions: Set<string> = new Set(); // step IDs marked as done (legacy)
+  private manualStatus: Map<string, ManualStatus> = new Map(); // step status overrides
 
   constructor(options: StorageOptions) {
     this.baseDir = options.baseDir;
@@ -91,12 +95,20 @@ export class PlanningStorage {
       this.relationships.set(record.id, record);
     }
 
-    // Load manual completions
+    // Load manual completions (legacy)
     const completionRecords = await this.readJSONL<
       { stepId: string } & JSONLRecord
     >(FILES.completions);
     for (const record of completionRecords) {
       this.manualCompletions.add(record.stepId);
+    }
+
+    // Load manual status overrides
+    const statusRecords = await this.readJSONL<ManualStatus & JSONLRecord>(
+      FILES.manualStatus
+    );
+    for (const record of statusRecords) {
+      this.manualStatus.set(record.stepId, record);
     }
   }
 
@@ -199,6 +211,17 @@ export class PlanningStorage {
       timestamp: new Date().toISOString(),
     }));
     await this.writeJSONL(FILES.completions, records);
+  }
+
+  /**
+   * Persist manual status overrides to disk.
+   */
+  async persistManualStatuses(): Promise<void> {
+    const records = Array.from(this.manualStatus.values()).map((status) => ({
+      ...status,
+      timestamp: new Date().toISOString(),
+    }));
+    await this.writeJSONL(FILES.manualStatus, records);
   }
 
   // ============================================================================
@@ -314,7 +337,7 @@ export class PlanningStorage {
   }
 
   // ============================================================================
-  // Manual Completion Operations
+  // Manual Completion Operations (Legacy)
   // ============================================================================
 
   isManuallyCompleted(stepId: string): boolean {
@@ -327,5 +350,42 @@ export class PlanningStorage {
 
   clearManualCompletion(stepId: string): void {
     this.manualCompletions.delete(stepId);
+  }
+
+  // ============================================================================
+  // Manual Status Operations
+  // ============================================================================
+
+  /**
+   * Get manual status override for a step.
+   * Returns null if no override exists.
+   */
+  getManualStatus(stepId: string): CompletionStatus | null {
+    return this.manualStatus.get(stepId)?.status ?? null;
+  }
+
+  /**
+   * Set manual status override for a step.
+   */
+  setManualStatus(stepId: string, status: CompletionStatus): void {
+    this.manualStatus.set(stepId, {
+      stepId,
+      status,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Clear manual status override for a step.
+   */
+  clearManualStatus(stepId: string): void {
+    this.manualStatus.delete(stepId);
+  }
+
+  /**
+   * Get all manual status overrides.
+   */
+  getAllManualStatuses(): ManualStatus[] {
+    return Array.from(this.manualStatus.values());
   }
 }

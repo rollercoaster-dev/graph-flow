@@ -145,7 +145,19 @@ function checkIssueState(issueNumber: number): GitHubIssueState | null {
  * Checks GitHub issue state to determine completion status.
  */
 export class IssueResolver implements CompletionResolver {
+  private storage: PlanningStorage;
+
+  constructor(storage: PlanningStorage) {
+    this.storage = storage;
+  }
+
   async resolve(step: PlanStep): Promise<CompletionStatus> {
+    // 1. Check manual override first (highest priority)
+    const manualStatus = this.storage.getManualStatus(step.id);
+    if (manualStatus !== null) {
+      return manualStatus;
+    }
+
     // Only handle issue-type external refs
     if (step.externalRef.type !== "issue" || !step.externalRef.number) {
       return "not-started";
@@ -154,13 +166,13 @@ export class IssueResolver implements CompletionResolver {
     const issueNumber = step.externalRef.number;
     const externalRefKey = `issue:${issueNumber}`;
 
-    // Check cache first
+    // 2. Check cache
     const cached = getCachedStatus(step.id, externalRefKey);
     if (cached) {
       return cached;
     }
 
-    // Fetch from GitHub
+    // 3. Fetch from GitHub
     const issueState = checkIssueState(issueNumber);
     if (!issueState) {
       return "not-started";
@@ -199,6 +211,12 @@ export class ManualResolver implements CompletionResolver {
   }
 
   async resolve(step: PlanStep): Promise<CompletionStatus> {
+    // 1. Check manual override first (highest priority)
+    const manualStatus = this.storage.getManualStatus(step.id);
+    if (manualStatus !== null) {
+      return manualStatus;
+    }
+
     // Only handle manual-type external refs
     if (step.externalRef.type !== "manual") {
       return "not-started";
@@ -206,13 +224,13 @@ export class ManualResolver implements CompletionResolver {
 
     const externalRefKey = "manual";
 
-    // Check cache first
+    // 2. Check cache
     const cached = getCachedStatus(step.id, externalRefKey);
     if (cached) {
       return cached;
     }
 
-    // Check if manually marked as completed
+    // 3. Check if manually marked as completed (legacy)
     const status: CompletionStatus = this.storage.isManuallyCompleted(step.id)
       ? "done"
       : "not-started";
@@ -236,7 +254,7 @@ export class ResolverFactory {
   private manualResolver: ManualResolver;
 
   constructor(storage: PlanningStorage) {
-    this.issueResolver = new IssueResolver();
+    this.issueResolver = new IssueResolver(storage);
     this.manualResolver = new ManualResolver(storage);
   }
 

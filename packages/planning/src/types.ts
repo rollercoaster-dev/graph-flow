@@ -196,6 +196,16 @@ export interface PlanStep {
 }
 
 /**
+ * Manual status override for a plan step.
+ * Takes precedence over external source resolution.
+ */
+export interface ManualStatus {
+  stepId: string;
+  status: CompletionStatus;
+  updatedAt: string;
+}
+
+/**
  * Completion status for a plan step.
  * Resolved from external source at query time.
  */

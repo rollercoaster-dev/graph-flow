@@ -7,7 +7,7 @@
 
 import { randomUUID } from "crypto";
 import { PlanningStorage } from "./storage";
-import { clearStatusCache } from "./resolvers";
+import { clearStatusCache, ResolverFactory } from "./resolvers";
 import type {
   Goal,
   Interrupt,
@@ -18,10 +18,12 @@ import type {
   PlanStep,
   PlanSourceType,
   ExternalRef,
+  CompletionStatus,
 } from "./types";
 
 export class PlanningManager {
   private storage: PlanningStorage;
+  private resolverFactory!: ResolverFactory;
 
   constructor(storageDir: string) {
     this.storage = new PlanningStorage({ baseDir: storageDir });
@@ -29,6 +31,7 @@ export class PlanningManager {
 
   async init(): Promise<void> {
     await this.storage.init();
+    this.resolverFactory = new ResolverFactory(this.storage);
   }
 
   // ============================================================================
@@ -413,5 +416,118 @@ export class PlanningManager {
    */
   getStorage(): PlanningStorage {
     return this.storage;
+  }
+
+  // ============================================================================
+  // Manual Status Operations
+  // ============================================================================
+
+  /**
+   * Set manual status override for a step.
+   */
+  async setStepStatus(stepId: string, status: CompletionStatus): Promise<void> {
+    // Verify step exists
+    const step = this.storage.getStep(stepId);
+    if (!step) {
+      throw new Error(`Step not found: ${stepId}`);
+    }
+
+    // Set manual status
+    this.storage.setManualStatus(stepId, status);
+    await this.storage.persistManualStatuses();
+
+    // Clear cache so next progress check uses new status
+    clearStatusCache();
+  }
+
+  /**
+   * Clear manual status override for a step.
+   */
+  async clearStepStatus(stepId: string): Promise<void> {
+    this.storage.clearManualStatus(stepId);
+    await this.storage.persistManualStatuses();
+
+    // Clear cache so next progress check uses external source
+    clearStatusCache();
+  }
+
+  /**
+   * Sync all issue-type steps from GitHub.
+   * Clears cache and fetches fresh state for each step.
+   */
+  async syncFromGitHub(planId?: string): Promise<{
+    synced: number;
+    updated: Array<{
+      stepId: string;
+      title: string;
+      issue: number;
+      oldStatus: CompletionStatus;
+      newStatus: CompletionStatus;
+    }>;
+    unchanged: number;
+    errors: Array<{ stepId: string; issue: number; error: string }>;
+  }> {
+    // Get plans to sync
+    const plans = planId
+      ? [this.storage.getPlan(planId)].filter(Boolean)
+      : this.getAllPlans();
+
+    const results = {
+      synced: 0,
+      updated: [] as Array<{
+        stepId: string;
+        title: string;
+        issue: number;
+        oldStatus: CompletionStatus;
+        newStatus: CompletionStatus;
+      }>,
+      unchanged: 0,
+      errors: [] as Array<{ stepId: string; issue: number; error: string }>,
+    };
+
+    // For each plan, get steps and sync issue-type steps
+    for (const plan of plans) {
+      const steps = this.storage.getStepsByPlan(plan.id);
+
+      for (const step of steps) {
+        if (step.externalRef.type !== "issue" || !step.externalRef.number) {
+          continue;
+        }
+
+        results.synced++;
+
+        try {
+          // Get old status (will use cache if available)
+          const resolver = this.resolverFactory.getResolver("issue");
+          const oldStatus = await resolver.resolve(step);
+
+          // Clear cache to force fresh fetch
+          clearStatusCache();
+
+          // Get new status (will fetch from GitHub)
+          const newStatus = await resolver.resolve(step);
+
+          if (oldStatus !== newStatus) {
+            results.updated.push({
+              stepId: step.id,
+              title: step.title,
+              issue: step.externalRef.number,
+              oldStatus,
+              newStatus,
+            });
+          } else {
+            results.unchanged++;
+          }
+        } catch (error) {
+          results.errors.push({
+            stepId: step.id,
+            issue: step.externalRef.number,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+    }
+
+    return results;
   }
 }
