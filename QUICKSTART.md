@@ -5,26 +5,30 @@ Get up and running in 5 minutes.
 ## Installation
 
 ```bash
-cd /Users/hailmary/Code/rollercoaster.dev/graph-flow
+cd <path-to-graph-flow>
 bun install
-bun test  # Verify: 31 pass, 0 fail
+bun test
 ```
 
 ## Configuration
 
-Add to `~/.claude/config.json`:
+Add a `.mcp.json` to your project root (or run `graph-flow init` to generate one):
 
 ```json
 {
   "mcpServers": {
     "graph-flow": {
       "command": "bun",
-      "args": ["run", "packages/mcp/src/index.ts"],
-      "cwd": "/Users/hailmary/Code/rollercoaster.dev/graph-flow"
+      "args": ["run", "<path-to-graph-flow>/packages/mcp/src/index.ts"],
+      "env": {
+        "CLAUDE_PROJECT_DIR": "<project-root>"
+      }
     }
   }
 }
 ```
+
+Setting `CLAUDE_PROJECT_DIR` ensures each project stores its data in its own `.claude/` directory, preventing cross-project data leaks.
 
 Restart Claude Code.
 
@@ -105,12 +109,18 @@ graph-calls {
 
 ## Storage Locations
 
-```
-~/.claude/
+When `CLAUDE_PROJECT_DIR` is set, data is stored per-project:
+
+```text
+<project-root>/.claude/
 ├── workflows/     # Your workflow checkpoints (auto-deleted on complete)
 ├── learnings/     # Your accumulated knowledge (persistent)
-└── graphs/        # Cached code analysis (auto-invalidated on changes)
+├── embeddings/    # Vector embeddings for semantic search
+├── graphs/        # Cached code analysis (auto-invalidated on changes)
+└── planning/      # Planning stack state
 ```
+
+Falls back to `~/.claude/` if `CLAUDE_PROJECT_DIR` is not set (shared across all projects).
 
 ## Common Workflows
 
@@ -174,15 +184,15 @@ graph-blast {
 
 ### Tools not appearing?
 
-1. Check `~/.claude/config.json` has correct path
+1. Check `.mcp.json` in your project root has correct path
 2. Restart Claude Code completely
-3. Check logs: `~/.claude/logs/`
+3. Check logs: `<project-root>/.claude/logs/` (or `~/.claude/logs/` if `CLAUDE_PROJECT_DIR` not set)
 
 ### Slow search?
 
 ```bash
-# Check learning count
-ls -l ~/.claude/learnings/*.jsonl | wc -l
+# Check learning count (use your project root if CLAUDE_PROJECT_DIR is set)
+ls -l <project-root>/.claude/learnings/*.jsonl | wc -l
 
 # TF-IDF is fast for <50k learnings
 # If you have more, consider archiving old learnings
@@ -192,7 +202,7 @@ ls -l ~/.claude/learnings/*.jsonl | wc -l
 
 ```bash
 # Clear graph cache (rebuilds on next parse)
-rm -rf ~/.claude/graphs/*.json
+rm -rf <project-root>/.claude/graphs/*.json
 ```
 
 ## Migration from v1.x
