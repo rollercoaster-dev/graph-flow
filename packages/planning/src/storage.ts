@@ -5,7 +5,7 @@
  * Uses in-memory cache for fast access with <100 items.
  */
 
-import { mkdir } from "node:fs/promises";
+import { mkdir, rename } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type {
@@ -125,7 +125,8 @@ export class PlanningStorage {
 
   /**
    * Read all records from a JSONL file.
-   * Handles missing files and corrupted lines gracefully.
+   * Missing files return empty array. Permission/IO errors are thrown.
+   * Corrupted lines are skipped with a warning.
    */
   private async readJSONL<T extends JSONLRecord>(filename: string): Promise<T[]> {
     const filepath = join(this.baseDir, filename);
@@ -133,40 +134,51 @@ export class PlanningStorage {
     let content: string;
     try {
       content = await Bun.file(filepath).text();
-    } catch {
-      // File doesn't exist or can't be read - start fresh
-      return [];
+    } catch (error: unknown) {
+      // Missing file on first run is expected — start fresh
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+        return [];
+      }
+      // Permission errors, IO errors, etc. should not be silently ignored
+      throw error;
     }
 
     const lines = content.trim().split("\n").filter(Boolean);
     const results: T[] = [];
+    let corrupted = 0;
 
     for (const line of lines) {
       try {
         results.push(JSON.parse(line) as T);
       } catch {
-        // Skip corrupted lines - graceful degradation
+        corrupted++;
       }
+    }
+
+    if (corrupted > 0) {
+      console.warn(
+        `[planning-storage] ${filename}: skipped ${corrupted} corrupted line(s) of ${lines.length} total`
+      );
     }
 
     return results;
   }
 
   /**
-   * Write entire JSONL file (replaces existing content).
+   * Write entire JSONL file atomically (write to .tmp, then rename).
+   * Prevents corrupted files from mid-write crashes.
    */
   private async writeJSONL(
     filename: string,
     records: JSONLRecord[]
   ): Promise<void> {
     const filepath = join(this.baseDir, filename);
-    if (records.length === 0) {
-      // Write empty file
-      await Bun.write(filepath, "", { createPath: true });
-      return;
-    }
-    const content = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
-    await Bun.write(filepath, content, { createPath: true });
+    const tmpPath = filepath + ".tmp";
+    const content = records.length === 0
+      ? ""
+      : records.map((r) => JSON.stringify(r)).join("\n") + "\n";
+    await Bun.write(tmpPath, content, { createPath: true });
+    await rename(tmpPath, filepath);
   }
 
   /**
@@ -420,6 +432,20 @@ export class PlanningStorage {
       status,
       resolvedAt: new Date().toISOString(),
     });
+  }
+
+  /**
+   * Clear resolved status for a step.
+   */
+  clearResolvedStatus(stepId: string): void {
+    this.resolvedStatuses.delete(stepId);
+  }
+
+  /**
+   * Get all resolved statuses.
+   */
+  getAllResolvedStatuses(): ResolvedStatus[] {
+    return Array.from(this.resolvedStatuses.values());
   }
 
   /**

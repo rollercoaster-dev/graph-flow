@@ -456,7 +456,7 @@ export class PlanningManager {
    * Compares persisted last-known status against fresh GitHub state.
    */
   async syncFromGitHub(planId?: string): Promise<{
-    synced: number;
+    attempted: number;
     updated: Array<{
       stepId: string;
       title: string;
@@ -478,7 +478,7 @@ export class PlanningManager {
     clearStatusCache();
 
     const results = {
-      synced: 0,
+      attempted: 0,
       updated: [] as Array<{
         stepId: string;
         title: string;
@@ -498,7 +498,7 @@ export class PlanningManager {
           continue;
         }
 
-        results.synced++;
+        results.attempted++;
 
         try {
           // Read persisted last-known status (null if never synced)
