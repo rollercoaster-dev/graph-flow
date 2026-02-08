@@ -194,11 +194,16 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
   const resolvedRoot = resolve(projectRoot);
   const dataDir = join(resolvedRoot, ".claude");
 
+  console.error("Initializing graph-flow...");
+  console.error(`Project root: ${resolvedRoot}`);
+  console.error(`Data directory: ${dataDir}`);
+
   // Create data directories
   const dirs = ["graphs", "learnings", "embeddings", "workflows", "planning"];
   for (const dir of dirs) {
     await mkdir(join(dataDir, dir), { recursive: true });
   }
+  console.error("✓ Created data directories");
 
   const result: Partial<InitResult> = {
     projectRoot: resolvedRoot,
@@ -208,21 +213,28 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
 
   // Index code if enabled
   if (indexCode) {
+    console.error("\nIndexing code...");
     const patterns = codePatterns ?? (await detectCodePatterns(resolvedRoot));
     if (patterns.length > 0) {
+      console.error(`Patterns: ${patterns.join(", ")}`);
       const indexer = new CodeIndexer(join(dataDir, "graphs"));
       await indexer.init();
       result.codeIndexResult = await indexer.index({
         patterns,
         cwd: resolvedRoot,
       });
+      console.error(`✓ Indexed ${result.codeIndexResult.totalFiles} files (${result.codeIndexResult.parsedFiles} parsed, ${result.codeIndexResult.cachedFiles} cached)`);
+    } else {
+      console.error("No code files found to index");
     }
   }
 
   // Index docs if enabled
   if (indexDocs) {
+    console.error("\nIndexing documentation...");
     const patterns = docsPatterns ?? (await detectDocsPatterns(resolvedRoot));
     if (patterns.length > 0) {
+      console.error(`Patterns: ${patterns.join(", ")}`);
       const indexer = new DocsIndexer(
         join(dataDir, "learnings"),
         join(dataDir, "embeddings")
@@ -232,11 +244,16 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
         patterns,
         cwd: resolvedRoot,
       });
+      console.error(`✓ Indexed ${result.docsIndexResult.totalFiles} files, ${result.docsIndexResult.totalSections} sections`);
+    } else {
+      console.error("No documentation files found to index");
     }
   }
 
   // Run health check after indexing
+  console.error("\nRunning health check...");
   result.healthCheck = await runHealthCheck(dataDir);
+  console.error("✓ Health check complete");
 
   return result as InitResult;
 }

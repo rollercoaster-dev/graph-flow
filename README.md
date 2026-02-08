@@ -43,6 +43,12 @@ bun install
 # Run migration (if coming from v1.x with SQLite)
 bun run migrate
 
+# Initialize for a project (creates .mcp.json and indexes code/docs)
+graph-flow init
+
+# Or run in background for large codebases (non-blocking)
+graph-flow init --background
+
 # Start MCP server (for testing)
 bun run mcp
 ```

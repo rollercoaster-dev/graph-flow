@@ -25,7 +25,7 @@ function printHelp(): void {
   const text = `graph-flow CLI
 
 Usage:
-  graph-flow init [--skip-code] [--skip-docs] [--project <path>]
+  graph-flow init [--skip-code] [--skip-docs] [--project <path>] [--background]
   graph-flow tools
   graph-flow <tool> [--json '{...}'] [--file path] [--pretty]
 
@@ -37,9 +37,11 @@ Init options:
   --skip-code         Skip code indexing
   --skip-docs         Skip docs indexing
   --project <path>    Project root (default: current directory)
+  --background        Run indexing in background (non-blocking)
 
 Examples:
   graph-flow init
+  graph-flow init --background
   graph-flow init --skip-code
   graph-flow checkpoint-find --json '{"issue": 123}'
   graph-flow knowledge-store --file ./learning.json
@@ -84,6 +86,7 @@ async function main(): Promise<void> {
       "skip-code": { type: "boolean" },
       "skip-docs": { type: "boolean" },
       project: { type: "string" },
+      background: { type: "boolean" },
     },
     allowPositionals: true,
   });
@@ -106,6 +109,38 @@ async function main(): Promise<void> {
       indexCode: !values["skip-code"],
       indexDocs: !values["skip-docs"],
     };
+
+    // Run in background if requested
+    if (values.background) {
+      const projectRoot = initOptions.projectRoot || process.cwd();
+
+      // Ensure .claude directory exists first
+      const dataDir = join(projectRoot, ".claude");
+      await Bun.write(join(dataDir, ".gitkeep"), "");
+
+      const logFile = join(dataDir, "init.log");
+
+      // Spawn background process using bun
+      const args = [process.argv[1], "init"];
+      if (values["skip-code"]) args.push("--skip-code");
+      if (values["skip-docs"]) args.push("--skip-docs");
+      if (values.project) args.push("--project", values.project);
+
+      const child = Bun.spawn(["bun", ...args], {
+        stdout: Bun.file(logFile),
+        stderr: Bun.file(logFile),
+        stdin: "ignore",
+        cwd: projectRoot,
+      });
+
+      child.unref(); // Don't wait for it
+
+      console.log(`graph-flow initialization started in background`);
+      console.log(`Progress: tail -f ${logFile}`);
+      console.log(`PID: ${child.pid}`);
+      return;
+    }
+
     const result = await runInit(initOptions);
     console.log(formatInitResult(result));
     return;
