@@ -2,7 +2,9 @@
   "name": "graph-flow",
   "description": "Planning stack, workflow checkpoints, knowledge graph, and GitHub automation for Claude Code",
   "version": "2.0.0",
-  "author": "rollercoaster.dev",
+  "author": {
+    "name": "rollercoaster.dev"
+  },
   "repository": "https://github.com/rollercoaster-dev/graph-flow",
   "license": "MIT",
   "keywords": [
