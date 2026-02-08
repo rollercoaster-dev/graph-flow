@@ -14,6 +14,7 @@ import type {
   Plan,
   PlanStep,
   ManualStatus,
+  ResolvedStatus,
   CompletionStatus,
 } from "./types";
 
@@ -36,6 +37,7 @@ const FILES = {
   relationships: "relationships.jsonl",
   completions: "completions.jsonl", // Manual completion markers (legacy)
   manualStatus: "manual-status.jsonl", // Manual status overrides
+  resolvedStatus: "resolved-status.jsonl", // Last-known resolved status per step
 } as const;
 
 /**
@@ -51,6 +53,7 @@ export class PlanningStorage {
   private relationships: Map<string, PlanningRelationship> = new Map();
   private manualCompletions: Set<string> = new Set(); // step IDs marked as done (legacy)
   private manualStatus: Map<string, ManualStatus> = new Map(); // step status overrides
+  private resolvedStatuses: Map<string, ResolvedStatus> = new Map(); // last-known resolved status
 
   constructor(options: StorageOptions) {
     this.baseDir = options.baseDir;
@@ -109,6 +112,14 @@ export class PlanningStorage {
     );
     for (const record of statusRecords) {
       this.manualStatus.set(record.stepId, record);
+    }
+
+    // Load resolved statuses
+    const resolvedRecords = await this.readJSONL<ResolvedStatus & JSONLRecord>(
+      FILES.resolvedStatus
+    );
+    for (const record of resolvedRecords) {
+      this.resolvedStatuses.set(record.stepId, record);
     }
   }
 
@@ -387,5 +398,38 @@ export class PlanningStorage {
    */
   getAllManualStatuses(): ManualStatus[] {
     return Array.from(this.manualStatus.values());
+  }
+
+  // ============================================================================
+  // Resolved Status Operations
+  // ============================================================================
+
+  /**
+   * Get last-known resolved status for a step.
+   */
+  getResolvedStatus(stepId: string): CompletionStatus | null {
+    return this.resolvedStatuses.get(stepId)?.status ?? null;
+  }
+
+  /**
+   * Set last-known resolved status for a step.
+   */
+  setResolvedStatus(stepId: string, status: CompletionStatus): void {
+    this.resolvedStatuses.set(stepId, {
+      stepId,
+      status,
+      resolvedAt: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Persist resolved statuses to disk.
+   */
+  async persistResolvedStatuses(): Promise<void> {
+    const records = Array.from(this.resolvedStatuses.values()).map((s) => ({
+      ...s,
+      timestamp: new Date().toISOString(),
+    }));
+    await this.writeJSONL(FILES.resolvedStatus, records);
   }
 }

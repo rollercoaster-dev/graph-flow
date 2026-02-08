@@ -152,20 +152,20 @@ describe("PlanningMCPTools", () => {
     expect(toolList.length).toBe(10);
 
     const names = toolList.map((t) => t.name);
-    expect(names).toContain("planning-goal");
-    expect(names).toContain("planning-interrupt");
-    expect(names).toContain("planning-done");
-    expect(names).toContain("planning-stack");
-    expect(names).toContain("planning-plan");
-    expect(names).toContain("planning-steps");
-    expect(names).toContain("planning-planget");
-    expect(names).toContain("planning-progress");
-    expect(names).toContain("planning-step-update");
-    expect(names).toContain("planning-sync");
+    expect(names).toContain("p-goal");
+    expect(names).toContain("p-interrupt");
+    expect(names).toContain("p-done");
+    expect(names).toContain("p-stack");
+    expect(names).toContain("p-plan");
+    expect(names).toContain("p-steps");
+    expect(names).toContain("p-planget");
+    expect(names).toContain("p-progress");
+    expect(names).toContain("p-step-update");
+    expect(names).toContain("p-sync");
   });
 
-  test("planning-goal creates goal via MCP", async () => {
-    const result = await tools.handleToolCall("planning-goal", {
+  test("p-goal creates goal via MCP", async () => {
+    const result = await tools.handleToolCall("p-goal", {
       title: "MCP Goal",
       description: "Created via MCP",
     });
@@ -176,11 +176,11 @@ describe("PlanningMCPTools", () => {
     expect(data.stack.depth).toBe(1);
   });
 
-  test("planning-stack returns current stack", async () => {
-    await tools.handleToolCall("planning-goal", { title: "Goal 1" });
-    await tools.handleToolCall("planning-goal", { title: "Goal 2" });
+  test("p-stack returns current stack", async () => {
+    await tools.handleToolCall("p-goal", { title: "Goal 1" });
+    await tools.handleToolCall("p-goal", { title: "Goal 2" });
 
-    const result = await tools.handleToolCall("planning-stack", {
+    const result = await tools.handleToolCall("p-stack", {
       includeStale: false,
     });
 
@@ -190,10 +190,10 @@ describe("PlanningMCPTools", () => {
     expect(data.stack.items.length).toBe(2);
   });
 
-  test("planning-done pops and returns completed item", async () => {
-    await tools.handleToolCall("planning-goal", { title: "Goal to complete" });
+  test("p-done pops and returns completed item", async () => {
+    await tools.handleToolCall("p-goal", { title: "Goal to complete" });
 
-    const result = await tools.handleToolCall("planning-done", {
+    const result = await tools.handleToolCall("p-done", {
       summary: "Finished the task",
     });
 
@@ -205,14 +205,14 @@ describe("PlanningMCPTools", () => {
 
   test("full workflow: goal -> plan -> steps -> progress", async () => {
     // Create goal
-    const goalResult = await tools.handleToolCall("planning-goal", {
+    const goalResult = await tools.handleToolCall("p-goal", {
       title: "Feature X",
     });
     const goalData = JSON.parse(goalResult.content[0].text);
     const goalId = goalData.goal.id;
 
     // Create plan
-    const planResult = await tools.handleToolCall("planning-plan", {
+    const planResult = await tools.handleToolCall("p-plan", {
       title: "Feature X Plan",
       goalId,
       sourceType: "manual",
@@ -221,7 +221,7 @@ describe("PlanningMCPTools", () => {
     const planId = planData.plan.id;
 
     // Add steps
-    await tools.handleToolCall("planning-steps", {
+    await tools.handleToolCall("p-steps", {
       planId,
       steps: [
         {
@@ -240,19 +240,121 @@ describe("PlanningMCPTools", () => {
     });
 
     // Get plan
-    const plangetResult = await tools.handleToolCall("planning-planget", {
+    const plangetResult = await tools.handleToolCall("p-planget", {
       goalId,
     });
     const plangetData = JSON.parse(plangetResult.content[0].text);
     expect(plangetData.stepCount).toBe(2);
 
     // Get progress
-    const progressResult = await tools.handleToolCall("planning-progress", {
+    const progressResult = await tools.handleToolCall("p-progress", {
       planId,
     });
     const progressData = JSON.parse(progressResult.content[0].text);
     expect(progressData.progress.total).toBe(2);
     expect(progressData.progress.notStarted).toBe(2);
     expect(progressData.progress.percentage).toBe(0);
+  });
+});
+
+describe("syncFromGitHub", () => {
+  let manager: PlanningManager;
+
+  beforeEach(async () => {
+    manager = new PlanningManager(TEST_DIR);
+    await manager.init();
+  });
+
+  afterEach(async () => {
+    await rm(TEST_DIR, { recursive: true, force: true });
+  });
+
+  test("detects status change from persisted state", async () => {
+    // Setup: goal + plan + issue-linked step
+    const { goal } = await manager.pushGoal({ title: "Sync test" });
+    const plan = await manager.createPlan({
+      title: "Sync plan",
+      goalId: goal.id,
+      sourceType: "manual",
+    });
+    const steps = await manager.createSteps(plan.id, [
+      {
+        title: "Issue step",
+        ordinal: 1,
+        wave: 1,
+        externalRef: { type: "issue", number: 999 },
+      },
+    ]);
+
+    // Seed the persisted resolved status as "not-started"
+    const storage = manager.getStorage();
+    storage.setResolvedStatus(steps[0].id, "not-started");
+    await storage.persistResolvedStatuses();
+
+    // Now manually set the step as done (simulates GitHub returning CLOSED)
+    // by setting a manual override which takes priority in the resolver
+    await manager.setStepStatus(steps[0].id, "done");
+
+    const results = await manager.syncFromGitHub(plan.id);
+
+    // Should detect the change: stored "not-started" vs resolved "done"
+    expect(results.synced).toBe(1);
+    expect(results.updated.length).toBe(1);
+    expect(results.updated[0].oldStatus).toBe("not-started");
+    expect(results.updated[0].newStatus).toBe("done");
+  });
+
+  test("reports unchanged when status matches persisted state", async () => {
+    const { goal } = await manager.pushGoal({ title: "Unchanged test" });
+    const plan = await manager.createPlan({
+      title: "Plan",
+      goalId: goal.id,
+      sourceType: "manual",
+    });
+    const steps = await manager.createSteps(plan.id, [
+      {
+        title: "Issue step",
+        ordinal: 1,
+        wave: 1,
+        externalRef: { type: "issue", number: 888 },
+      },
+    ]);
+
+    // Set a manual override to "done" and also seed persisted as "done"
+    await manager.setStepStatus(steps[0].id, "done");
+    const storage = manager.getStorage();
+    storage.setResolvedStatus(steps[0].id, "done");
+    await storage.persistResolvedStatuses();
+
+    const results = await manager.syncFromGitHub(plan.id);
+
+    expect(results.synced).toBe(1);
+    expect(results.updated.length).toBe(0);
+    expect(results.unchanged).toBe(1);
+  });
+
+  test("first sync treats missing persisted status as not-started", async () => {
+    const { goal } = await manager.pushGoal({ title: "First sync" });
+    const plan = await manager.createPlan({
+      title: "Plan",
+      goalId: goal.id,
+      sourceType: "manual",
+    });
+    await manager.createSteps(plan.id, [
+      {
+        title: "Issue step",
+        ordinal: 1,
+        wave: 1,
+        externalRef: { type: "issue", number: 777 },
+      },
+    ]);
+
+    // No persisted status, no manual override
+    // Resolver will hit GitHub (which will fail in test) → falls back to "not-started"
+    const results = await manager.syncFromGitHub(plan.id);
+
+    // Should be unchanged: persisted null→"not-started", resolved→"not-started"
+    expect(results.synced).toBe(1);
+    expect(results.unchanged).toBe(1);
   });
 });

@@ -453,7 +453,7 @@ export class PlanningManager {
 
   /**
    * Sync all issue-type steps from GitHub.
-   * Clears cache and fetches fresh state for each step.
+   * Compares persisted last-known status against fresh GitHub state.
    */
   async syncFromGitHub(planId?: string): Promise<{
     synced: number;
@@ -469,8 +469,13 @@ export class PlanningManager {
   }> {
     // Get plans to sync
     const plans = planId
-      ? [this.storage.getPlan(planId)].filter(Boolean)
+      ? [this.storage.getPlan(planId)].filter(
+          (p): p is Plan => p !== null
+        )
       : this.getAllPlans();
+
+    // Clear cache up front so all fetches hit GitHub
+    clearStatusCache();
 
     const results = {
       synced: 0,
@@ -485,7 +490,8 @@ export class PlanningManager {
       errors: [] as Array<{ stepId: string; issue: number; error: string }>,
     };
 
-    // For each plan, get steps and sync issue-type steps
+    let anyUpdated = false;
+
     for (const plan of plans) {
       const steps = this.storage.getStepsByPlan(plan.id);
 
@@ -497,17 +503,19 @@ export class PlanningManager {
         results.synced++;
 
         try {
-          // Get old status (will use cache if available)
+          // Read persisted last-known status (null if never synced)
+          const oldStatus =
+            this.storage.getResolvedStatus(step.id) ?? "not-started";
+
+          // Fetch fresh from GitHub
           const resolver = this.resolverFactory.getResolver("issue");
-          const oldStatus = await resolver.resolve(step);
-
-          // Clear cache to force fresh fetch
-          clearStatusCache();
-
-          // Get new status (will fetch from GitHub)
           const newStatus = await resolver.resolve(step);
 
+          // Persist the fresh status
+          this.storage.setResolvedStatus(step.id, newStatus);
+
           if (oldStatus !== newStatus) {
+            anyUpdated = true;
             results.updated.push({
               stepId: step.id,
               title: step.title,
@@ -526,6 +534,11 @@ export class PlanningManager {
           });
         }
       }
+    }
+
+    // Persist all resolved statuses in one write
+    if (anyUpdated || results.synced > 0) {
+      await this.storage.persistResolvedStatuses();
     }
 
     return results;
