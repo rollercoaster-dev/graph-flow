@@ -75,16 +75,38 @@ export class GraphFlowServer {
     this.setupHandlers();
   }
 
+  private initialized = false;
+  private initPromise: Promise<void> | null = null;
+
+  /**
+   * Lazy initialization - called on first tool use, not on server start
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return;
+
+    if (this.initPromise) {
+      await this.initPromise;
+      return;
+    }
+
+    this.initPromise = (async () => {
+      await this.checkpoint.init();
+      await this.knowledge.init();
+      await this.graph.init();
+      await this.planning.init();
+      this.automation = new AutomationMCPTools(
+        this.planning.getManager(),
+        this.checkpoint.getManager()
+      );
+      await this.automation.init();
+      this.initialized = true;
+    })();
+
+    await this.initPromise;
+  }
+
   async init(): Promise<void> {
-    await this.checkpoint.init();
-    await this.knowledge.init();
-    await this.graph.init();
-    await this.planning.init();
-    this.automation = new AutomationMCPTools(
-      this.planning.getManager(),
-      this.checkpoint.getManager()
-    );
-    await this.automation.init();
+    // No-op - initialization is now lazy
   }
 
   private setupHandlers(): void {
@@ -106,6 +128,9 @@ export class GraphFlowServer {
       const { name, arguments: args } = request.params;
 
       try {
+        // Lazy init on first tool call
+        await this.ensureInitialized();
+
         // Route to appropriate subsystem
         if (name.startsWith("checkpoint-")) {
           return await this.checkpoint.handleToolCall(name, args || {});
@@ -167,6 +192,9 @@ export class GraphFlowServer {
   private async readResourceImpl(
     uri: string
   ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+    // Lazy init on resource read
+    await this.ensureInitialized();
+
     if (uri.startsWith("checkpoint://")) {
       // Return list of active workflows
       const result = await this.checkpoint.handleToolCall("checkpoint-find", {});
@@ -231,7 +259,7 @@ export class GraphFlowServer {
 // Start server when executed directly
 if (import.meta.main) {
   const server = new GraphFlowServer({ baseDir: resolveBaseDir() });
-  await server.init();
+  // No init() call - initialization is now lazy on first tool use
   await server.run();
 
   // Graceful shutdown
