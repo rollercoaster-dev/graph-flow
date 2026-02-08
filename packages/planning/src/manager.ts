@@ -490,8 +490,6 @@ export class PlanningManager {
       errors: [] as Array<{ stepId: string; issue: number; error: string }>,
     };
 
-    let anyUpdated = false;
-
     for (const plan of plans) {
       const steps = this.storage.getStepsByPlan(plan.id);
 
@@ -515,7 +513,6 @@ export class PlanningManager {
           this.storage.setResolvedStatus(step.id, newStatus);
 
           if (oldStatus !== newStatus) {
-            anyUpdated = true;
             results.updated.push({
               stepId: step.id,
               title: step.title,
@@ -537,8 +534,23 @@ export class PlanningManager {
     }
 
     // Persist all resolved statuses in one write
-    if (anyUpdated || results.synced > 0) {
-      await this.storage.persistResolvedStatuses();
+    if (results.updated.length > 0) {
+      try {
+        await this.storage.persistResolvedStatuses();
+      } catch (error) {
+        // Return computed results even if persist fails
+        return {
+          ...results,
+          errors: [
+            ...results.errors,
+            {
+              stepId: "persist",
+              issue: 0,
+              error: `Failed to save resolved statuses: ${error instanceof Error ? error.message : "Unknown error"}`,
+            },
+          ],
+        };
+      }
     }
 
     return results;

@@ -333,7 +333,7 @@ describe("syncFromGitHub", () => {
     expect(results.unchanged).toBe(1);
   });
 
-  test("first sync treats missing persisted status as not-started", async () => {
+  test("first sync records error when GitHub CLI fails", async () => {
     const { goal } = await manager.pushGoal({ title: "First sync" });
     const plan = await manager.createPlan({
       title: "Plan",
@@ -350,11 +350,55 @@ describe("syncFromGitHub", () => {
     ]);
 
     // No persisted status, no manual override
-    // Resolver will hit GitHub (which will fail in test) → falls back to "not-started"
+    // Resolver will hit GitHub (which will fail in test) → throws → recorded as error
     const results = await manager.syncFromGitHub(plan.id);
 
-    // Should be unchanged: persisted null→"not-started", resolved→"not-started"
     expect(results.synced).toBe(1);
-    expect(results.unchanged).toBe(1);
+    expect(results.errors.length).toBe(1);
+    expect(results.errors[0].issue).toBe(777);
+    expect(results.unchanged).toBe(0);
+  });
+
+  test("error on one step does not abort sync of remaining steps", async () => {
+    const { goal } = await manager.pushGoal({ title: "Mixed sync" });
+    const plan = await manager.createPlan({
+      title: "Plan",
+      goalId: goal.id,
+      sourceType: "manual",
+    });
+    const steps = await manager.createSteps(plan.id, [
+      {
+        title: "Step with override",
+        ordinal: 1,
+        wave: 1,
+        externalRef: { type: "issue", number: 111 },
+      },
+      {
+        title: "Step without override",
+        ordinal: 2,
+        wave: 1,
+        externalRef: { type: "issue", number: 222 },
+      },
+    ]);
+
+    // Set manual override on step 1 (will succeed) and seed persisted as not-started
+    await manager.setStepStatus(steps[0].id, "done");
+    const storage = manager.getStorage();
+    storage.setResolvedStatus(steps[0].id, "not-started");
+    await storage.persistResolvedStatuses();
+
+    // Step 2 has no override → GitHub CLI fails → error
+    const results = await manager.syncFromGitHub(plan.id);
+
+    // Step 1: resolved "done" vs persisted "not-started" → updated
+    expect(results.updated.length).toBe(1);
+    expect(results.updated[0].oldStatus).toBe("not-started");
+    expect(results.updated[0].newStatus).toBe("done");
+
+    // Step 2: GitHub CLI failed → error (not abort)
+    expect(results.errors.length).toBe(1);
+    expect(results.errors[0].issue).toBe(222);
+
+    expect(results.synced).toBe(2);
   });
 });

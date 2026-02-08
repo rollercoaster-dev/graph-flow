@@ -175,7 +175,7 @@ export class IssueResolver implements CompletionResolver {
     // 3. Fetch from GitHub
     const issueState = checkIssueState(issueNumber);
     if (!issueState) {
-      return "not-started";
+      throw new Error(`GitHub CLI failed for issue #${issueNumber}`);
     }
 
     // Map GitHub state to completion status
