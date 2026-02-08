@@ -112,6 +112,9 @@ export class GraphFlowServer {
   private setupHandlers(): void {
     // List tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      // Ensure lazy initialization completes before listing tools
+      await this.ensureInitialized();
+
       const checkpointTools = this.checkpoint.getTools();
       const knowledgeTools = this.knowledge.getTools();
       const graphTools = this.graph.getTools();
