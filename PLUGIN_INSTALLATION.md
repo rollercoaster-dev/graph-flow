@@ -122,12 +122,14 @@ claude plugin validate ~/Code/graph-flow
 ### Plugin Not Showing Up
 
 1. Verify the plugin is enabled:
+
    ```bash
    jq '.enabledPlugins["graph-flow@local"]' ~/.claude/settings.json
    # Expected output: true (if enabled) or false/null (if disabled)
    ```
 
 2. Check the installation (path may vary by Claude Code version):
+
    ```bash
    ls -la ~/.claude/plugins/cache/local/graph-flow/
    # Should show the plugin files and directories

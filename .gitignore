@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.log
 .DS_Store
+2.0.0/
 
 # Local MCP config (contains user-specific absolute paths)
 .mcp.json
