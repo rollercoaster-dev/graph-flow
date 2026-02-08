@@ -2,29 +2,41 @@
 
 graph-flow can be installed as a Claude Code plugin to make its skills and commands available across all your projects.
 
+## Prerequisites
+
+- Claude Code CLI installed and configured
+- graph-flow cloned to your local machine
+- Bun runtime installed (for running graph-flow)
+
+**Note:** In the following instructions, replace these placeholders with your actual paths:
+- `~/Code/local-plugins` - Your desired local plugins directory
+- `~/Code/graph-flow` - Path to your graph-flow clone
+
 ## Installation
 
 ### 1. Create a Local Marketplace
 
 ```bash
 # Create marketplace structure
-mkdir -p /Users/hailmary/Code/local-plugins/plugins
-cd /Users/hailmary/Code/local-plugins/plugins
-ln -s ../../rollercoaster.dev/graph-flow graph-flow
+mkdir -p ~/Code/local-plugins/plugins
+cd ~/Code/local-plugins/plugins
+
+# Create symlink to your graph-flow installation
+# Replace ~/Code/graph-flow with your actual path
+ln -s ~/Code/graph-flow graph-flow
 ```
 
 ### 2. Create Marketplace Manifest
 
-Create `/Users/hailmary/Code/local-plugins/.claude-plugin/marketplace.json`:
+Create `~/Code/local-plugins/.claude-plugin/marketplace.json`:
 
 ```json
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "local",
   "description": "Local development plugins",
   "owner": {
-    "name": "rollercoaster.dev",
-    "email": "dev@rollercoaster.dev"
+    "name": "Your Name",
+    "email": "your@email.com"
   },
   "plugins": [
     {
@@ -44,10 +56,11 @@ Create `/Users/hailmary/Code/local-plugins/.claude-plugin/marketplace.json`:
 ### 3. Add Marketplace and Install Plugin
 
 ```bash
-# Add the local marketplace
-claude plugin marketplace add /Users/hailmary/Code/local-plugins
+# Add the local marketplace (use your actual path)
+claude plugin marketplace add ~/Code/local-plugins
 
 # Install graph-flow from the local marketplace
+# --scope user makes it available to all your projects
 claude plugin install graph-flow@local --scope user
 
 # Verify installation
@@ -62,6 +75,9 @@ After installation, these skills are available in all projects:
 - `/implement` - Implementation phase
 - `/review` - Review phase
 - `/finalize` - Finalization phase
+- `/auto-issue` - Autonomous issue-to-PR workflow
+- `/auto-milestone` - Create milestone workflow
+- `/work-on-issue` - Work on existing issue
 - `/issue-fetcher` - Fetch GitHub issue details
 - `/board-manager` - Manage project board
 - `/board-status` - Check board status
@@ -77,6 +93,7 @@ After installation, these skills are available in all projects:
 - `/auto-merge` - Auto-merge workflow
 - `/visual-auto-issue` - Visual issue workflow
 - `/visual-work-on-issue` - Visual work on issue
+- `/work-on-issue` - Work on existing issue
 - `/worktree` - Git worktree management
 
 ## Updating the Plugin
@@ -93,10 +110,11 @@ claude plugin update graph-flow@local
 
 ## Validation
 
-To validate the plugin manifest:
+To validate the plugin manifest before installation:
 
 ```bash
-claude plugin validate /Users/hailmary/Code/rollercoaster.dev/graph-flow
+# Replace with your actual path to graph-flow
+claude plugin validate ~/Code/graph-flow
 ```
 
 ## Troubleshooting
@@ -105,12 +123,14 @@ claude plugin validate /Users/hailmary/Code/rollercoaster.dev/graph-flow
 
 1. Verify the plugin is enabled:
    ```bash
-   cat ~/.claude/settings.json | jq '.enabledPlugins["graph-flow@local"]'
+   jq '.enabledPlugins["graph-flow@local"]' ~/.claude/settings.json
+   # Expected output: true (if enabled) or false/null (if disabled)
    ```
 
-2. Check the installation:
+2. Check the installation (path may vary by Claude Code version):
    ```bash
    ls -la ~/.claude/plugins/cache/local/graph-flow/
+   # Should show the plugin files and directories
    ```
 
 3. Restart Claude Code completely
@@ -118,3 +138,20 @@ claude plugin validate /Users/hailmary/Code/rollercoaster.dev/graph-flow
 ### Skills Not Available
 
 Skills and commands are loaded when Claude Code starts. After installing or updating the plugin, restart Claude Code for changes to take effect.
+
+### Symlink Issues
+
+If the symlink doesn't work, verify it points to the correct location:
+
+```bash
+ls -l ~/Code/local-plugins/plugins/graph-flow
+# Should show: graph-flow -> /path/to/your/graph-flow
+```
+
+If broken, recreate with the absolute path:
+
+```bash
+cd ~/Code/local-plugins/plugins
+rm graph-flow  # Remove broken symlink
+ln -s /absolute/path/to/graph-flow graph-flow
+```
