@@ -41,7 +41,7 @@ export class GraphMCPTools {
   getTools(): MCPTool[] {
     return [
       {
-        name: "graph-calls",
+        name: "g-calls",
         description: "Find what calls a given function or method",
         inputSchema: {
           type: "object",
@@ -60,7 +60,7 @@ export class GraphMCPTools {
         },
       },
       {
-        name: "graph-blast",
+        name: "g-blast",
         description: "Calculate blast radius - what entities are impacted by changes",
         inputSchema: {
           type: "object",
@@ -83,7 +83,7 @@ export class GraphMCPTools {
         },
       },
       {
-        name: "graph-defs",
+        name: "g-defs",
         description: "Get all definitions in a file",
         inputSchema: {
           type: "object",
@@ -97,7 +97,7 @@ export class GraphMCPTools {
         },
       },
       {
-        name: "graph-index",
+        name: "g-index",
         description: "Batch index code files to populate graph cache",
         inputSchema: {
           type: "object",
@@ -123,13 +123,13 @@ export class GraphMCPTools {
    */
   async handleToolCall(name: string, args: Record<string, unknown>): Promise<MCPToolResult> {
     switch (name) {
-      case "graph-calls":
+      case "g-calls":
         return this.handleWhatCalls(args);
-      case "graph-blast":
+      case "g-blast":
         return this.handleBlastRadius(args);
-      case "graph-defs":
+      case "g-defs":
         return this.handleDefinitions(args);
-      case "graph-index":
+      case "g-index":
         return this.handleIndex(args);
       default:
         throw new Error(`Unknown tool: ${name}`);

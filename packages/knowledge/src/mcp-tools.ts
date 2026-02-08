@@ -41,7 +41,7 @@ export class KnowledgeMCPTools {
   getTools(): MCPTool[] {
     return [
       {
-        name: "knowledge-query",
+        name: "k-query",
         description: "Search learnings by text, area, or type. Supports both keyword (fast) and semantic (quality) search.",
         inputSchema: {
           type: "object",
@@ -71,7 +71,7 @@ export class KnowledgeMCPTools {
         },
       },
       {
-        name: "knowledge-store",
+        name: "k-store",
         description: "Store a new learning",
         inputSchema: {
           type: "object",
@@ -98,7 +98,7 @@ export class KnowledgeMCPTools {
         },
       },
       {
-        name: "knowledge-related",
+        name: "k-related",
         description: "Find related learnings by ID",
         inputSchema: {
           type: "object",
@@ -116,7 +116,7 @@ export class KnowledgeMCPTools {
         },
       },
       {
-        name: "knowledge-index",
+        name: "k-index",
         description: "Index markdown documentation files as learnings with embeddings. Extracts sections from markdown and stores them with automatic area detection.",
         inputSchema: {
           type: "object",
@@ -160,13 +160,13 @@ export class KnowledgeMCPTools {
    */
   async handleToolCall(name: string, args: Record<string, unknown>): Promise<MCPToolResult> {
     switch (name) {
-      case "knowledge-query":
+      case "k-query":
         return this.handleQuery(args);
-      case "knowledge-store":
+      case "k-store":
         return this.handleStore(args);
-      case "knowledge-related":
+      case "k-related":
         return this.handleRelated(args);
-      case "knowledge-index":
+      case "k-index":
         return this.handleIndex(args);
       default:
         throw new Error(`Unknown tool: ${name}`);

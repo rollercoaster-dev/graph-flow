@@ -52,7 +52,7 @@ export class CheckpointMCPTools {
   getTools(): MCPTool[] {
     return [
       {
-        name: "checkpoint-find",
+        name: "c-find",
         description: "Find workflow checkpoint by issue number or ID",
         inputSchema: {
           type: "object",
@@ -69,7 +69,7 @@ export class CheckpointMCPTools {
         },
       },
       {
-        name: "checkpoint-update",
+        name: "c-update",
         description: "Update workflow checkpoint with new context, decisions, or blockers",
         inputSchema: {
           type: "object",
@@ -139,7 +139,7 @@ export class CheckpointMCPTools {
         },
       },
       {
-        name: "checkpoint-complete",
+        name: "c-complete",
         description: "Mark workflow as completed and optionally delete checkpoint",
         inputSchema: {
           type: "object",
@@ -157,7 +157,7 @@ export class CheckpointMCPTools {
         },
       },
       {
-        name: "checkpoint-recover",
+        name: "c-recover",
         description: "Recover workflow state and build resume plan after interruption",
         inputSchema: {
           type: "object",
@@ -181,13 +181,13 @@ export class CheckpointMCPTools {
    */
   async handleToolCall(name: string, args: Record<string, unknown>): Promise<MCPToolResult> {
     switch (name) {
-      case "checkpoint-find":
+      case "c-find":
         return this.handleFind(args);
-      case "checkpoint-update":
+      case "c-update":
         return this.handleUpdate(args);
-      case "checkpoint-complete":
+      case "c-complete":
         return this.handleComplete(args);
-      case "checkpoint-recover":
+      case "c-recover":
         return this.handleRecover(args);
       default:
         throw new Error(`Unknown tool: ${name}`);

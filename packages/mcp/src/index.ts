@@ -132,15 +132,15 @@ export class GraphFlowServer {
         await this.ensureInitialized();
 
         // Route to appropriate subsystem
-        if (name.startsWith("checkpoint-")) {
+        if (name.startsWith("c-")) {
           return await this.checkpoint.handleToolCall(name, args || {});
-        } else if (name.startsWith("knowledge-")) {
+        } else if (name.startsWith("k-")) {
           return await this.knowledge.handleToolCall(name, args || {});
-        } else if (name.startsWith("graph-")) {
+        } else if (name.startsWith("g-")) {
           return await this.graph.handleToolCall(name, args || {});
-        } else if (name.startsWith("planning-")) {
+        } else if (name.startsWith("p-")) {
           return await this.planning.handleToolCall(name, args || {});
-        } else if (name.startsWith("automation-")) {
+        } else if (name.startsWith("a-")) {
           return await this.automation.handleToolCall(name, args || {});
         } else {
           throw new Error(`Unknown tool: ${name}`);

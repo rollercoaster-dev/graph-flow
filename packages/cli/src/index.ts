@@ -43,9 +43,9 @@ Examples:
   graph-flow init
   graph-flow init --background
   graph-flow init --skip-code
-  graph-flow checkpoint-find --json '{"issue": 123}'
-  graph-flow knowledge-store --file ./learning.json
-  cat ./args.json | graph-flow graph-calls
+  graph-flow c-find --json '{"issue": 123}'
+  graph-flow k-store --file ./learning.json
+  cat ./args.json | graph-flow g-calls
 
 Environment:
   GRAPH_FLOW_DIR      Use a custom base storage directory
@@ -195,15 +195,15 @@ async function main(): Promise<void> {
   }
 
   let result;
-  if (tool.startsWith("checkpoint-")) {
+  if (tool.startsWith("c-")) {
     result = await checkpoint.handleToolCall(tool, args);
-  } else if (tool.startsWith("knowledge-")) {
+  } else if (tool.startsWith("k-")) {
     result = await knowledge.handleToolCall(tool, args);
-  } else if (tool.startsWith("graph-")) {
+  } else if (tool.startsWith("g-")) {
     result = await graph.handleToolCall(tool, args);
-  } else if (tool.startsWith("planning-")) {
+  } else if (tool.startsWith("p-")) {
     result = await planning.handleToolCall(tool, args);
-  } else if (tool.startsWith("automation-")) {
+  } else if (tool.startsWith("a-")) {
     result = await automation.handleToolCall(tool, args);
   } else {
     throw new Error(`Unknown tool: ${tool}`);

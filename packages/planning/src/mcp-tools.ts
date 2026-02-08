@@ -77,7 +77,7 @@ export class PlanningMCPTools {
   getTools(): MCPTool[] {
     return [
       {
-        name: "planning-goal",
+        name: "p-goal",
         description:
           "Push a new goal onto the planning stack. The current top item becomes paused.",
         inputSchema: {
@@ -104,7 +104,7 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "planning-interrupt",
+        name: "p-interrupt",
         description:
           "Push an interrupt onto the stack (context switch). Links to interrupted item.",
         inputSchema: {
@@ -123,7 +123,7 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "planning-done",
+        name: "p-done",
         description:
           "Pop the top item from the stack (mark as completed). Returns summary and resumed item.",
         inputSchema: {
@@ -137,7 +137,7 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "planning-stack",
+        name: "p-stack",
         description:
           "Get the current planning stack state. Set includeStale=true to check for stale items (slower, requires GitHub API calls).",
         inputSchema: {
@@ -151,7 +151,7 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "planning-plan",
+        name: "p-plan",
         description: "Create a Plan linked to a Goal.",
         inputSchema: {
           type: "object",
@@ -178,7 +178,7 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "planning-steps",
+        name: "p-steps",
         description: "Add steps to a Plan.",
         inputSchema: {
           type: "object",
@@ -229,7 +229,7 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "planning-planget",
+        name: "p-planget",
         description: "Get a Plan and its steps. Requires either goalId or planId.",
         inputSchema: {
           type: "object",
@@ -246,7 +246,7 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "planning-progress",
+        name: "p-progress",
         description: "Get progress metrics for a Plan. Requires either goalId or planId.",
         inputSchema: {
           type: "object",
@@ -263,7 +263,7 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "planning-step-update",
+        name: "p-step-update",
         description:
           "Manually set step status, overriding external sources. Use to mark steps as done/in-progress/not-started or clear overrides.",
         inputSchema: {
@@ -288,7 +288,7 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "planning-sync",
+        name: "p-sync",
         description:
           "Force-refresh all issue-type steps from GitHub. Clears cache and fetches fresh state.",
         inputSchema: {
@@ -317,25 +317,25 @@ export class PlanningMCPTools {
   ): Promise<MCPToolResult> {
     this.ensureInitialized();
     switch (name) {
-      case "planning-goal":
+      case "p-goal":
         return this.handleGoal(args);
-      case "planning-interrupt":
+      case "p-interrupt":
         return this.handleInterrupt(args);
-      case "planning-done":
+      case "p-done":
         return this.handleDone(args);
-      case "planning-stack":
+      case "p-stack":
         return this.handleStack(args);
-      case "planning-plan":
+      case "p-plan":
         return this.handlePlan(args);
-      case "planning-steps":
+      case "p-steps":
         return this.handleSteps(args);
-      case "planning-planget":
+      case "p-planget":
         return this.handlePlanGet(args);
-      case "planning-progress":
+      case "p-progress":
         return this.handleProgress(args);
-      case "planning-step-update":
+      case "p-step-update":
         return this.handleStepUpdate(args);
-      case "planning-sync":
+      case "p-sync":
         return this.handleSync(args);
       default:
         throw new Error(`Unknown tool: ${name}`);

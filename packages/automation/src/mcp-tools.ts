@@ -40,7 +40,7 @@ export class AutomationMCPTools {
   getTools(): MCPTool[] {
     return [
       {
-        name: "automation-from-milestone",
+        name: "a-from-milestone",
         description:
           "Fetch a GitHub milestone and its issues via `gh`, then create a Goal, Plan, and Steps in the planning stack.",
         inputSchema: {
@@ -55,7 +55,7 @@ export class AutomationMCPTools {
         },
       },
       {
-        name: "automation-from-epic",
+        name: "a-from-epic",
         description:
           "Fetch a GitHub epic issue and its sub-issues, then create a Goal, Plan, and Steps in the planning stack.",
         inputSchema: {
@@ -70,7 +70,7 @@ export class AutomationMCPTools {
         },
       },
       {
-        name: "automation-create-issue",
+        name: "a-create-issue",
         description:
           "Create a new GitHub issue, optionally linking it as a PlanStep in an existing plan.",
         inputSchema: {
@@ -102,7 +102,7 @@ export class AutomationMCPTools {
         },
       },
       {
-        name: "automation-start-issue",
+        name: "a-start-issue",
         description:
           "Start working on a GitHub issue: fetch it, create a branch, push a Goal onto the planning stack, and create a workflow checkpoint.",
         inputSchema: {
@@ -124,13 +124,13 @@ export class AutomationMCPTools {
     args: Record<string, unknown>
   ): Promise<MCPToolResult> {
     switch (name) {
-      case "automation-from-milestone":
+      case "a-from-milestone":
         return this.handleFromMilestone(args);
-      case "automation-from-epic":
+      case "a-from-epic":
         return this.handleFromEpic(args);
-      case "automation-create-issue":
+      case "a-create-issue":
         return this.handleCreateIssue(args);
-      case "automation-start-issue":
+      case "a-start-issue":
         return this.handleStartIssue(args);
       default:
         throw new Error(`Unknown tool: ${name}`);

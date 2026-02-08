@@ -19,20 +19,20 @@ File-based workflow checkpoint, knowledge management, and code graph analysis fo
 - Track workflow state across sessions
 - Store context, decisions, and blockers
 - Resume interrupted work seamlessly
-- **Tools:** `checkpoint-find`, `checkpoint-update`, `checkpoint-complete`
+- **Tools:** `c-find`, `c-update`, `c-complete`
 
 ### Knowledge (Learning Persistence)
 - Store learnings by code area
 - TF-IDF search for relevant information
 - Find related learnings
-- **Tools:** `knowledge-query`, `knowledge-store`, `knowledge-related`
+- **Tools:** `k-query`, `k-store`, `k-related`
 
 ### Graph (Code Analysis)
 - Parse TypeScript/JavaScript with ts-morph
 - Find what calls a function (call graph)
 - Calculate blast radius of changes
 - Hash-based caching for performance
-- **Tools:** `graph-calls`, `graph-blast`, `graph-defs`
+- **Tools:** `g-calls`, `g-blast`, `g-defs`
 
 ## Installation
 
@@ -65,9 +65,9 @@ graph-flow tools
 Examples:
 
 ```bash
-graph-flow checkpoint-find --json '{"issue": 123}'
-graph-flow knowledge-store --file ./learning.json
-cat ./args.json | graph-flow graph-calls
+graph-flow c-find --json '{"issue": 123}'
+graph-flow k-store --file ./learning.json
+cat ./args.json | graph-flow g-calls
 ```
 
 ## Storage Location
@@ -103,10 +103,10 @@ Or use the included `.mcp.json` by running from this directory.
 
 ```typescript
 // Find workflow by issue number
-checkpoint-find { issue: 123 }
+c-find { issue: 123 }
 
 // Update workflow
-checkpoint-update {
+c-update {
   id: "workflow-123",
   phase: "implement",
   context: ["Added authentication"],
@@ -114,37 +114,37 @@ checkpoint-update {
 }
 
 // Complete workflow
-checkpoint-complete { id: "workflow-123", delete: true }
+c-complete { id: "workflow-123", delete: true }
 ```
 
 ### Knowledge Tools
 
 ```typescript
 // Search learnings
-knowledge-query { text: "authentication", area: "auth", limit: 10 }
+k-query { text: "authentication", area: "auth", limit: 10 }
 
 // Store learning
-knowledge-store {
+k-store {
   area: "auth",
   type: "pattern",
   content: "Use JWT tokens in httpOnly cookies"
 }
 
 // Find related learnings
-knowledge-related { id: "learning-id", limit: 5 }
+k-related { id: "learning-id", limit: 5 }
 ```
 
 ### Graph Tools
 
 ```typescript
 // Find what calls a function
-graph-calls { name: "getDatabase", files: ["src/**/*.ts"] }
+g-calls { name: "getDatabase", files: ["src/**/*.ts"] }
 
 // Calculate blast radius
-graph-blast { name: "updateUser", files: ["src/**/*.ts"], maxDepth: 3 }
+g-blast { name: "updateUser", files: ["src/**/*.ts"], maxDepth: 3 }
 
 // Get all definitions in a file
-graph-defs { file: "src/auth/login.ts" }
+g-defs { file: "src/auth/login.ts" }
 ```
 
 ## Storage Format
