@@ -10,7 +10,7 @@ Start working on a GitHub issue with full tracking: branch, planning goal, and w
 ## Workflow
 
 1. **Get issue number** — Ask the user which issue to work on if not already provided.
-2. **Call the tool** — Use `automation-start-issue` with the issue number.
+2. **Call the tool** — Use `a-start-issue` with the issue number.
 3. **Report results** — Show:
    - Branch name (already checked out)
    - Goal ID (pushed to planning stack)
