@@ -117,7 +117,7 @@ Unlike `/auto-milestone`, this phase does NOT use the milestone-planner. Claude 
 
 ```bash
 gh api graphql -f query='query {
-  repository(owner: "rollercoaster-dev", name: "monorepo") {
+  repository(owner: "rollercoaster-dev", name: "graph-flow") {
     issue(number: <N>) {
       title
       subIssues(first: 50) {
