@@ -465,7 +465,7 @@ export class PlanningManager {
       newStatus: CompletionStatus;
     }>;
     unchanged: number;
-    errors: Array<{ stepId: string; issue: number; error: string }>;
+    errors: Array<{ stepId: string; issue: number | null; error: string }>;
   }> {
     // Get plans to sync
     const plans = planId
@@ -487,7 +487,7 @@ export class PlanningManager {
         newStatus: CompletionStatus;
       }>,
       unchanged: 0,
-      errors: [] as Array<{ stepId: string; issue: number; error: string }>,
+      errors: [] as Array<{ stepId: string; issue: number | null; error: string }>,
     };
 
     for (const plan of plans) {
@@ -533,8 +533,8 @@ export class PlanningManager {
       }
     }
 
-    // Persist all resolved statuses in one write
-    if (results.updated.length > 0) {
+    // Persist all resolved statuses in one write (including unchanged baseline)
+    if (results.attempted > results.errors.length) {
       try {
         await this.storage.persistResolvedStatuses();
       } catch (error) {
@@ -545,7 +545,7 @@ export class PlanningManager {
             ...results.errors,
             {
               stepId: "persist",
-              issue: 0,
+              issue: null,
               error: `Failed to save resolved statuses: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],

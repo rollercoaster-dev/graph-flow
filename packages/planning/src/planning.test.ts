@@ -133,6 +133,178 @@ describe("PlanningManager", () => {
     expect(retrieved[0].ordinal).toBe(1);
     expect(retrieved[1].ordinal).toBe(2);
   });
+
+  describe("syncFromGitHub", () => {
+    test("detects status change from persisted state", async () => {
+      // Setup: goal + plan + issue-linked step
+      const { goal } = await manager.pushGoal({ title: "Sync test" });
+      const plan = await manager.createPlan({
+        title: "Sync plan",
+        goalId: goal.id,
+        sourceType: "manual",
+      });
+      const steps = await manager.createSteps(plan.id, [
+        {
+          title: "Issue step",
+          ordinal: 1,
+          wave: 1,
+          externalRef: { type: "issue", number: 999 },
+        },
+      ]);
+
+      // Seed the persisted resolved status as "not-started"
+      const storage = manager.getStorage();
+      storage.setResolvedStatus(steps[0].id, "not-started");
+      await storage.persistResolvedStatuses();
+
+      // IssueResolver checks manual overrides before hitting GitHub (see resolvers.ts).
+      // setStepStatus acts as a test double for a GitHub-resolved "done" state,
+      // letting us validate the persisted-vs-resolved comparison in syncFromGitHub
+      // without requiring a live GitHub CLI.
+      await manager.setStepStatus(steps[0].id, "done");
+
+      const results = await manager.syncFromGitHub(plan.id);
+
+      // Should detect the change: stored "not-started" vs resolved "done"
+      expect(results.attempted).toBe(1);
+      expect(results.updated.length).toBe(1);
+      expect(results.updated[0].oldStatus).toBe("not-started");
+      expect(results.updated[0].newStatus).toBe("done");
+    });
+
+    test("reports unchanged when status matches persisted state", async () => {
+      const { goal } = await manager.pushGoal({ title: "Unchanged test" });
+      const plan = await manager.createPlan({
+        title: "Plan",
+        goalId: goal.id,
+        sourceType: "manual",
+      });
+      const steps = await manager.createSteps(plan.id, [
+        {
+          title: "Issue step",
+          ordinal: 1,
+          wave: 1,
+          externalRef: { type: "issue", number: 888 },
+        },
+      ]);
+
+      // Set a manual override to "done" and also seed persisted as "done"
+      await manager.setStepStatus(steps[0].id, "done");
+      const storage = manager.getStorage();
+      storage.setResolvedStatus(steps[0].id, "done");
+      await storage.persistResolvedStatuses();
+
+      const results = await manager.syncFromGitHub(plan.id);
+
+      expect(results.attempted).toBe(1);
+      expect(results.updated.length).toBe(0);
+      expect(results.unchanged).toBe(1);
+    });
+
+    test("first sync records error when GitHub CLI fails", async () => {
+      const { goal } = await manager.pushGoal({ title: "First sync" });
+      const plan = await manager.createPlan({
+        title: "Plan",
+        goalId: goal.id,
+        sourceType: "manual",
+      });
+      await manager.createSteps(plan.id, [
+        {
+          title: "Issue step",
+          ordinal: 1,
+          wave: 1,
+          externalRef: { type: "issue", number: 777 },
+        },
+      ]);
+
+      // No persisted status, no manual override
+      // Resolver will hit GitHub (which will fail in test) → throws → recorded as error
+      const results = await manager.syncFromGitHub(plan.id);
+
+      expect(results.attempted).toBe(1);
+      expect(results.errors.length).toBe(1);
+      expect(results.errors[0].issue).toBe(777);
+      expect(results.unchanged).toBe(0);
+    });
+
+    test("error on one step does not abort sync of remaining steps", async () => {
+      const { goal } = await manager.pushGoal({ title: "Mixed sync" });
+      const plan = await manager.createPlan({
+        title: "Plan",
+        goalId: goal.id,
+        sourceType: "manual",
+      });
+      const steps = await manager.createSteps(plan.id, [
+        {
+          title: "Step with override",
+          ordinal: 1,
+          wave: 1,
+          externalRef: { type: "issue", number: 111 },
+        },
+        {
+          title: "Step without override",
+          ordinal: 2,
+          wave: 1,
+          externalRef: { type: "issue", number: 222 },
+        },
+      ]);
+
+      // Set manual override on step 1 (will succeed) and seed persisted as not-started
+      await manager.setStepStatus(steps[0].id, "done");
+      const storage = manager.getStorage();
+      storage.setResolvedStatus(steps[0].id, "not-started");
+      await storage.persistResolvedStatuses();
+
+      // Step 2 has no override → GitHub CLI fails → error
+      const results = await manager.syncFromGitHub(plan.id);
+
+      // Step 1: resolved "done" vs persisted "not-started" → updated
+      expect(results.updated.length).toBe(1);
+      expect(results.updated[0].oldStatus).toBe("not-started");
+      expect(results.updated[0].newStatus).toBe("done");
+
+      // Step 2: GitHub CLI failed → error (not abort)
+      expect(results.errors.length).toBe(1);
+      expect(results.errors[0].issue).toBe(222);
+
+      expect(results.attempted).toBe(2);
+    });
+
+    test("resolved statuses survive across manager instances (round-trip)", async () => {
+      const { goal } = await manager.pushGoal({ title: "Round-trip test" });
+      const plan = await manager.createPlan({
+        title: "Plan",
+        goalId: goal.id,
+        sourceType: "manual",
+      });
+      const steps = await manager.createSteps(plan.id, [
+        {
+          title: "Issue step",
+          ordinal: 1,
+          wave: 1,
+          externalRef: { type: "issue", number: 555 },
+        },
+      ]);
+
+      // Seed persisted as "not-started", set manual override to "done"
+      const storage = manager.getStorage();
+      storage.setResolvedStatus(steps[0].id, "not-started");
+      await storage.persistResolvedStatuses();
+      await manager.setStepStatus(steps[0].id, "done");
+
+      // Sync writes the new resolved status ("done") to disk
+      const results = await manager.syncFromGitHub(plan.id);
+      expect(results.updated.length).toBe(1);
+
+      // Create a fresh manager from the same directory — simulates process restart
+      const manager2 = new PlanningManager(TEST_DIR);
+      await manager2.init();
+
+      // The persisted resolved status should survive the round-trip
+      const freshStorage = manager2.getStorage();
+      expect(freshStorage.getResolvedStatus(steps[0].id)).toBe("done");
+    });
+  });
 });
 
 describe("PlanningMCPTools", () => {
@@ -257,183 +429,3 @@ describe("PlanningMCPTools", () => {
   });
 });
 
-describe("syncFromGitHub", () => {
-  let manager: PlanningManager;
-
-  beforeEach(async () => {
-    manager = new PlanningManager(TEST_DIR);
-    await manager.init();
-  });
-
-  afterEach(async () => {
-    await rm(TEST_DIR, { recursive: true, force: true });
-  });
-
-  test("detects status change from persisted state", async () => {
-    // Setup: goal + plan + issue-linked step
-    const { goal } = await manager.pushGoal({ title: "Sync test" });
-    const plan = await manager.createPlan({
-      title: "Sync plan",
-      goalId: goal.id,
-      sourceType: "manual",
-    });
-    const steps = await manager.createSteps(plan.id, [
-      {
-        title: "Issue step",
-        ordinal: 1,
-        wave: 1,
-        externalRef: { type: "issue", number: 999 },
-      },
-    ]);
-
-    // Seed the persisted resolved status as "not-started"
-    const storage = manager.getStorage();
-    storage.setResolvedStatus(steps[0].id, "not-started");
-    await storage.persistResolvedStatuses();
-
-    // Now manually set the step as done (simulates GitHub returning CLOSED)
-    // by setting a manual override which takes priority in the resolver
-    await manager.setStepStatus(steps[0].id, "done");
-
-    const results = await manager.syncFromGitHub(plan.id);
-
-    // Should detect the change: stored "not-started" vs resolved "done"
-    expect(results.attempted).toBe(1);
-    expect(results.updated.length).toBe(1);
-    expect(results.updated[0].oldStatus).toBe("not-started");
-    expect(results.updated[0].newStatus).toBe("done");
-  });
-
-  test("reports unchanged when status matches persisted state", async () => {
-    const { goal } = await manager.pushGoal({ title: "Unchanged test" });
-    const plan = await manager.createPlan({
-      title: "Plan",
-      goalId: goal.id,
-      sourceType: "manual",
-    });
-    const steps = await manager.createSteps(plan.id, [
-      {
-        title: "Issue step",
-        ordinal: 1,
-        wave: 1,
-        externalRef: { type: "issue", number: 888 },
-      },
-    ]);
-
-    // Set a manual override to "done" and also seed persisted as "done"
-    await manager.setStepStatus(steps[0].id, "done");
-    const storage = manager.getStorage();
-    storage.setResolvedStatus(steps[0].id, "done");
-    await storage.persistResolvedStatuses();
-
-    const results = await manager.syncFromGitHub(plan.id);
-
-    expect(results.attempted).toBe(1);
-    expect(results.updated.length).toBe(0);
-    expect(results.unchanged).toBe(1);
-  });
-
-  test("first sync records error when GitHub CLI fails", async () => {
-    const { goal } = await manager.pushGoal({ title: "First sync" });
-    const plan = await manager.createPlan({
-      title: "Plan",
-      goalId: goal.id,
-      sourceType: "manual",
-    });
-    await manager.createSteps(plan.id, [
-      {
-        title: "Issue step",
-        ordinal: 1,
-        wave: 1,
-        externalRef: { type: "issue", number: 777 },
-      },
-    ]);
-
-    // No persisted status, no manual override
-    // Resolver will hit GitHub (which will fail in test) → throws → recorded as error
-    const results = await manager.syncFromGitHub(plan.id);
-
-    expect(results.attempted).toBe(1);
-    expect(results.errors.length).toBe(1);
-    expect(results.errors[0].issue).toBe(777);
-    expect(results.unchanged).toBe(0);
-  });
-
-  test("error on one step does not abort sync of remaining steps", async () => {
-    const { goal } = await manager.pushGoal({ title: "Mixed sync" });
-    const plan = await manager.createPlan({
-      title: "Plan",
-      goalId: goal.id,
-      sourceType: "manual",
-    });
-    const steps = await manager.createSteps(plan.id, [
-      {
-        title: "Step with override",
-        ordinal: 1,
-        wave: 1,
-        externalRef: { type: "issue", number: 111 },
-      },
-      {
-        title: "Step without override",
-        ordinal: 2,
-        wave: 1,
-        externalRef: { type: "issue", number: 222 },
-      },
-    ]);
-
-    // Set manual override on step 1 (will succeed) and seed persisted as not-started
-    await manager.setStepStatus(steps[0].id, "done");
-    const storage = manager.getStorage();
-    storage.setResolvedStatus(steps[0].id, "not-started");
-    await storage.persistResolvedStatuses();
-
-    // Step 2 has no override → GitHub CLI fails → error
-    const results = await manager.syncFromGitHub(plan.id);
-
-    // Step 1: resolved "done" vs persisted "not-started" → updated
-    expect(results.updated.length).toBe(1);
-    expect(results.updated[0].oldStatus).toBe("not-started");
-    expect(results.updated[0].newStatus).toBe("done");
-
-    // Step 2: GitHub CLI failed → error (not abort)
-    expect(results.errors.length).toBe(1);
-    expect(results.errors[0].issue).toBe(222);
-
-    expect(results.attempted).toBe(2);
-  });
-
-  test("resolved statuses survive across manager instances (round-trip)", async () => {
-    const { goal } = await manager.pushGoal({ title: "Round-trip test" });
-    const plan = await manager.createPlan({
-      title: "Plan",
-      goalId: goal.id,
-      sourceType: "manual",
-    });
-    const steps = await manager.createSteps(plan.id, [
-      {
-        title: "Issue step",
-        ordinal: 1,
-        wave: 1,
-        externalRef: { type: "issue", number: 555 },
-      },
-    ]);
-
-    // Seed persisted as "not-started", set manual override to "done"
-    const storage = manager.getStorage();
-    storage.setResolvedStatus(steps[0].id, "not-started");
-    await storage.persistResolvedStatuses();
-    await manager.setStepStatus(steps[0].id, "done");
-
-    // Sync writes the new resolved status ("done") to disk
-    const results = await manager.syncFromGitHub(plan.id);
-    expect(results.updated.length).toBe(1);
-
-    // Create a fresh manager from the same directory — simulates process restart
-    const manager2 = new PlanningManager(TEST_DIR);
-    await manager2.init();
-
-    // The persisted resolved status should survive the round-trip
-    const freshStorage = manager2.getStorage();
-    expect(freshStorage.getResolvedStatus(steps[0].id)).toBe("done");
-  });
-});
