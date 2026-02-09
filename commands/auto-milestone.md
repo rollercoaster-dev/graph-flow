@@ -36,8 +36,8 @@ NEVER: Issue #123 → commit directly to main
 All worker processes run as **separate `claude -p` processes** via Bash:
 
 ```bash
-claude -p "/auto-issue <N>" --max-budget-usd 5 --model opus \
-  --output-format text --dangerously-skip-permissions \
+claude -p "/graph-flow:auto-issue <N>" --model opus \
+  --output-format text --permission-mode dangerous \
   > .claude/output/issue-<N>.log 2>&1
 ```
 
@@ -115,7 +115,7 @@ After each wave completes:
 
 ```text
 Phase 1: Plan    → claude -p milestone-planner → GATE (if dependencies unclear)
-Phase 2: Execute → per-wave: launch claude -p /auto-issue N (Opus 4.5)
+Phase 2: Execute → per-wave: launch claude -p /graph-flow:auto-issue N (Opus 4.5)
 Phase 3: Review  → per-PR: CI → CodeRabbit → fix → Telegram approval → merge
 Phase 4: Cleanup → remove worktrees, summary, notification
 ```
@@ -156,7 +156,7 @@ Launch the milestone-planner as a **separate `claude -p` process** (not a nested
 claude -p "Analyze milestone '<name>' and return execution_waves JSON. \
   Follow the milestone-planner agent protocol. \
   Mode: <milestone|issues>, target: <name-or-numbers>." \
-  --model sonnet --output-format json --dangerously-skip-permissions \
+  --model sonnet --output-format json --permission-mode dangerous \
   > .claude/output/milestone-plan.json 2> .claude/output/milestone-plan.err
 ```
 
@@ -245,8 +245,8 @@ For each issue in the wave:
 2. Launch worker:
 
    ```bash
-   claude -p "/auto-issue <N>" --max-budget-usd 5 --model opus \
-     --output-format text --dangerously-skip-permissions \
+   claude -p "/graph-flow:auto-issue <N>" --model opus \
+     --output-format text --permission-mode dangerous \
      > .claude/output/issue-<N>.log 2>&1
    ```
 
@@ -263,8 +263,8 @@ For each issue in the wave:
 Launch up to N workers as background processes:
 
 ```bash
-claude -p "/auto-issue <N>" --max-budget-usd 5 --model opus \
-  --output-format text --dangerously-skip-permissions \
+claude -p "/graph-flow:auto-issue <N>" --model opus \
+  --output-format text --permission-mode dangerous \
   > .claude/output/issue-<N>.log 2>&1 &
 ```
 
@@ -305,7 +305,7 @@ If CI fails:
 1. Spawn a fix worker:
    ```bash
    claude -p "Fix CI failures for PR #<N>. Run failing checks, fix issues, commit and push." \
-     --max-budget-usd 2 --model opus --output-format text --dangerously-skip-permissions \
+     --model opus --output-format text --permission-mode dangerous \
      > .claude/output/ci-fix-<N>.log 2>&1
    ```
 2. Re-wait for CI (max 2 attempts)
@@ -316,7 +316,7 @@ If CI fails:
 Poll for CodeRabbit review:
 
 ```bash
-gh api repos/rollercoaster-dev/monorepo/pulls/<N>/reviews
+gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/reviews
 ```
 
 - Wait up to 5 minutes for a review to appear
@@ -325,7 +325,7 @@ gh api repos/rollercoaster-dev/monorepo/pulls/<N>/reviews
 ### Step 3: Read and Address Review Comments
 
 ```bash
-gh api repos/rollercoaster-dev/monorepo/pulls/<N>/comments
+gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/comments
 ```
 
 Claude triages comments:
@@ -334,7 +334,7 @@ Claude triages comments:
 - **Real issue / bug** → spawn fix worker:
   ```bash
   claude -p "Address review comments on PR #<N>: <comments>. Fix issues, commit and push." \
-    --max-budget-usd 3 --model opus --output-format text --dangerously-skip-permissions \
+    --model opus --output-format text --permission-mode dangerous \
     > .claude/output/review-fix-<N>.log 2>&1
   ```
 - After fix: re-wait for CI

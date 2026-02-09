@@ -148,8 +148,8 @@ BRANCH=$(git branch --show-current)
 Build a PR comment with before/after comparison tables. For each focus route, construct image URLs:
 
 ```text
-https://raw.githubusercontent.com/rollercoaster-dev/monorepo/<BRANCH>/.claude/screenshots/issue-<N>/before/<slug>.png
-https://raw.githubusercontent.com/rollercoaster-dev/monorepo/<BRANCH>/.claude/screenshots/issue-<N>/after/<slug>.png
+https://raw.githubusercontent.com/rollercoaster-dev/graph-flow/<BRANCH>/.claude/screenshots/issue-<N>/before/<slug>.png
+https://raw.githubusercontent.com/rollercoaster-dev/graph-flow/<BRANCH>/.claude/screenshots/issue-<N>/after/<slug>.png
 ```
 
 Post the comment:

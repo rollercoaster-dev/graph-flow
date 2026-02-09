@@ -32,7 +32,7 @@ Run the worktree manager script with the provided arguments:
 
 ## Worktree Location
 
-Worktrees are created at: `~/Code/worktrees/monorepo-issue-<N>`
+Worktrees are created at: `~/Code/worktrees/graph-flow-issue-<N>`
 
 This keeps worktrees outside the main repo to avoid nesting issues.
 

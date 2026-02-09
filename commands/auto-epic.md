@@ -31,7 +31,7 @@ Each sub-issue gets its own branch → PR → review → merge. See `/auto-miles
 All worker processes run as **separate `claude -p` processes** via Bash:
 
 ```bash
-claude -p "/graph-flow:auto-issue <N>" --max-budget-usd 5 --model opus \
+claude -p "/graph-flow:auto-issue <N>" --model opus \
   --output-format text --permission-mode dangerous \
   > .claude/output/issue-<N>.log 2>&1
 ```
@@ -209,7 +209,7 @@ For each sub-issue in wave order (up to `--parallel` limit, default: 1 sequentia
 4. **Launch worker:**
 
    ```bash
-   claude -p "/graph-flow:auto-issue <N>" --max-budget-usd 5 --model opus \
+   claude -p "/graph-flow:auto-issue <N>" --model opus \
      --output-format text --permission-mode dangerous \
      > .claude/output/issue-<N>.log 2>&1
    ```

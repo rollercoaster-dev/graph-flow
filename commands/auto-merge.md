@@ -189,10 +189,10 @@ gh run view <run-id> --log-failed
 
 ```bash
 # Inline review comments
-gh api repos/rollercoaster-dev/monorepo/pulls/<number>/comments
+gh api repos/rollercoaster-dev/graph-flow/pulls/<number>/comments
 
 # Issue comments (includes CodeRabbit summary)
-gh api repos/rollercoaster-dev/monorepo/issues/<number>/comments
+gh api repos/rollercoaster-dev/graph-flow/issues/<number>/comments
 ```
 
 **Comment classification:**
@@ -378,8 +378,8 @@ git rebase origin/<base>
 git push --force-with-lease
 
 # Review comments
-gh api repos/rollercoaster-dev/monorepo/pulls/<n>/comments
-gh api repos/rollercoaster-dev/monorepo/issues/<n>/comments
+gh api repos/rollercoaster-dev/graph-flow/pulls/<n>/comments
+gh api repos/rollercoaster-dev/graph-flow/issues/<n>/comments
 
 # Merge
 gh pr merge <n> --squash --delete-branch
