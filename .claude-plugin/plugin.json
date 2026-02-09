@@ -1,7 +1,7 @@
 {
   "name": "graph-flow",
   "description": "Planning stack, workflow checkpoints, knowledge graph, and GitHub automation for Claude Code",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": {
     "name": "rollercoaster.dev"
   },
