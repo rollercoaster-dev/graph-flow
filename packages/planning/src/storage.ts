@@ -5,7 +5,7 @@
  * Uses in-memory cache for fast access with <100 items.
  */
 
-import { mkdir } from "node:fs/promises";
+import { mkdir, rename } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type {
@@ -14,6 +14,7 @@ import type {
   Plan,
   PlanStep,
   ManualStatus,
+  ResolvedStatus,
   CompletionStatus,
 } from "./types";
 
@@ -36,6 +37,7 @@ const FILES = {
   relationships: "relationships.jsonl",
   completions: "completions.jsonl", // Manual completion markers (legacy)
   manualStatus: "manual-status.jsonl", // Manual status overrides
+  resolvedStatus: "resolved-status.jsonl", // Last-known resolved status per step
 } as const;
 
 /**
@@ -51,6 +53,7 @@ export class PlanningStorage {
   private relationships: Map<string, PlanningRelationship> = new Map();
   private manualCompletions: Set<string> = new Set(); // step IDs marked as done (legacy)
   private manualStatus: Map<string, ManualStatus> = new Map(); // step status overrides
+  private resolvedStatuses: Map<string, ResolvedStatus> = new Map(); // last-known resolved status
 
   constructor(options: StorageOptions) {
     this.baseDir = options.baseDir;
@@ -110,11 +113,20 @@ export class PlanningStorage {
     for (const record of statusRecords) {
       this.manualStatus.set(record.stepId, record);
     }
+
+    // Load resolved statuses
+    const resolvedRecords = await this.readJSONL<ResolvedStatus & JSONLRecord>(
+      FILES.resolvedStatus
+    );
+    for (const record of resolvedRecords) {
+      this.resolvedStatuses.set(record.stepId, record);
+    }
   }
 
   /**
    * Read all records from a JSONL file.
-   * Handles missing files and corrupted lines gracefully.
+   * Missing files return empty array. Permission/IO errors are thrown.
+   * Corrupted lines are skipped with a warning.
    */
   private async readJSONL<T extends JSONLRecord>(filename: string): Promise<T[]> {
     const filepath = join(this.baseDir, filename);
@@ -122,40 +134,51 @@ export class PlanningStorage {
     let content: string;
     try {
       content = await Bun.file(filepath).text();
-    } catch {
-      // File doesn't exist or can't be read - start fresh
-      return [];
+    } catch (error: unknown) {
+      // Missing file on first run is expected — start fresh
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+        return [];
+      }
+      // Permission errors, IO errors, etc. should not be silently ignored
+      throw error;
     }
 
     const lines = content.trim().split("\n").filter(Boolean);
     const results: T[] = [];
+    let corrupted = 0;
 
     for (const line of lines) {
       try {
         results.push(JSON.parse(line) as T);
       } catch {
-        // Skip corrupted lines - graceful degradation
+        corrupted++;
       }
+    }
+
+    if (corrupted > 0) {
+      console.warn(
+        `[planning-storage] ${filename}: skipped ${corrupted} corrupted line(s) of ${lines.length} total`
+      );
     }
 
     return results;
   }
 
   /**
-   * Write entire JSONL file (replaces existing content).
+   * Write entire JSONL file atomically (write to .tmp, then rename).
+   * Prevents corrupted files from mid-write crashes.
    */
   private async writeJSONL(
     filename: string,
     records: JSONLRecord[]
   ): Promise<void> {
     const filepath = join(this.baseDir, filename);
-    if (records.length === 0) {
-      // Write empty file
-      await Bun.write(filepath, "", { createPath: true });
-      return;
-    }
-    const content = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
-    await Bun.write(filepath, content, { createPath: true });
+    const tmpPath = filepath + ".tmp";
+    const content = records.length === 0
+      ? ""
+      : records.map((r) => JSON.stringify(r)).join("\n") + "\n";
+    await Bun.write(tmpPath, content, { createPath: true });
+    await rename(tmpPath, filepath);
   }
 
   /**
@@ -387,5 +410,52 @@ export class PlanningStorage {
    */
   getAllManualStatuses(): ManualStatus[] {
     return Array.from(this.manualStatus.values());
+  }
+
+  // ============================================================================
+  // Resolved Status Operations
+  // ============================================================================
+
+  /**
+   * Get last-known resolved status for a step.
+   */
+  getResolvedStatus(stepId: string): CompletionStatus | null {
+    return this.resolvedStatuses.get(stepId)?.status ?? null;
+  }
+
+  /**
+   * Set last-known resolved status for a step.
+   */
+  setResolvedStatus(stepId: string, status: CompletionStatus): void {
+    this.resolvedStatuses.set(stepId, {
+      stepId,
+      status,
+      resolvedAt: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Clear resolved status for a step.
+   */
+  clearResolvedStatus(stepId: string): void {
+    this.resolvedStatuses.delete(stepId);
+  }
+
+  /**
+   * Get all resolved statuses.
+   */
+  getAllResolvedStatuses(): ResolvedStatus[] {
+    return Array.from(this.resolvedStatuses.values());
+  }
+
+  /**
+   * Persist resolved statuses to disk.
+   */
+  async persistResolvedStatuses(): Promise<void> {
+    const records = Array.from(this.resolvedStatuses.values()).map((s) => ({
+      ...s,
+      timestamp: new Date().toISOString(),
+    }));
+    await this.writeJSONL(FILES.resolvedStatus, records);
   }
 }

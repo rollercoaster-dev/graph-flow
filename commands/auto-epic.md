@@ -31,8 +31,8 @@ Each sub-issue gets its own branch → PR → review → merge. See `/auto-miles
 All worker processes run as **separate `claude -p` processes** via Bash:
 
 ```bash
-claude -p "/auto-issue <N>" --max-budget-usd 5 --model opus \
-  --output-format text --dangerously-skip-permissions \
+claude -p "/graph-flow:auto-issue <N>" --max-budget-usd 5 --model opus \
+  --output-format text --permission-mode dangerous \
   > .claude/output/issue-<N>.log 2>&1
 ```
 
@@ -85,7 +85,7 @@ Same pattern as `/auto-milestone`. Create ALL tasks upfront after Phase 1, with 
 
 ```text
 Phase 1: Plan    → read GitHub sub-issue graph → compute waves inline
-Phase 2: Execute → per-wave: launch claude -p /auto-issue N (Opus 4.5)
+Phase 2: Execute → per-wave: launch claude -p /graph-flow:auto-issue N (Opus 4.5)
 Phase 3: Review  → per-PR: CI → CodeRabbit → fix → Telegram approval → merge
 Phase 4: Cleanup → remove worktrees, update epic, summary, notification
 ```
@@ -105,7 +105,7 @@ Parse `$ARGUMENTS`:
 
 - Empty arguments → Error: "Usage: /auto-epic <epic-issue-number>"
 - Non-existent issue → Error: "Issue #X not found"
-- Issue with no sub-issues → Error: "Issue #X has no sub-issues. Use /auto-issue for single issues."
+- Issue with no sub-issues → Error: "Issue #X has no sub-issues. Use /graph-flow:auto-issue for single issues."
 
 ---
 
@@ -117,7 +117,7 @@ Unlike `/auto-milestone`, this phase does NOT use the milestone-planner. Claude 
 
 ```bash
 gh api graphql -f query='query {
-  repository(owner: "rollercoaster-dev", name: "monorepo") {
+  repository(owner: "rollercoaster-dev", name: "graph-flow") {
     issue(number: <N>) {
       title
       subIssues(first: 50) {
@@ -209,8 +209,8 @@ For each sub-issue in wave order (up to `--parallel` limit, default: 1 sequentia
 4. **Launch worker:**
 
    ```bash
-   claude -p "/auto-issue <N>" --max-budget-usd 5 --model opus \
-     --output-format text --dangerously-skip-permissions \
+   claude -p "/graph-flow:auto-issue <N>" --max-budget-usd 5 --model opus \
+     --output-format text --permission-mode dangerous \
      > .claude/output/issue-<N>.log 2>&1
    ```
 
@@ -304,7 +304,7 @@ Same as `/auto-milestone` — state tracked in checkpoint DB (source of truth) a
 | Error                 | Behavior                               |
 | --------------------- | -------------------------------------- |
 | Epic not found        | Report error, exit                     |
-| No sub-issues         | Suggest /auto-issue instead            |
+| No sub-issues         | Suggest /graph-flow:auto-issue instead |
 | Circular deps         | Report cycle, wait for user            |
 | All sub-issues closed | Report "nothing to do", exit           |
 | Worker failure        | Mark failed, skip dependents, continue |

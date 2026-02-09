@@ -206,6 +206,16 @@ export interface ManualStatus {
 }
 
 /**
+ * Last-known resolved status for a plan step.
+ * Persisted so sync can detect changes between stored and fresh GitHub state.
+ */
+export interface ResolvedStatus {
+  stepId: string;
+  status: CompletionStatus;
+  resolvedAt: string;
+}
+
+/**
  * Completion status for a plan step.
  * Resolved from external source at query time.
  */

@@ -453,10 +453,10 @@ export class PlanningManager {
 
   /**
    * Sync all issue-type steps from GitHub.
-   * Clears cache and fetches fresh state for each step.
+   * Compares persisted last-known status against fresh GitHub state.
    */
   async syncFromGitHub(planId?: string): Promise<{
-    synced: number;
+    attempted: number;
     updated: Array<{
       stepId: string;
       title: string;
@@ -465,15 +465,20 @@ export class PlanningManager {
       newStatus: CompletionStatus;
     }>;
     unchanged: number;
-    errors: Array<{ stepId: string; issue: number; error: string }>;
+    errors: Array<{ stepId: string; issue: number | null; error: string }>;
   }> {
     // Get plans to sync
     const plans = planId
-      ? [this.storage.getPlan(planId)].filter(Boolean)
+      ? [this.storage.getPlan(planId)].filter(
+          (p): p is Plan => p !== null
+        )
       : this.getAllPlans();
 
+    // Clear cache up front so all fetches hit GitHub
+    clearStatusCache();
+
     const results = {
-      synced: 0,
+      attempted: 0,
       updated: [] as Array<{
         stepId: string;
         title: string;
@@ -482,10 +487,9 @@ export class PlanningManager {
         newStatus: CompletionStatus;
       }>,
       unchanged: 0,
-      errors: [] as Array<{ stepId: string; issue: number; error: string }>,
+      errors: [] as Array<{ stepId: string; issue: number | null; error: string }>,
     };
 
-    // For each plan, get steps and sync issue-type steps
     for (const plan of plans) {
       const steps = this.storage.getStepsByPlan(plan.id);
 
@@ -494,18 +498,19 @@ export class PlanningManager {
           continue;
         }
 
-        results.synced++;
+        results.attempted++;
 
         try {
-          // Get old status (will use cache if available)
+          // Read persisted last-known status (null if never synced)
+          const oldStatus =
+            this.storage.getResolvedStatus(step.id) ?? "not-started";
+
+          // Fetch fresh from GitHub
           const resolver = this.resolverFactory.getResolver("issue");
-          const oldStatus = await resolver.resolve(step);
-
-          // Clear cache to force fresh fetch
-          clearStatusCache();
-
-          // Get new status (will fetch from GitHub)
           const newStatus = await resolver.resolve(step);
+
+          // Persist the fresh status
+          this.storage.setResolvedStatus(step.id, newStatus);
 
           if (oldStatus !== newStatus) {
             results.updated.push({
@@ -525,6 +530,26 @@ export class PlanningManager {
             error: error instanceof Error ? error.message : "Unknown error",
           });
         }
+      }
+    }
+
+    // Persist all resolved statuses in one write (including unchanged baseline)
+    if (results.attempted > results.errors.length) {
+      try {
+        await this.storage.persistResolvedStatuses();
+      } catch (error) {
+        // Return computed results even if persist fails
+        return {
+          ...results,
+          errors: [
+            ...results.errors,
+            {
+              stepId: "persist",
+              issue: null,
+              error: `Failed to save resolved statuses: ${error instanceof Error ? error.message : "Unknown error"}`,
+            },
+          ],
+        };
       }
     }
 
