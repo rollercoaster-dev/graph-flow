@@ -28,12 +28,37 @@ Each sub-issue gets its own branch → PR → review → merge. See `/auto-miles
 
 **YOU MUST NOT use the Task tool to spawn sub-agents.** Context explosion from nested agents causes OOM failures.
 
-All worker processes run as **separate `claude -p` processes** via Bash:
+All worker processes run as **separate `claude -p` processes** via Bash.
+
+---
+
+## CRITICAL: Use the Exact Worker Command — No Self-Prompting
+
+**YOU MUST use this EXACT command to launch workers. DO NOT write your own prompt. DO NOT add --max-budget-usd. DO NOT use --dangerously-skip-permissions.**
+
+The `/graph-flow:auto-issue` skill already contains all the instructions the worker needs. You ONLY pass the issue number. The skill handles everything: branch creation, implementation, testing, PR creation.
 
 ```bash
 claude -p "/graph-flow:auto-issue <N>" --model opus \
   --output-format text --permission-mode dangerous \
   > .claude/output/issue-<N>.log 2>&1
+```
+
+**WRONG — DO NOT DO THIS:**
+```bash
+# WRONG: Do not write inline prompts
+claude -p "You are working on issue #95..." --max-budget-usd 5 --dangerously-skip-permissions
+# WRONG: Do not add budget limits
+claude -p "/graph-flow:auto-issue 95" --max-budget-usd 5
+# WRONG: Do not use old permission flag
+claude -p "/graph-flow:auto-issue 95" --dangerously-skip-permissions
+```
+
+**RIGHT — DO THIS:**
+```bash
+claude -p "/graph-flow:auto-issue 95" --model opus \
+  --output-format text --permission-mode dangerous \
+  > .claude/output/issue-95.log 2>&1
 ```
 
 The only exception is calling the `telegram` skill via the Skill tool (lightweight, no agent context).
@@ -206,7 +231,7 @@ For each sub-issue in wave order (up to `--parallel` limit, default: 1 sequentia
    git checkout main && git pull origin main
    ```
 
-4. **Launch worker:**
+4. **Launch worker (use EXACT command — no inline prompts, no budget limits):**
 
    ```bash
    claude -p "/graph-flow:auto-issue <N>" --model opus \
