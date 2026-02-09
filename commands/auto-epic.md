@@ -1,10 +1,10 @@
 # /auto-epic $ARGUMENTS
 
-Claude-as-orchestrator for epic execution. Reads GitHub sub-issues and native dependency graph, computes waves inline, and spawns `claude -p` workers with per-PR Telegram approval.
+Claude-as-orchestrator for epic execution. Reads GitHub sub-issues and native dependency graph, computes waves inline, and uses native agent teams to execute sub-issues with per-PR Telegram approval.
 
 **Mode:** Autonomous — no gates, uses explicit GitHub dependencies (no inference needed).
 
-**Architecture:** Claude IS the orchestrator. Workers are separate `claude -p` processes (Opus 4.5). Wave computation is inline (epic deps are explicit in GitHub -- no planner needed).
+**Architecture:** Claude IS the orchestrator (team lead). Workers are managed teammates spawned via the `Task` tool with `team_name`. Wave computation is inline (epic deps are explicit in GitHub — no planner needed).
 
 **Recommended:** Run in tmux for remote observability:
 
@@ -24,41 +24,30 @@ Each sub-issue gets its own branch → PR → review → merge. See `/auto-miles
 
 ---
 
-## CRITICAL: No Nested Agents
+## CRITICAL: Use Agent Teams — Not `claude -p`
 
-**YOU MUST NOT use the Task tool to spawn sub-agents.** Context explosion from nested agents causes OOM failures.
+**YOU MUST use native agent teams (TeamCreate, Task with team_name, SendMessage) for all worker execution.** Do NOT use `claude -p` to spawn workers.
 
-All worker processes run as **separate `claude -p` processes** via Bash.
-
----
-
-## CRITICAL: Use the Exact Worker Command — No Self-Prompting
-
-**YOU MUST use this EXACT command to launch workers. DO NOT write your own prompt. DO NOT add --max-budget-usd. DO NOT use --dangerously-skip-permissions.**
-
-The `/graph-flow:auto-issue` skill already contains all the instructions the worker needs. You ONLY pass the issue number. The skill handles everything: branch creation, implementation, testing, PR creation.
-
-```bash
-claude -p "/graph-flow:auto-issue <N>" --model opus \
-  --output-format text --permission-mode dangerous \
-  > .claude/output/issue-<N>.log 2>&1
-```
+Each teammate executes the `/graph-flow:auto-issue` skill via `Skill(graph-flow:auto-issue, args: "<N>")`. The skill handles everything: branch creation, implementation, testing, PR creation.
 
 **WRONG — DO NOT DO THIS:**
 ```bash
+# WRONG: Do not use claude -p
+claude -p "/graph-flow:auto-issue 95" --model opus ...
 # WRONG: Do not write inline prompts
-claude -p "You are working on issue #95..." --max-budget-usd 5 --dangerously-skip-permissions
-# WRONG: Do not add budget limits
-claude -p "/graph-flow:auto-issue 95" --max-budget-usd 5
-# WRONG: Do not use old permission flag
-claude -p "/graph-flow:auto-issue 95" --dangerously-skip-permissions
+claude -p "You are working on issue #95..." ...
 ```
 
 **RIGHT — DO THIS:**
-```bash
-claude -p "/graph-flow:auto-issue 95" --model opus \
-  --output-format text --permission-mode dangerous \
-  > .claude/output/issue-95.log 2>&1
+```text
+# Spawn a teammate that runs the skill
+Task({
+  prompt: "Execute Skill(graph-flow:auto-issue, args: '95'). When done, mark your task completed and send me the PR number.",
+  subagent_type: "general-purpose",
+  team_name: "epic-<N>",
+  name: "worker-95",
+  mode: "bypassPermissions"
+})
 ```
 
 The only exception is calling the `telegram` skill via the Skill tool (lightweight, no agent context).
@@ -77,12 +66,12 @@ The only exception is calling the `telegram` skill via the Skill tool (lightweig
 
 ## Configuration
 
-| Setting      | Default | Description                  |
-| ------------ | ------- | ---------------------------- |
-| `--parallel` | 1       | Max concurrent issue workers |
-| `--dry-run`  | false   | Analyze and plan only        |
-| `--wave`     | all     | Only run specific wave       |
-| `--skip-ci`  | false   | Skip waiting for CI          |
+| Setting      | Default | Description                   |
+| ------------ | ------- | ----------------------------- |
+| `--parallel` | 1       | Max concurrent teammate workers |
+| `--dry-run`  | false   | Analyze and plan only         |
+| `--wave`     | all     | Only run specific wave        |
+| `--skip-ci`  | false   | Skip waiting for CI           |
 
 ---
 
@@ -92,27 +81,21 @@ The only exception is calling the `telegram` skill via the Skill tool (lightweig
 | ---------------- | ---------------------------------- | ---------------------------------------- |
 | Input            | Milestone name or issue numbers    | Epic issue number                        |
 | Dependencies     | Inferred by milestone-planner      | Explicit in GitHub (blocking/blocked-by) |
-| Wave computation | `claude -p` with milestone-planner | Claude inline via `gh api`               |
+| Wave computation | Milestone-planner teammate         | Claude inline via `gh api`               |
 | Scope            | All open issues in milestone       | Sub-issues of one parent issue           |
-| Planner needed   | Yes (Sonnet process)               | No — deps already in GitHub              |
+| Planner needed   | Yes (teammate)                     | No — deps already in GitHub              |
 
 Epic is leaner: dependencies are already declared in GitHub, so no planner process is needed.
-
----
-
-## Task System Integration
-
-Same pattern as `/auto-milestone`. Create ALL tasks upfront after Phase 1, with wave-based `blockedBy` dependencies. See `/auto-milestone` for the full task creation and update patterns.
 
 ---
 
 ## Workflow
 
 ```text
-Phase 1: Plan    → read GitHub sub-issue graph → compute waves inline
-Phase 2: Execute → per-wave: launch claude -p /graph-flow:auto-issue N (Opus 4.5)
+Phase 1: Plan    → read GitHub sub-issue graph → compute waves → create team + tasks
+Phase 2: Execute → spawn teammates → they self-claim unblocked tasks via Skill(auto-issue)
 Phase 3: Review  → per-PR: CI → CodeRabbit → fix → Telegram approval → merge
-Phase 4: Cleanup → remove worktrees, update epic, summary, notification
+Phase 4: Cleanup → shutdown teammates, delete team, update epic, summary, notification
 ```
 
 ---
@@ -136,7 +119,7 @@ Parse `$ARGUMENTS`:
 
 ## Phase 1: Plan
 
-Unlike `/auto-milestone`, this phase does NOT use the milestone-planner. Claude reads the dependency graph directly from GitHub.
+Unlike `/auto-milestone`, this phase does NOT use a planner. Claude reads the dependency graph directly from GitHub.
 
 ### Step 1: Fetch Sub-Issues
 
@@ -180,91 +163,215 @@ Filter out already-closed sub-issues (they're done).
 
 Detect circular dependencies — if found, report and exit.
 
-### Step 4: Create Checkpoint + Tasks, Display Plan
+### Step 4: Create Team, Checkpoint, Tasks + Display Plan
 
-1. Create milestone checkpoint for the epic
-2. Create native tasks for wave visualization (see `/auto-milestone` Task System Integration)
-3. Display wave plan:
+1. Create the agent team:
+
+   ```text
+   TeamCreate({ team_name: "epic-<N>", description: "Epic #<N>: <title>" })
+   ```
+
+2. Create milestone checkpoint for the epic
+
+3. Create native tasks with wave-based dependencies:
+
+   ```text
+   For each wave W (1..N):
+     For each issue in wave W:
+       taskId = TaskCreate({
+         subject: "Issue #<N>: <title>",
+         description: "Execute Skill(graph-flow:auto-issue, args: '<N>'). Report PR number when done.",
+         activeForm: "Working on issue #<N>",
+         metadata: { issueNumber: <N>, waveNumber: W, epicNumber: <epic> }
+       })
+       if W > 1:
+         TaskUpdate(taskId, { addBlockedBy: [task IDs from previous wave] })
+       waveWTasks.push(taskId)
+
+   TaskList() → Show full epic tree immediately
+   ```
+
+4. Display wave plan:
+
+   ```text
+   Epic #635: Planning Graph Phase 2 — generic Plan/Step model
+   Sub-issues: 7 total, 0 closed, 7 open
+
+   Wave 1 (no blockers):
+     #636 - Add Plan and PlanStep tables to planning graph
+
+   Wave 2 (after Wave 1):
+     #637 - MCP tools for Plan CRUD operations → blocked by #636
+     #638 - Completion resolver system → blocked by #636
+
+   Wave 3 (after Wave 2):
+     #639 - Enhanced /plan status → blocked by #637, #638
+     #640 - /plan create command → blocked by #637
+
+   Wave 4 (after Wave 3):
+     #641 - /plan start command → blocked by #637, #639
+
+   Wave 5 (after Wave 4):
+     #642 - Auto-pop stale detection → blocked by #638, #641
+
+   Execution order: 5 waves, 7 issues. Ready to start.
+   ```
+
+**If `--dry-run`:** Stop here, display plan, exit. Also clean up the team:
 
 ```text
-Epic #635: Planning Graph Phase 2 — generic Plan/Step model
-Sub-issues: 7 total, 0 closed, 7 open
-
-Wave 1 (no blockers):
-  #636 - Add Plan and PlanStep tables to planning graph
-
-Wave 2 (after Wave 1):
-  #637 - MCP tools for Plan CRUD operations → blocked by #636
-  #638 - Completion resolver system → blocked by #636
-
-Wave 3 (after Wave 2):
-  #639 - Enhanced /plan status → blocked by #637, #638
-  #640 - /plan create command → blocked by #637
-
-Wave 4 (after Wave 3):
-  #641 - /plan start command → blocked by #637, #639
-
-Wave 5 (after Wave 4):
-  #642 - Auto-pop stale detection → blocked by #638, #641
-
-Execution order: 5 waves, 7 issues. Ready to start.
+TeamDelete()
 ```
-
-**If `--dry-run`:** Stop here, display plan, exit.
 
 ---
 
 ## Phase 2: Execute
 
-For each sub-issue in wave order (up to `--parallel` limit, default: 1 sequential):
+Spawn teammates to work through the task list. Wave gating is automatic — tasks in later waves have `blockedBy` dependencies on earlier wave tasks, so teammates can only claim unblocked tasks.
 
-1. **Skip closed sub-issues** — already done, no work needed
+### Sequential (default, `--parallel 1`)
 
-2. **Check for pre-existing work** (same as `/auto-milestone`):
-   - Existing PR → skip
-   - Existing branch with commits → create PR only
-   - Nothing → full execution
+Spawn 1 teammate. It works through tasks in wave order, one at a time:
 
-3. **Ensure repo on main:**
+```text
+Task({
+  prompt: "You are a worker on team epic-<N>. Check TaskList for available (unblocked, unowned) tasks. Claim one with TaskUpdate (set owner to your name, status to in_progress). Execute it by running: Skill(graph-flow:auto-issue, args: '<issue-number>'). When the skill completes, detect the PR number via `gh pr list --search 'head:feat/issue-<issue>' --state open --json number --limit 1`. Mark the task completed and send the lead a message with the PR number. Then check TaskList for the next available task. Repeat until no tasks remain. Before each task, run `git checkout main && git pull origin main`.",
+  subagent_type: "general-purpose",
+  team_name: "epic-<N>",
+  name: "worker-1",
+  mode: "bypassPermissions"
+})
+```
 
-   ```bash
-   git checkout main && git pull origin main
-   ```
+### Parallel (`--parallel N`)
 
-4. **Launch worker (use EXACT command — no inline prompts, no budget limits):**
+Spawn N teammates. They self-claim from the shared task list:
 
-   ```bash
-   claude -p "/graph-flow:auto-issue <N>" --model opus \
-     --output-format text --permission-mode dangerous \
-     > .claude/output/issue-<N>.log 2>&1
-   ```
+```text
+For i in 1..N:
+  Task({
+    prompt: "You are worker-<i> on team epic-<N>. Check TaskList for available (unblocked, unowned) tasks. Claim one with TaskUpdate (set owner to your name, status to in_progress). Execute it by running: Skill(graph-flow:auto-issue, args: '<issue-number>'). When the skill completes, detect the PR number via `gh pr list --search 'head:feat/issue-<issue>' --state open --json number --limit 1`. Mark the task completed and send the lead a message with the PR number. Then check TaskList for the next available task. Repeat until no tasks remain. Before each task, run `git checkout main && git pull origin main`.",
+    subagent_type: "general-purpose",
+    team_name: "epic-<N>",
+    name: "worker-<i>",
+    mode: "bypassPermissions"
+  })
+```
 
-5. **Detect PR:**
+### Pre-existing Work Detection
 
-   ```bash
-   gh pr list --search "head:feat/issue-<N>" --state open --json number,headRefName --limit 1
-   ```
+Before spawning teammates, check each issue for pre-existing work:
 
-6. **Update checkpoint and task status**
+1. **Existing PR:** `gh pr list --search "head:feat/issue-<N>"` → mark task completed, note PR number
+2. **Existing branch with commits:** `git rev-list --count origin/main..origin/feat/issue-<N>` → note in task description that only PR creation is needed
+3. Already closed → mark task completed, skip
 
-### Wave Gating
+### Teammate Messages
 
-Wait for ALL issues in current wave to complete (PR created) before starting next wave. Skip issues whose blockers failed.
+As teammates complete tasks, they send messages with PR numbers. The lead:
+
+1. Records the PR number for Phase 3
+2. Updates checkpoint status
+3. Monitors progress via TaskList
 
 ### Failure Handling
 
-If a sub-issue fails:
+If a teammate reports failure:
 
 - Log failure with error details
-- Mark dependent sub-issues as skipped
-- Continue with remaining independent sub-issues in current wave
-- Report skipped issues in summary
+- Mark dependent tasks as blocked (they already are via `blockedBy`, but update metadata with failure info)
+- Continue — other teammates keep working on independent tasks
+- Report failed issues in summary
 
 ---
 
 ## Phase 3: Per-PR Review Cycle
 
-**Identical to `/auto-milestone` Phase 3.** For each PR: wait for CI, wait for CodeRabbit, address comments, send Telegram notification, handle reply (merge/changes/skip). See `/auto-milestone` for full step-by-step details.
+**Lead-managed.** As each teammate reports a PR number, the lead runs the review cycle for that PR. This happens per-PR, not batched.
+
+For each PR:
+
+### Step 1: Wait for CI
+
+```bash
+gh pr checks <pr-number> --watch
+```
+
+If CI fails:
+
+1. Send the teammate a message to fix:
+   ```text
+   SendMessage({
+     type: "message",
+     recipient: "worker-<i>",
+     content: "CI failed on PR #<N>. Please fix the failures, commit, and push. Send me a message when done.",
+     summary: "CI fix request for PR #<N>"
+   })
+   ```
+2. Re-wait for CI (max 2 attempts)
+3. If still failing after 2 attempts → mark as failed, notify user
+
+### Step 2: Wait for CodeRabbit
+
+Poll for CodeRabbit review:
+
+```bash
+gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/reviews
+```
+
+- Wait up to 5 minutes for a review to appear
+- If no review appears, proceed anyway (CodeRabbit may be slow or disabled)
+
+### Step 3: Read and Address Review Comments
+
+```bash
+gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/comments
+```
+
+Claude triages comments:
+
+- **Nitpick / style** → skip (note in Telegram message)
+- **Real issue / bug** → send teammate a message to fix:
+  ```text
+  SendMessage({
+    type: "message",
+    recipient: "worker-<i>",
+    content: "Review comments on PR #<N> need addressing:\n<comments>\nPlease fix, commit, push, and message me when done.",
+    summary: "Review fix request for PR #<N>"
+  })
+  ```
+- After fix: re-wait for CI
+
+### Step 4: Telegram Notification (Per-PR)
+
+```text
+Skill(telegram, args: "ask: PR #<N> for issue #<M> ready for review.
+<title>
+<pr-url>
+CI: <passed/failed> | CodeRabbit: <X> comments (<Y> addressed)
+
+Reply: merge / changes: <feedback> / skip")
+```
+
+### Step 5: Handle Reply
+
+- **"merge"** / **"lgtm"** / **"ok"** → merge the PR:
+
+  ```bash
+  gh pr merge <N> --squash --delete-branch
+  ```
+
+  Then update main:
+
+  ```bash
+  git checkout main && git pull origin main
+  ```
+
+- **"changes: ..."** → send feedback to the teammate, re-run CI, re-notify via Telegram
+
+- **"skip"** → mark as skipped, continue to next PR
+
+- **No response / timeout** → send reminder after 10 minutes, wait indefinitely (the user controls the pace)
 
 ---
 
@@ -272,19 +379,30 @@ If a sub-issue fails:
 
 After all waves are processed:
 
-1. **Remove worktrees** (if parallel mode used them):
+1. **Shut down teammates:**
 
-   ```bash
-   "$CLAUDE_PROJECT_DIR/scripts/worktree-manager.sh" cleanup-all --force
+   ```text
+   For each active teammate:
+     SendMessage({
+       type: "shutdown_request",
+       recipient: "worker-<i>",
+       content: "All tasks complete, shutting down."
+     })
    ```
 
-2. **Ensure repo on main:**
+2. **Delete team:**
+
+   ```text
+   TeamDelete()
+   ```
+
+3. **Ensure repo on main:**
 
    ```bash
    git checkout main && git pull origin main
    ```
 
-3. **Update epic issue** — check boxes for completed sub-issues:
+4. **Update epic issue** — check boxes for completed sub-issues:
 
    ```bash
    # For each closed sub-issue, update checkbox in epic body
@@ -293,13 +411,13 @@ After all waves are processed:
    gh issue edit <epic> --body "<updated-body>"
    ```
 
-4. **Close epic** if all sub-issues are closed:
+5. **Close epic** if all sub-issues are closed:
 
    ```bash
    gh issue close <epic>
    ```
 
-5. **Generate summary and send notification:**
+6. **Generate summary and send notification:**
 
    ```text
    Skill(telegram, args: "notify: EPIC COMPLETE
@@ -308,19 +426,34 @@ After all waves are processed:
    Failed: <list or 'none'>")
    ```
 
-6. **Update checkpoint** status to completed or partial.
+7. **Update checkpoint** status to completed or partial.
 
 ---
 
 ## Resume Protocol
 
-Same as `/auto-milestone`. On start, check for existing checkpoint state and resume at the appropriate phase. See `/auto-milestone` Resume Protocol for the full state-to-action table.
+On start, before Phase 1, check for existing checkpoint state and team:
+
+1. Check if team `epic-<N>` already exists (read `~/.claude/teams/epic-<N>/config.json`)
+2. If team exists → resume with existing team, check TaskList for progress
+3. If no team → check checkpoint DB for prior state
+
+Resume logic:
+
+| State                            | Action                       |
+| -------------------------------- | ---------------------------- |
+| Completed + merged               | Skip entirely                |
+| Completed + PR open (not merged) | Go to Phase 3 (review cycle) |
+| Running/failed + PR exists       | Go to Phase 3 (review cycle) |
+| Running/failed + branch, no PR   | Create PR, go to Phase 3     |
+| Running/failed + no branch       | Re-execute from Phase 2      |
+| No checkpoint                    | Execute normally             |
 
 ---
 
 ## State Management
 
-Same as `/auto-milestone` — state tracked in checkpoint DB (source of truth) and native tasks (UI only).
+Same as `/auto-milestone` — state tracked in checkpoint DB (source of truth) and native tasks (UI only). Team task list provides additional coordination state.
 
 ---
 
@@ -332,7 +465,7 @@ Same as `/auto-milestone` — state tracked in checkpoint DB (source of truth) a
 | No sub-issues         | Suggest /graph-flow:auto-issue instead |
 | Circular deps         | Report cycle, wait for user            |
 | All sub-issues closed | Report "nothing to do", exit           |
-| Worker failure        | Mark failed, skip dependents, continue |
+| Teammate failure      | Mark failed, skip dependents, continue |
 | CI failure (2x)       | Mark failed, notify user               |
 | Network/API failure   | Retry with backoff (max 4)             |
 | Telegram unavailable  | Continue in terminal                   |
@@ -346,5 +479,5 @@ Workflow succeeds when:
 - All open sub-issues processed
 - PRs created, reviewed, and merged (per-PR approval)
 - Epic issue updated (checkboxes, optionally closed)
-- Worktrees cleaned up
+- Team cleaned up (teammates shut down, team deleted)
 - Summary report generated and sent via Telegram

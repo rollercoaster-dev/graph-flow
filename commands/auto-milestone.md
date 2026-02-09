@@ -1,10 +1,10 @@
 # /auto-milestone $ARGUMENTS
 
-Claude-as-orchestrator for milestone execution. No intermediate scripts -- Claude launches `claude -p` workers directly, manages PRs via `gh`, and runs per-PR Telegram approval cycles.
+Claude-as-orchestrator for milestone execution. No intermediate scripts — Claude uses native agent teams to plan and execute, manages PRs via `gh`, and runs per-PR Telegram approval cycles.
 
 **Mode:** Autonomous with planning gate — only stops if dependencies are unclear.
 
-**Architecture:** Claude IS the orchestrator. Workers are separate `claude -p` processes (Opus 4.5). Planning uses a separate `claude -p` with the milestone-planner agent protocol (Sonnet).
+**Architecture:** Claude IS the orchestrator (team lead). Workers are managed teammates spawned via the `Task` tool with `team_name`. Planning uses a teammate with the milestone-planner agent protocol.
 
 **Recommended:** Run in tmux for remote observability:
 
@@ -29,41 +29,30 @@ NEVER: Issue #123 → commit directly to main
 
 ---
 
-## CRITICAL: No Nested Agents
+## CRITICAL: Use Agent Teams — Not `claude -p`
 
-**YOU MUST NOT use the Task tool to spawn sub-agents.** Context explosion from nested agents causes OOM failures.
+**YOU MUST use native agent teams (TeamCreate, Task with team_name, SendMessage) for all worker execution.** Do NOT use `claude -p` to spawn workers.
 
-All worker processes run as **separate `claude -p` processes** via Bash.
-
----
-
-## CRITICAL: Use the Exact Worker Command — No Self-Prompting
-
-**YOU MUST use this EXACT command to launch workers. DO NOT write your own prompt. DO NOT add --max-budget-usd. DO NOT use --dangerously-skip-permissions.**
-
-The `/graph-flow:auto-issue` skill already contains all the instructions the worker needs. You ONLY pass the issue number. The skill handles everything: branch creation, implementation, testing, PR creation.
-
-```bash
-claude -p "/graph-flow:auto-issue <N>" --model opus \
-  --output-format text --permission-mode dangerous \
-  > .claude/output/issue-<N>.log 2>&1
-```
+Each teammate executes the `/graph-flow:auto-issue` skill via `Skill(graph-flow:auto-issue, args: "<N>")`. The skill handles everything: branch creation, implementation, testing, PR creation.
 
 **WRONG — DO NOT DO THIS:**
 ```bash
+# WRONG: Do not use claude -p
+claude -p "/graph-flow:auto-issue 95" --model opus ...
 # WRONG: Do not write inline prompts
-claude -p "You are working on issue #95..." --max-budget-usd 5 --dangerously-skip-permissions
-# WRONG: Do not add budget limits
-claude -p "/graph-flow:auto-issue 95" --max-budget-usd 5
-# WRONG: Do not use old permission flag
-claude -p "/graph-flow:auto-issue 95" --dangerously-skip-permissions
+claude -p "You are working on issue #95..." ...
 ```
 
 **RIGHT — DO THIS:**
-```bash
-claude -p "/graph-flow:auto-issue 95" --model opus \
-  --output-format text --permission-mode dangerous \
-  > .claude/output/issue-95.log 2>&1
+```text
+# Spawn a teammate that runs the skill
+Task({
+  prompt: "Execute Skill(graph-flow:auto-issue, args: '95'). When done, mark your task completed and send me the PR number.",
+  subagent_type: "general-purpose",
+  team_name: "milestone-<name>",
+  name: "worker-95",
+  mode: "bypassPermissions"
+})
 ```
 
 The only exception is calling the `telegram` skill via the Skill tool (lightweight, no agent context).
@@ -83,12 +72,12 @@ The only exception is calling the `telegram` skill via the Skill tool (lightweig
 
 ## Configuration
 
-| Setting      | Default | Description                  |
-| ------------ | ------- | ---------------------------- |
-| `--parallel` | 1       | Max concurrent issue workers |
-| `--dry-run`  | false   | Analyze and plan only        |
-| `--wave`     | all     | Only run specific wave       |
-| `--skip-ci`  | false   | Skip waiting for CI          |
+| Setting      | Default | Description                   |
+| ------------ | ------- | ----------------------------- |
+| `--parallel` | 1       | Max concurrent teammate workers |
+| `--dry-run`  | false   | Analyze and plan only         |
+| `--wave`     | all     | Only run specific wave        |
+| `--skip-ci`  | false   | Skip waiting for CI           |
 
 ---
 
@@ -105,12 +94,12 @@ For each wave W (1..N):
   For each issue in wave W:
     taskId = TaskCreate({
       subject: "Issue #<N>: <title>",
-      description: "<issue-summary>",
+      description: "Execute Skill(graph-flow:auto-issue, args: '<N>'). Report PR number when done.",
       activeForm: "Working on issue #<N>",
-      metadata: { issueNumber, workflowId, waveNumber: W, milestoneId }
+      metadata: { issueNumber: <N>, waveNumber: W, milestoneId: <id> }
     })
     if W > 1:
-      TaskUpdate(taskId, { addBlockedBy: previousWaveTasks })
+      TaskUpdate(taskId, { addBlockedBy: [task IDs from previous wave] })
     waveWTasks.push(taskId)
 
 TaskList() → Show full milestone tree immediately
@@ -119,15 +108,15 @@ TaskList() → Show full milestone tree immediately
 ### Task Updates During Execution
 
 ```text
-Phase 2: Execute (as each issue progresses):
+Teammates self-manage task status:
 
-On worker launch for issue:
-  TaskUpdate(taskId, { status: "in_progress" })
+On claiming a task:
+  TaskUpdate(taskId, { owner: "worker-<i>", status: "in_progress" })
 
-On worker complete (PR created):
+On completion (PR created):
   TaskUpdate(taskId, { status: "completed" })
 
-On worker failure:
+On failure:
   TaskUpdate(taskId, { status: "completed", metadata: { failed: true, error } })
 
 After each wave completes:
@@ -139,10 +128,10 @@ After each wave completes:
 ## Workflow
 
 ```text
-Phase 1: Plan    → claude -p milestone-planner → GATE (if dependencies unclear)
-Phase 2: Execute → per-wave: launch claude -p /graph-flow:auto-issue N (Opus 4.5)
+Phase 1: Plan    → milestone-planner teammate → GATE (if dependencies unclear) → create team + tasks
+Phase 2: Execute → spawn teammates → they self-claim unblocked tasks via Skill(auto-issue)
 Phase 3: Review  → per-PR: CI → CodeRabbit → fix → Telegram approval → merge
-Phase 4: Cleanup → remove worktrees, summary, notification
+Phase 4: Cleanup → shutdown teammates, delete team, summary, notification
 ```
 
 ---
@@ -173,19 +162,27 @@ Detect input type from `$ARGUMENTS`:
 
 ## Phase 1: Plan
 
-### Wave Computation
+### Step 1: Create Team
 
-Launch the milestone-planner as a **separate `claude -p` process** (not a nested agent):
-
-```bash
-claude -p "Analyze milestone '<name>' and return execution_waves JSON. \
-  Follow the milestone-planner agent protocol. \
-  Mode: <milestone|issues>, target: <name-or-numbers>." \
-  --model sonnet --output-format json --permission-mode dangerous \
-  > .claude/output/milestone-plan.json 2> .claude/output/milestone-plan.err
+```text
+TeamCreate({ team_name: "milestone-<sanitized-name>", description: "Milestone: <name>" })
 ```
 
-Read the output file. The planner returns:
+### Step 2: Wave Computation
+
+Spawn a planner teammate to analyze dependencies:
+
+```text
+Task({
+  prompt: "Analyze milestone '<name>' for the rollercoaster-dev/graph-flow repository. Fetch all open issues in the milestone, analyze their dependencies (from issue bodies and references), and return the execution plan. Output JSON with: execution_waves[] (ordered list of {wave: N, issues: [{number, title, blockedBy}]}), dependency_graph, free_issues[], planning_status ('ready' or 'needs_review'). Use `gh` CLI to fetch milestone issues and their details.",
+  subagent_type: "general-purpose",
+  team_name: "milestone-<sanitized-name>",
+  name: "planner",
+  mode: "bypassPermissions"
+})
+```
+
+The planner returns:
 
 - `execution_waves[]` — ordered list of wave objects `{wave: N, issues: [...]}`
 - `dependency_graph` — per-issue dependency map
@@ -214,11 +211,11 @@ Wait for response:
 
 - `"approve"` / `"proceed"` / `"ok"` → continue
 - `"abort"` → exit
-- Other text → treat as feedback, re-plan with context
+- Other text → treat as feedback, send to planner teammate to re-plan
 
-**If `planning_status == "ready"`:** proceed directly to Phase 2.
+**If `planning_status == "ready"`:** proceed directly.
 
-### Checkpoint + Task Creation
+### Step 3: Checkpoint + Task Creation
 
 After wave plan is confirmed:
 
@@ -228,7 +225,7 @@ After wave plan is confirmed:
    checkpoint_workflow_create for each issue
    ```
 
-2. Create native tasks for wave visualization (see Task System Integration above)
+2. Create native tasks with wave-based dependencies (see Task System Integration above)
 
 3. Display wave plan:
 
@@ -243,95 +240,96 @@ After wave plan is confirmed:
      #155 - Add storage service → blocked by #153
    ```
 
-**If `--dry-run`:** Stop here, display plan, exit.
+**If `--dry-run`:** Stop here, display plan, exit. Clean up:
+
+```text
+TeamDelete()
+```
 
 ---
 
 ## Phase 2: Execute
 
-For each wave in order:
+Spawn teammates to work through the task list. Wave gating is automatic — tasks in later waves have `blockedBy` dependencies on earlier wave tasks.
 
-### Wave Gating
+### Sequential (default, `--parallel 1`)
 
-Before starting a wave, check that all blocking issues from previous waves have completed successfully. Skip issues whose blockers failed.
+Spawn 1 teammate:
 
-### Worker Launch
-
-**Sequential** (default, `--parallel 1`):
-
-For each issue in the wave:
-
-1. Ensure repo is on main with latest:
-
-   ```bash
-   git checkout main && git pull origin main
-   ```
-
-2. Launch worker (use EXACT command — no inline prompts, no budget limits):
-
-   ```bash
-   claude -p "/graph-flow:auto-issue <N>" --model opus \
-     --output-format text --permission-mode dangerous \
-     > .claude/output/issue-<N>.log 2>&1
-   ```
-
-3. After worker completes, detect PR:
-
-   ```bash
-   gh pr list --search "head:feat/issue-<N>" --state open --json number,headRefName --limit 1
-   ```
-
-4. Update checkpoint and task status.
-
-**Parallel** (`--parallel N`):
-
-Launch up to N workers as background processes:
-
-```bash
-claude -p "/graph-flow:auto-issue <N>" --model opus \
-  --output-format text --permission-mode dangerous \
-  > .claude/output/issue-<N>.log 2>&1 &
+```text
+Task({
+  prompt: "You are a worker on team milestone-<name>. Check TaskList for available (unblocked, unowned) tasks. Claim one with TaskUpdate (set owner to your name, status to in_progress). Execute it by running: Skill(graph-flow:auto-issue, args: '<issue-number>'). When the skill completes, detect the PR number via `gh pr list --search 'head:feat/issue-<issue>' --state open --json number --limit 1`. Mark the task completed and send the lead a message with the PR number. Then check TaskList for the next available task. Repeat until no tasks remain. Before each task, run `git checkout main && git pull origin main`.",
+  subagent_type: "general-purpose",
+  team_name: "milestone-<name>",
+  name: "worker-1",
+  mode: "bypassPermissions"
+})
 ```
 
-Wait for all to complete. Then detect PRs for each.
+### Parallel (`--parallel N`)
+
+Spawn N teammates that self-claim from the shared task list:
+
+```text
+For i in 1..N:
+  Task({
+    prompt: "You are worker-<i> on team milestone-<name>. Check TaskList for available (unblocked, unowned) tasks. Claim one with TaskUpdate (set owner to your name, status to in_progress). Execute it by running: Skill(graph-flow:auto-issue, args: '<issue-number>'). When the skill completes, detect the PR number via `gh pr list --search 'head:feat/issue-<issue>' --state open --json number --limit 1`. Mark the task completed and send the lead a message with the PR number. Then check TaskList for the next available task. Repeat until no tasks remain. Before each task, run `git checkout main && git pull origin main`.",
+    subagent_type: "general-purpose",
+    team_name: "milestone-<name>",
+    name: "worker-<i>",
+    mode: "bypassPermissions"
+  })
+```
 
 ### Pre-existing Work Detection
 
-Before launching a worker, check:
+Before spawning teammates, check each issue for pre-existing work:
 
-1. **Existing PR:** `gh pr list --search "head:feat/issue-<N>"` → skip issue
-2. **Existing branch with commits:** `git rev-list --count origin/main..origin/feat/issue-<N>` → create PR only
-3. **Existing worktree:** check `.worktrees/` directory
+1. **Existing PR:** `gh pr list --search "head:feat/issue-<N>"` → mark task completed, note PR number
+2. **Existing branch with commits:** `git rev-list --count origin/main..origin/feat/issue-<N>` → note in task description that only PR creation is needed
+3. Already closed → mark task completed, skip
+
+### Teammate Messages
+
+As teammates complete tasks, they send messages with PR numbers. The lead:
+
+1. Records the PR number for Phase 3
+2. Updates checkpoint status
+3. Monitors progress via TaskList
 
 ### Failure Handling
 
-If a worker fails:
+If a teammate reports failure:
 
 - Log failure details
-- Mark dependent issues as skipped
-- Continue with remaining independent issues in current wave
+- Mark dependent tasks as blocked (they already are via `blockedBy`, but update metadata with failure info)
+- Continue — other teammates keep working on independent tasks
+- Report failed issues in summary
 
 ---
 
 ## Phase 3: Per-PR Review Cycle
 
-Each PR goes through an individual review+approval cycle (not batched).
+**Lead-managed.** As each teammate reports a PR number, the lead runs the review cycle for that PR. This happens per-PR, not batched.
 
-For each PR created in the wave:
+For each PR:
 
 ### Step 1: Wait for CI
 
 ```bash
-"$CLAUDE_PROJECT_DIR/scripts/worktree-manager.sh" ci-status <pr-number> --wait
+gh pr checks <pr-number> --watch
 ```
 
 If CI fails:
 
-1. Spawn a fix worker:
-   ```bash
-   claude -p "Fix CI failures for PR #<N>. Run failing checks, fix issues, commit and push." \
-     --model opus --output-format text --permission-mode dangerous \
-     > .claude/output/ci-fix-<N>.log 2>&1
+1. Send the teammate a message to fix:
+   ```text
+   SendMessage({
+     type: "message",
+     recipient: "worker-<i>",
+     content: "CI failed on PR #<N>. Please fix the failures, commit, and push. Send me a message when done.",
+     summary: "CI fix request for PR #<N>"
+   })
    ```
 2. Re-wait for CI (max 2 attempts)
 3. If still failing after 2 attempts → mark as failed, notify user
@@ -356,11 +354,14 @@ gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/comments
 Claude triages comments:
 
 - **Nitpick / style** → skip (note in Telegram message)
-- **Real issue / bug** → spawn fix worker:
-  ```bash
-  claude -p "Address review comments on PR #<N>: <comments>. Fix issues, commit and push." \
-    --model opus --output-format text --permission-mode dangerous \
-    > .claude/output/review-fix-<N>.log 2>&1
+- **Real issue / bug** → send teammate a message to fix:
+  ```text
+  SendMessage({
+    type: "message",
+    recipient: "worker-<i>",
+    content: "Review comments on PR #<N> need addressing:\n<comments>\nPlease fix, commit, push, and message me when done.",
+    summary: "Review fix request for PR #<N>"
+  })
   ```
 - After fix: re-wait for CI
 
@@ -389,7 +390,7 @@ Reply: merge / changes: <feedback> / skip")
   git checkout main && git pull origin main
   ```
 
-- **"changes: ..."** → spawn fix worker with the feedback, re-run CI, re-notify via Telegram
+- **"changes: ..."** → send feedback to the teammate, re-run CI, re-notify via Telegram
 
 - **"skip"** → mark as skipped, continue to next PR
 
@@ -401,19 +402,30 @@ Reply: merge / changes: <feedback> / skip")
 
 After all waves are processed:
 
-1. **Remove worktrees** (if parallel mode used them):
+1. **Shut down teammates:**
 
-   ```bash
-   "$CLAUDE_PROJECT_DIR/scripts/worktree-manager.sh" cleanup-all --force
+   ```text
+   For each active teammate:
+     SendMessage({
+       type: "shutdown_request",
+       recipient: "worker-<i>",
+       content: "All tasks complete, shutting down."
+     })
    ```
 
-2. **Ensure repo on main:**
+2. **Delete team:**
+
+   ```text
+   TeamDelete()
+   ```
+
+3. **Ensure repo on main:**
 
    ```bash
    git checkout main && git pull origin main
    ```
 
-3. **Generate summary:**
+4. **Generate summary:**
 
    ```text
    Milestone "<name>" Complete
@@ -425,7 +437,7 @@ After all waves are processed:
    - #N: <reason>
    ```
 
-4. **Send notification:**
+5. **Send notification:**
 
    ```text
    Skill(telegram, args: "notify: MILESTONE COMPLETE
@@ -433,17 +445,17 @@ After all waves are processed:
    Failed: <list or 'none'>")
    ```
 
-5. **Update checkpoint** status to completed or partial.
+6. **Update checkpoint** status to completed or partial.
 
 ---
 
 ## Resume Protocol
 
-On start, before Phase 1, check for existing checkpoint state:
+On start, before Phase 1, check for existing checkpoint state and team:
 
-```text
-checkpoint_workflow_find for each issue in the milestone
-```
+1. Check if team `milestone-<name>` already exists (read `~/.claude/teams/milestone-<name>/config.json`)
+2. If team exists → resume with existing team, check TaskList for progress
+3. If no team → check checkpoint DB for prior state
 
 Resume logic:
 
@@ -469,17 +481,7 @@ State tracked in two systems:
 
 1. **Checkpoint DB** (`.claude/execution-state.db`) — source of truth for workflow status, actions, PR numbers
 2. **Native tasks** — UI-only progress visualization with wave-based `blockedBy` dependencies
-
-### Worktree Manager Commands
-
-| Command                     | Purpose              |
-| --------------------------- | -------------------- |
-| `create <issue>`            | Create worktree      |
-| `remove <issue>`            | Remove worktree      |
-| `status`                    | Show all statuses    |
-| `update-status <i> <s> [p]` | Update status        |
-| `ci-status <pr> [--wait]`   | Check/wait for CI    |
-| `cleanup-all [--force]`     | Remove all worktrees |
+3. **Team task list** — coordination state for teammate self-claiming
 
 ---
 
@@ -489,7 +491,7 @@ State tracked in two systems:
 | -------------------- | -------------------------------------- |
 | Milestone not found  | Show available, exit                   |
 | All issues blocked   | Report cycle, wait for user            |
-| Worker failure       | Mark failed, skip dependents, continue |
+| Teammate failure     | Mark failed, skip dependents, continue |
 | CI failure (2x)      | Mark failed, notify user               |
 | Network/API failure  | Retry with backoff (max 4)             |
 | Telegram unavailable | Continue in terminal                   |
@@ -503,5 +505,5 @@ Workflow succeeds when:
 - All free issues processed
 - PRs created, reviewed, and merged (per-PR approval)
 - Integration on main is stable
-- Worktrees cleaned up
+- Team cleaned up (teammates shut down, team deleted)
 - Summary report generated and sent via Telegram
