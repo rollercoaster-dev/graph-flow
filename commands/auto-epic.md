@@ -54,6 +54,26 @@ The only exception is calling the `telegram` skill via the Skill tool (lightweig
 
 ---
 
+## CRITICAL: Worktree Isolation for Parallel Mode
+
+**When using `--parallel N` (N > 1), workers MUST operate in separate git worktrees.** Without worktree isolation, concurrent workers conflict on git state — one does `git checkout main` while another is mid-implementation.
+
+- **Parallel mode (`--parallel N > 1`):** Lead creates worktrees in Phase 1 (Step 4) using `./scripts/worktree-manager.sh create <issue-number>`. Each task's metadata includes `worktreePath`. Workers `cd` to their worktree before running the auto-issue skill.
+- **Sequential mode (`--parallel 1`):** No worktrees needed — single worker uses the main checkout.
+
+---
+
+## When to Use Parallel Mode
+
+| Scenario | Recommendation |
+|----------|---------------|
+| Small epic (<5 issues), sequential deps | `--parallel 1` (default) |
+| Large wave of 3+ independent issues | `--parallel N` (N = largest wave size) |
+| CI-heavy, want overlapping feedback | `--parallel 2-3` |
+| Don't exceed largest wave size | Extra workers just idle |
+
+---
+
 ## Quick Reference
 
 ```bash
@@ -171,7 +191,14 @@ Detect circular dependencies — if found, report and exit.
    TeamCreate({ team_name: "epic-<N>", description: "Epic #<N>: <title>" })
    ```
 
-2. Create milestone checkpoint for the epic
+2. Create checkpoint entries for **every** open issue immediately — this is the foundation for `--continue`:
+
+   ```text
+   For each open issue N:
+     checkpoint_workflow_create(issue: N, epic: <epic>, wave: W, status: "pending")
+   ```
+
+   This ensures `--continue` has real data to resume from even if the workflow is interrupted before any worker starts.
 
 3. Create native tasks with wave-based dependencies:
 
@@ -191,7 +218,32 @@ Detect circular dependencies — if found, report and exit.
    TaskList() → Show full epic tree immediately
    ```
 
-4. Display wave plan:
+   **Update checkpoints as execution progresses** — after each significant state change:
+
+   ```text
+   Worker spawned    → checkpoint_update(issue: N, status: "running")
+   PR created        → checkpoint_update(issue: N, status: "review", pr: <pr-number>)
+   PR merged         → checkpoint_update(issue: N, status: "merged")
+   Worker failed     → checkpoint_update(issue: N, status: "failed", error: <msg>)
+   ```
+
+4. **If parallel mode (`--parallel N > 1`)**, create worktrees for all open issues and add paths to task metadata:
+
+   ```bash
+   # Create worktrees for all open issues
+   for each open issue N:
+     ./scripts/worktree-manager.sh create <N>
+   ```
+
+   Then update each task with the worktree path:
+
+   ```text
+   For each task:
+     worktreePath = ~/Code/worktrees/graph-flow-issue-<N>
+     TaskUpdate(taskId, { metadata: { worktreePath: worktreePath } })
+   ```
+
+5. Display wave plan:
 
    ```text
    Epic #635: Planning Graph Phase 2 — generic Plan/Step model
@@ -245,12 +297,12 @@ Task({
 
 ### Parallel (`--parallel N`)
 
-Spawn N teammates. They self-claim from the shared task list:
+Spawn N teammates. They self-claim from the shared task list. Each task has a `worktreePath` in its metadata — workers **must** `cd` to that path before executing the skill:
 
 ```text
 For i in 1..N:
   Task({
-    prompt: "You are worker-<i> on team epic-<N>. Check TaskList for available (unblocked, unowned) tasks. Claim one with TaskUpdate (set owner to your name, status to in_progress). Execute it by running: Skill(graph-flow:auto-issue, args: '<issue-number>'). When the skill completes, detect the PR number via `gh pr list --search 'head:feat/issue-<issue>' --state open --json number --limit 1`. Mark the task completed and send the lead a message with the PR number. Then check TaskList for the next available task. Repeat until no tasks remain. Before each task, run `git checkout main && git pull origin main`.",
+    prompt: "You are worker-<i> on team epic-<N>. Check TaskList for available (unblocked, unowned) tasks. Claim one with TaskUpdate (set owner to your name, status to in_progress). Read the task's metadata for worktreePath. cd to that worktree path FIRST, then execute: Skill(graph-flow:auto-issue, args: '<issue-number>'). The branch is already created in the worktree — the auto-issue skill will detect it. When the skill completes, detect the PR number via `gh pr list --search 'head:feat/issue-<issue>' --state open --json number --limit 1`. Mark the task completed and send the lead a message with the PR number. Then check TaskList for the next available task. Repeat until no tasks remain.",
     subagent_type: "general-purpose",
     team_name: "epic-<N>",
     name: "worker-<i>",
@@ -260,11 +312,31 @@ For i in 1..N:
 
 ### Pre-existing Work Detection
 
-Before spawning teammates, check each issue for pre-existing work:
+Before spawning teammates, assess the current state of each issue. For each open issue, run:
 
-1. **Existing PR:** `gh pr list --search "head:feat/issue-<N>"` → mark task completed, note PR number
-2. **Existing branch with commits:** `git rev-list --count origin/main..origin/feat/issue-<N>` → note in task description that only PR creation is needed
-3. Already closed → mark task completed, skip
+```bash
+# Check for existing PR
+gh pr list --search "head:feat/issue-<N>" --state open --json number,url,statusCheckRollup
+
+# Check for existing branch with commits
+git fetch origin
+git rev-list --count origin/main..origin/feat/issue-<N> 2>/dev/null
+
+# Check for existing worktree
+./scripts/worktree-manager.sh path <N> 2>/dev/null
+```
+
+Route each issue based on what exists:
+
+| State | Action |
+|-------|--------|
+| Already closed | Mark task completed, skip |
+| Open PR exists (CI green) | Skip to Phase 3 review cycle for this PR |
+| Open PR exists (CI failing) | Send worker to fix CI in that branch, then Phase 3 |
+| Branch with commits, no PR | Spawn worker with context: "Issue #N has existing work on branch `feat/issue-<N>`. Read the issue requirements and the dev plan (if one exists). Review what's been implemented so far via `git log` and `git diff origin/main`. Complete any remaining work, ensure tests pass, then create a PR. Report PR number when done." |
+| No branch | Standard auto-issue execution |
+
+The key difference from a fresh start: when work exists, the worker **checks it against the issue and dev plan** rather than starting from scratch. The auto-issue skill already handles branch detection, but the worker prompt must tell it to assess completeness first.
 
 ### Teammate Messages
 
@@ -355,7 +427,9 @@ Reply: merge / changes: <feedback> / skip")
 
 ### Step 5: Handle Reply
 
-- **"merge"** / **"lgtm"** / **"ok"** → merge the PR:
+**Guard: Steps 1-3 must have completed before merge.** Even if CI is green and the user says "merge", do NOT merge until CodeRabbit review (Step 2) and comment triage (Step 3) have run. If they haven't, run them now before proceeding.
+
+- **"merge"** / **"lgtm"** / **"ok"** → verify review steps ran, then merge the PR:
 
   ```bash
   gh pr merge <N> --squash --delete-branch
@@ -365,6 +439,12 @@ Reply: merge / changes: <feedback> / skip")
 
   ```bash
   git checkout main && git pull origin main
+  ```
+
+  Then update checkpoint:
+
+  ```text
+  checkpoint_update(issue: <M>, status: "merged")
   ```
 
 - **"changes: ..."** → send feedback to the teammate, re-run CI, re-notify via Telegram
@@ -390,19 +470,26 @@ After all waves are processed:
      })
    ```
 
-2. **Delete team:**
+2. **Clean up worktrees** (if parallel mode was used):
+
+   ```bash
+   ./scripts/worktree-manager.sh cleanup-all --force
+   git worktree prune
+   ```
+
+3. **Delete team:**
 
    ```text
    TeamDelete()
    ```
 
-3. **Ensure repo on main:**
+4. **Ensure repo on main:**
 
    ```bash
    git checkout main && git pull origin main
    ```
 
-4. **Update epic issue** — check boxes for completed sub-issues:
+5. **Update epic issue** — check boxes for completed sub-issues:
 
    ```bash
    # For each closed sub-issue, update checkbox in epic body
@@ -411,13 +498,13 @@ After all waves are processed:
    gh issue edit <epic> --body "<updated-body>"
    ```
 
-5. **Close epic** if all sub-issues are closed:
+6. **Close epic** if all sub-issues are closed:
 
    ```bash
    gh issue close <epic>
    ```
 
-6. **Generate summary and send notification:**
+7. **Generate summary and send notification:**
 
    ```text
    Skill(telegram, args: "notify: EPIC COMPLETE
@@ -426,28 +513,61 @@ After all waves are processed:
    Failed: <list or 'none'>")
    ```
 
-7. **Update checkpoint** status to completed or partial.
+8. **Update checkpoint** status to completed or partial.
 
 ---
 
 ## Resume Protocol
 
-On start, before Phase 1, check for existing checkpoint state and team:
+On `--continue`, reconstruct state from **both** checkpoint DB and live GitHub state. Checkpoint provides the saved status; GitHub provides the current truth.
 
-1. Check if team `epic-<N>` already exists (read `~/.claude/teams/epic-<N>/config.json`)
-2. If team exists → resume with existing team, check TaskList for progress
-3. If no team → check checkpoint DB for prior state
+### Step 1: Load Checkpoint
 
-Resume logic:
+```text
+Read checkpoint DB for epic <N>
+→ Returns per-issue records: { issue, wave, status, pr, error }
+```
 
-| State                            | Action                       |
-| -------------------------------- | ---------------------------- |
-| Completed + merged               | Skip entirely                |
-| Completed + PR open (not merged) | Go to Phase 3 (review cycle) |
-| Running/failed + PR exists       | Go to Phase 3 (review cycle) |
-| Running/failed + branch, no PR   | Create PR, go to Phase 3     |
-| Running/failed + no branch       | Re-execute from Phase 2      |
-| No checkpoint                    | Execute normally             |
+If no checkpoint exists, fall through to normal Phase 1 execution.
+
+### Step 2: Reconcile with GitHub
+
+For each issue in the checkpoint, verify against live state:
+
+```bash
+# Is the issue closed?
+gh issue view <N> --json state -q '.state'
+
+# Is there an open PR?
+gh pr list --search "head:feat/issue-<N>" --state all --json number,state,mergeCommit
+
+# Is there a branch with commits?
+git fetch origin
+git rev-list --count origin/main..origin/feat/issue-<N> 2>/dev/null
+
+# Is there an existing worktree?
+./scripts/worktree-manager.sh path <N> 2>/dev/null
+```
+
+### Step 3: Route Each Issue
+
+| Checkpoint Status | GitHub State | Action |
+|-------------------|-------------|--------|
+| merged | Issue closed | Skip |
+| review | PR merged | Update checkpoint to merged, skip |
+| review | PR open, CI green | Resume at Phase 3 (review cycle) |
+| review | PR open, CI failing | Send worker to fix, then Phase 3 |
+| running/failed | PR exists | Resume at Phase 3 |
+| running/failed | Branch with commits, no PR | Run pre-existing work detection (see Phase 2) |
+| running/failed | No branch | Re-execute from Phase 2 |
+| pending | Any | Run pre-existing work detection, then Phase 2 |
+
+### Step 4: Rebuild Team + Tasks
+
+1. Check if team `epic-<N>` exists (read `~/.claude/teams/epic-<N>/config.json`)
+2. If team exists → resume with existing team, reconcile TaskList with checkpoint
+3. If no team → create fresh team, create tasks only for non-skipped issues
+4. Display reconciled plan showing what was completed vs. what remains
 
 ---
 
