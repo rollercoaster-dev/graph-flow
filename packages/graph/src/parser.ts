@@ -21,9 +21,16 @@ function findEnclosingEntityName(node: Node): string | null {
     }
 
     if (kind === SyntaxKind.ArrowFunction || kind === SyntaxKind.FunctionExpression) {
+      // Direct: const X = () => ...
       const parent = current.getParent()?.asKind(SyntaxKind.VariableDeclaration);
       if (parent) {
         return parent.getName();
+      }
+      // Wrapped: const X = memo(() => ...) / forwardRef(function() { ... })
+      const callParent = current.getParent()?.asKind(SyntaxKind.CallExpression);
+      const varParent = callParent?.getParent()?.asKind(SyntaxKind.VariableDeclaration);
+      if (varParent) {
+        return varParent.getName();
       }
     }
 
@@ -217,7 +224,19 @@ export class CodeParser {
       if (initializer) {
         const initKind = initializer.getKind();
         const isFunctionLike = initKind === SyntaxKind.ArrowFunction || initKind === SyntaxKind.FunctionExpression;
-        if (isFunctionLike) {
+
+        // Also detect wrapper patterns like memo(() => ...), forwardRef(function() { ... })
+        const isWrappedFunction = initKind === SyntaxKind.CallExpression && (() => {
+          const callExpr = initializer.asKindOrThrow(SyntaxKind.CallExpression);
+          const callee = callExpr.getExpression().getText();
+          if (!/^(memo|forwardRef|React\.memo|React\.forwardRef)$/.test(callee)) return false;
+          const firstArg = callExpr.getArguments()[0];
+          if (!firstArg) return false;
+          const argKind = firstArg.getKind();
+          return argKind === SyntaxKind.ArrowFunction || argKind === SyntaxKind.FunctionExpression;
+        })();
+
+        if (isFunctionLike || isWrappedFunction) {
           if (/^use[A-Z]/.test(name)) {
             type = "hook";
           } else if (/^[A-Z]/.test(name)) {
@@ -271,7 +290,19 @@ export class CodeParser {
     // Function calls
     if (options.includeCallGraph !== false) {
       sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(call => {
-        const callName = call.getExpression().getText();
+        const expr = call.getExpression();
+        // For simple identifiers use the name directly; for property access (a.b.c)
+        // use the last name to avoid noisy chained expressions in the graph.
+        let callName: string;
+        if (expr.getKind() === SyntaxKind.PropertyAccessExpression) {
+          const pae = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+          callName = pae.getName();
+        } else if (expr.getKind() === SyntaxKind.Identifier) {
+          callName = expr.getText();
+        } else {
+          // Fallback for complex expressions (element access, etc.)
+          callName = expr.getText();
+        }
         const enclosingName = findEnclosingEntityName(call);
         if (enclosingName) {
           relationships.push({

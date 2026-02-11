@@ -17,7 +17,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_NAME="$(basename "$REPO_ROOT")"
-WORKTREE_BASE="$HOME/Code/worktrees"
+WORKTREE_BASE="${WORKTREE_BASE:-$HOME/Code/worktrees}"
 
 # DISABLED: claude-knowledge package removed
 # CLI_CMD="bun $REPO_ROOT/packages/claude-knowledge/src/cli.ts"
@@ -92,12 +92,12 @@ get_milestone_field() {
 #------------------------------------------------------------------------------
 # Prerequisite Checks
 
-# check_prerequisites verifies that required CLI tools (git, gh, jq, bun) are available.
+# check_commands verifies that specified CLI tools are available.
 # Exits with error if any are missing.
-check_prerequisites() {
+check_commands() {
   local missing=()
 
-  for cmd in git gh jq bun; do
+  for cmd in "$@"; do
     if ! command -v "$cmd" &> /dev/null; then
       missing+=("$cmd")
     fi
@@ -107,6 +107,24 @@ check_prerequisites() {
     log_error "Missing required commands: ${missing[*]}"
     log_error "Please install missing dependencies and try again"
     exit 1
+  fi
+}
+
+# check_prerequisites verifies that all tools (git, gh, jq, bun) are available.
+check_prerequisites() {
+  check_commands git gh jq bun
+}
+
+# validate_issue_number ensures the argument is a positive integer (digits only).
+# Prevents path traversal via ../ or / in issue number arguments.
+validate_issue_number() {
+  local issue_number="${1:-}"
+  if [[ -z "$issue_number" ]]; then
+    return 1
+  fi
+  if ! [[ "$issue_number" =~ ^[0-9]+$ ]]; then
+    log_error "Invalid issue number: '$issue_number' (must be a positive integer)"
+    return 1
   fi
 }
 
@@ -131,10 +149,10 @@ get_worktree_path() {
 cmd_create() {
   check_prerequisites
 
-  local issue_number=$1
-  local branch_name=${2:-""}
+  local issue_number="${1:-}"
+  local branch_name="${2:-}"
 
-  if [[ -z "$issue_number" ]]; then
+  if ! validate_issue_number "$issue_number"; then
     log_error "Usage: worktree-manager.sh create <issue-number> [branch-name]"
     exit 1
   fi
@@ -181,9 +199,9 @@ cmd_create() {
 
 # cmd_remove removes the worktree for a given issue number, optionally deletes its branch if it is fully merged into main, and updates the tracked state.
 cmd_remove() {
-  local issue_number=$1
+  local issue_number="${1:-}"
 
-  if [[ -z "$issue_number" ]]; then
+  if ! validate_issue_number "$issue_number"; then
     log_error "Usage: worktree-manager.sh remove <issue-number>"
     exit 1
   fi
@@ -193,7 +211,7 @@ cmd_remove() {
 
   if [[ ! -d "$worktree_path" ]]; then
     log_warn "No worktree found for issue #$issue_number"
-    exit 0
+    return 0
   fi
 
   # Get branch name before removing (query worktree directly for reliability)
@@ -205,7 +223,7 @@ cmd_remove() {
 
   # Optionally delete the branch if it exists and is fully merged
   if [[ -n "$branch_name" ]]; then
-    if git -C "$REPO_ROOT" branch --merged main | grep -q "$branch_name"; then
+    if git -C "$REPO_ROOT" branch --merged main | grep -qx "  $branch_name"; then
       git -C "$REPO_ROOT" branch -d "$branch_name" 2>/dev/null || true
       log_info "Deleted merged branch: $branch_name"
     fi
@@ -228,9 +246,9 @@ cmd_list() {
 
 # cmd_path prints the filesystem path for the worktree corresponding to the given issue number; exits with status 1 if the issue number is missing or the worktree does not exist.
 cmd_path() {
-  local issue_number=$1
+  local issue_number="${1:-}"
 
-  if [[ -z "$issue_number" ]]; then
+  if ! validate_issue_number "$issue_number"; then
     log_error "Usage: worktree-manager.sh path <issue-number>"
     exit 1
   fi
@@ -248,9 +266,9 @@ cmd_path() {
 
 # cmd_rebase rebases the worktree for the specified issue onto origin/main; on conflict it aborts the rebase, reports an error, and returns a non-zero status.
 cmd_rebase() {
-  local issue_number=$1
+  local issue_number="${1:-}"
 
-  if [[ -z "$issue_number" ]]; then
+  if ! validate_issue_number "$issue_number"; then
     log_error "Usage: worktree-manager.sh rebase <issue-number>"
     exit 1
   fi
@@ -297,7 +315,7 @@ cmd_ci_status() {
     exit 1
   fi
 
-  check_prerequisites
+  check_commands git gh jq
 
   if [[ "$wait_flag" == "--wait" ]]; then
     log_info "Waiting for CI checks on PR #$pr_number (timeout: ${CI_POLL_TIMEOUT}s)..."
@@ -357,17 +375,18 @@ cmd_ci_status() {
     passed=$(echo "$status" | jq '[.[] | select(.conclusion == "SUCCESS")] | length')
     failed=$(echo "$status" | jq '[.[] | select(.conclusion == "FAILURE")] | length')
 
-    echo ""
-    echo "CI Status for PR #$pr_number:"
-    printf "  %-15s %d\n" "Total checks:" "$total"
-    printf "  %-15s %d\n" "Pending:" "$pending"
-    printf "  %-15s %d\n" "In progress:" "$in_progress"
-    printf "  %-15s %d\n" "Completed:" "$completed"
-    printf "  %-15s %d\n" "Passed:" "$passed"
-    printf "  %-15s %d\n" "Failed:" "$failed"
-    echo ""
+    # Human-readable summary to stderr
+    echo "" >&2
+    echo "CI Status for PR #$pr_number:" >&2
+    printf "  %-15s %d\n" "Total checks:" "$total" >&2
+    printf "  %-15s %d\n" "Pending:" "$pending" >&2
+    printf "  %-15s %d\n" "In progress:" "$in_progress" >&2
+    printf "  %-15s %d\n" "Completed:" "$completed" >&2
+    printf "  %-15s %d\n" "Passed:" "$passed" >&2
+    printf "  %-15s %d\n" "Failed:" "$failed" >&2
+    echo "" >&2
 
-    # Return JSON for scripting
+    # JSON to stdout for scripting
     jq -n \
       --argjson total "$total" \
       --argjson pending "$pending" \
@@ -384,6 +403,10 @@ cmd_integration_test() {
   check_prerequisites
 
   log_info "Running post-merge integration tests on main..."
+
+  # Save current branch to restore after tests
+  local original_branch
+  original_branch=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || echo "")
 
   # Ensure we're on main with latest
   git -C "$REPO_ROOT" fetch origin main --quiet
@@ -450,6 +473,12 @@ cmd_integration_test() {
     log_success "All integration tests passed!"
   else
     log_error "Integration tests failed. Manual intervention required."
+  fi
+
+  # Restore original branch if we were on one
+  if [[ -n "$original_branch" && "$original_branch" != "main" ]]; then
+    git -C "$REPO_ROOT" checkout "$original_branch" --quiet 2>/dev/null || \
+      log_warn "Could not restore branch '$original_branch' — still on main"
   fi
 
   return $exit_code

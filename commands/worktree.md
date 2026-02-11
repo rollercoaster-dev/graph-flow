@@ -15,6 +15,7 @@ Run the worktree manager script with the provided arguments:
 ## Available Commands
 
 ### Worktree Commands
+
 - `create <issue> [branch]` - Create a new worktree for a GitHub issue
 - `remove <issue>` - Remove a worktree and optionally its merged branch
 - `list` - List all worktrees
@@ -23,6 +24,7 @@ Run the worktree manager script with the provided arguments:
 - `cleanup-all [--force]` - Remove all worktrees (`--force` skips confirmation)
 
 ### CI Commands
+
 - `ci-status <pr> [--wait]` - Check CI status for a PR (`--wait` blocks until complete)
 - `integration-test` - Run full test suite on main after all merges
 
@@ -30,7 +32,7 @@ Run the worktree manager script with the provided arguments:
 
 ## Examples
 
-```
+```bash
 /worktree create 164
 /worktree create 164 feat/sqlite-api-key
 /worktree path 164

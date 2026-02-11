@@ -4,20 +4,20 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { CodeParser } from "../src/parser.ts";
 
-const CACHE_DIR = "/tmp/graph-flow-test-parser-cache";
-
 describe("CodeParser — React/JSX support", () => {
   let parser: CodeParser;
   let fixtureDir: string;
+  let cacheDir: string;
 
   beforeEach(async () => {
-    parser = new CodeParser(CACHE_DIR);
+    cacheDir = await mkdtemp(join(tmpdir(), "graph-parser-cache-"));
+    parser = new CodeParser(cacheDir);
     await parser.init();
     fixtureDir = await mkdtemp(join(tmpdir(), "graph-parser-test-"));
   });
 
   afterEach(async () => {
-    await rm(CACHE_DIR, { recursive: true, force: true });
+    await rm(cacheDir, { recursive: true, force: true });
     await rm(fixtureDir, { recursive: true, force: true });
   });
 

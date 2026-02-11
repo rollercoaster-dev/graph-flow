@@ -59,6 +59,9 @@ The only exception is calling the `telegram` skill via the Skill tool (lightweig
 
 ---
 
+<!-- NOTE: Worktree isolation, parallel mode, Phase 2-4, and Resume sections are shared
+     with auto-epic.md. Keep both files in sync when editing shared workflow sections. -->
+
 ## CRITICAL: Worktree Isolation for Parallel Mode
 
 **When using `--parallel N` (N > 1), workers MUST operate in separate git worktrees.** Without worktree isolation, concurrent workers conflict on git state — one does `git checkout main` while another is mid-implementation.
