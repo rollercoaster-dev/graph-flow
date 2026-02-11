@@ -14,20 +14,33 @@ Run the worktree manager script with the provided arguments:
 
 ## Available Commands
 
+### Worktree Commands
+
 - `create <issue> [branch]` - Create a new worktree for a GitHub issue
-- `status` - Show status of all worktrees
+- `remove <issue>` - Remove a worktree and optionally its merged branch
 - `list` - List all worktrees
-- `remove <issue>` - Remove a worktree
-- `sync` - Sync state file with actual git worktrees
+- `path <issue>` - Print the filesystem path for a worktree
+- `rebase <issue>` - Rebase a worktree onto origin/main
+- `cleanup-all [--force]` - Remove all worktrees (`--force` skips confirmation)
+
+### CI Commands
+
+- `ci-status <pr> [--wait]` - Check CI status for a PR (`--wait` blocks until complete)
+- `integration-test` - Run full test suite on main after all merges
+
 - `help` - Show help
 
 ## Examples
 
-```
+```bash
 /worktree create 164
 /worktree create 164 feat/sqlite-api-key
-/worktree status
+/worktree path 164
+/worktree rebase 164
 /worktree remove 164
+/worktree cleanup-all --force
+/worktree ci-status 42 --wait
+/worktree integration-test
 ```
 
 ## Worktree Location
