@@ -20,28 +20,32 @@ import type {
 
 /** Injectable GitHub client interface for testability. */
 export interface GitHubClient {
-  fetchMilestone(num: number): GitHubMilestone | null;
-  fetchMilestoneIssues(milestoneNum: number): GitHubIssue[];
-  fetchEpicSubIssues(epicNum: number): GitHubSubIssue[];
-  fetchIssue(num: number): GitHubIssue | null;
+  fetchMilestone(num: number, repo?: string): GitHubMilestone | null;
+  fetchMilestoneIssues(milestoneNum: number, repo?: string): GitHubIssue[];
+  fetchEpicSubIssues(epicNum: number, repo?: string): GitHubSubIssue[];
+  fetchIssue(num: number, repo?: string): GitHubIssue | null;
   createIssue(opts: {
     title: string;
     body?: string;
     labels?: string[];
     milestone?: number;
+    repo?: string;
   }): { number: number; url: string } | null;
   createBranch(name: string): boolean;
 }
 
 export class AutomationOrchestrator {
   private gh: GitHubClient;
+  private githubRepo?: string;
 
   constructor(
     private planning: PlanningManager,
     private workflows: WorkflowManager,
-    gh?: GitHubClient
+    gh?: GitHubClient,
+    githubRepo?: string,
   ) {
     this.gh = gh ?? ghDefault;
+    this.githubRepo = githubRepo;
   }
 
   /**
@@ -49,12 +53,12 @@ export class AutomationOrchestrator {
    * Creates a Goal, Plan (sourceType: "milestone"), and Steps (one per issue).
    */
   async fromMilestone(num: number): Promise<AutomationResult> {
-    const milestone = this.gh.fetchMilestone(num);
+    const milestone = this.gh.fetchMilestone(num, this.githubRepo);
     if (!milestone) {
       throw new Error(`Milestone ${num} not found`);
     }
 
-    const issues = this.gh.fetchMilestoneIssues(num);
+    const issues = this.gh.fetchMilestoneIssues(num, this.githubRepo);
 
     // Push goal
     const { goal } = await this.planning.pushGoal({
@@ -100,12 +104,12 @@ export class AutomationOrchestrator {
    * Creates a Goal, Plan (sourceType: "epic"), and Steps (one per sub-issue).
    */
   async fromEpic(num: number): Promise<AutomationResult> {
-    const epic = this.gh.fetchIssue(num);
+    const epic = this.gh.fetchIssue(num, this.githubRepo);
     if (!epic) {
       throw new Error(`Epic issue #${num} not found`);
     }
 
-    const subIssues = this.gh.fetchEpicSubIssues(num);
+    const subIssues = this.gh.fetchEpicSubIssues(num, this.githubRepo);
 
     // Push goal
     const { goal } = await this.planning.pushGoal({
@@ -162,6 +166,7 @@ export class AutomationOrchestrator {
       body: opts.body,
       labels: opts.labels,
       milestone: opts.milestone,
+      repo: this.githubRepo,
     });
 
     if (!result) {
@@ -204,7 +209,7 @@ export class AutomationOrchestrator {
    * Fetches the issue, creates a branch, pushes a Goal, and creates a checkpoint.
    */
   async startIssue(num: number): Promise<WorkStartResult> {
-    const issue = this.gh.fetchIssue(num);
+    const issue = this.gh.fetchIssue(num, this.githubRepo);
     if (!issue) {
       throw new Error(`Issue #${num} not found`);
     }

@@ -29,8 +29,8 @@ export interface MCPToolResult {
 export class AutomationMCPTools {
   private orchestrator: AutomationOrchestrator;
 
-  constructor(planning: PlanningManager, workflows: WorkflowManager) {
-    this.orchestrator = new AutomationOrchestrator(planning, workflows);
+  constructor(planning: PlanningManager, workflows: WorkflowManager, githubRepo?: string) {
+    this.orchestrator = new AutomationOrchestrator(planning, workflows, undefined, githubRepo);
   }
 
   async init(): Promise<void> {
