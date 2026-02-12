@@ -12,11 +12,69 @@ import { KnowledgeMCPTools, getCurrentProviderType } from "@graph-flow/knowledge
 import { GraphMCPTools } from "@graph-flow/graph";
 import { PlanningMCPTools } from "@graph-flow/planning";
 import { AutomationMCPTools } from "@graph-flow/automation";
+import { spawnSync } from "bun";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 const pkgModule = await import("../package.json");
 const pkg = pkgModule.default ?? pkgModule;
+
+/**
+ * Parse `owner/repo` from a git remote URL.
+ * Handles both HTTPS and SSH formats.
+ */
+function parseGitHubRepo(remoteUrl: string): string | null {
+  const match = remoteUrl.match(/github\.com[/:]([^/]+\/[^/]+?)(\.git)?$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Try to resolve a GitHub repo from a directory's git remote.
+ */
+function repoFromDir(dir: string): string | null {
+  try {
+    const result = spawnSync(["git", "-C", dir, "remote", "get-url", "origin"]);
+    if (result.success) {
+      return parseGitHubRepo(result.stdout.toString().trim());
+    }
+  } catch {
+    // git not available or not a repo
+  }
+  return null;
+}
+
+/**
+ * Resolve the GitHub repo (owner/repo) for gh CLI calls.
+ * Fallback chain: env var → GRAPH_FLOW_DIR → CLAUDE_PROJECT_DIR → cwd → null.
+ */
+export function resolveGitHubRepo(): string | null {
+  // 1. Explicit env var (highest priority)
+  const explicit = process.env.GRAPH_FLOW_GITHUB_REPO?.trim();
+  if (explicit) return explicit;
+
+  // 2. From GRAPH_FLOW_DIR git remote
+  const gfDir = process.env.GRAPH_FLOW_DIR?.trim();
+  if (gfDir) {
+    // Strip /.claude suffix if present (GRAPH_FLOW_DIR points to .claude subdir)
+    const dir = gfDir.endsWith("/.claude") ? gfDir.slice(0, -7) : gfDir;
+    const repo = repoFromDir(dir);
+    if (repo) return repo;
+  }
+
+  // 3. From CLAUDE_PROJECT_DIR git remote
+  const projectDir = process.env.CLAUDE_PROJECT_DIR?.trim();
+  if (projectDir) {
+    const repo = repoFromDir(projectDir);
+    if (repo) return repo;
+  }
+
+  // 4. From cwd git remote
+  const repo = repoFromDir(process.cwd());
+  if (repo) return repo;
+
+  // 5. Graceful degradation
+  return null;
+}
 
 /** Resolve the base directory for graph-flow data storage. */
 function resolveBaseDir(): string {
@@ -45,9 +103,20 @@ export class GraphFlowServer {
   private graph: GraphMCPTools;
   private planning: PlanningMCPTools;
   private automation!: AutomationMCPTools;
+  private githubRepo?: string;
 
-  constructor(options: { baseDir?: string } = {}) {
+  constructor(options: { baseDir?: string; githubRepo?: string | null } = {}) {
     const baseDir = options.baseDir ?? resolveBaseDir();
+    const githubRepo = options.githubRepo !== undefined
+      ? (options.githubRepo ?? undefined)
+      : (resolveGitHubRepo() ?? undefined);
+
+    if (githubRepo) {
+      console.error(`graph-flow: using GitHub repo ${githubRepo}`);
+    } else {
+      console.error("graph-flow: no GitHub repo detected, gh CLI calls may fail in plugin context");
+    }
+
     const workflowsDir = join(baseDir, "workflows");
     const learningsDir = join(baseDir, "learnings");
     const embeddingsDir = join(baseDir, "embeddings");
@@ -70,7 +139,8 @@ export class GraphFlowServer {
     this.checkpoint = new CheckpointMCPTools(workflowsDir);
     this.knowledge = new KnowledgeMCPTools(learningsDir, embeddingsDir);
     this.graph = new GraphMCPTools(graphsDir);
-    this.planning = new PlanningMCPTools(planningDir);
+    this.planning = new PlanningMCPTools(planningDir, githubRepo);
+    this.githubRepo = githubRepo;
 
     this.setupHandlers();
   }
@@ -96,7 +166,8 @@ export class GraphFlowServer {
       await this.planning.init();
       this.automation = new AutomationMCPTools(
         this.planning.getManager(),
-        this.checkpoint.getManager()
+        this.checkpoint.getManager(),
+        this.githubRepo
       );
       await this.automation.init();
       this.initialized = true;

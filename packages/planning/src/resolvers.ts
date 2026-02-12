@@ -85,16 +85,20 @@ interface GitHubIssueState {
 /**
  * Check GitHub issue state via `gh` CLI.
  */
-function checkIssueState(issueNumber: number): GitHubIssueState | null {
+function checkIssueState(issueNumber: number, githubRepo?: string): GitHubIssueState | null {
   try {
-    const result = spawnSync([
+    const args = [
       "gh",
       "issue",
       "view",
       String(issueNumber),
       "--json",
       "state,linkedBranches",
-    ]);
+    ];
+    if (githubRepo) {
+      args.splice(1, 0, "--repo", githubRepo);
+    }
+    const result = spawnSync(args);
 
     if (result.success) {
       const data = JSON.parse(result.stdout.toString()) as {
@@ -106,7 +110,7 @@ function checkIssueState(issueNumber: number): GitHubIssueState | null {
       let linkedPRNumber: number | undefined;
       if (data.linkedBranches && data.linkedBranches.length > 0) {
         const branchName = data.linkedBranches[0].name;
-        const prResult = spawnSync([
+        const prArgs = [
           "gh",
           "pr",
           "list",
@@ -116,7 +120,11 @@ function checkIssueState(issueNumber: number): GitHubIssueState | null {
           "number",
           "--limit",
           "1",
-        ]);
+        ];
+        if (githubRepo) {
+          prArgs.splice(1, 0, "--repo", githubRepo);
+        }
+        const prResult = spawnSync(prArgs);
 
         if (prResult.success) {
           const prData = JSON.parse(prResult.stdout.toString()) as Array<{
@@ -146,9 +154,11 @@ function checkIssueState(issueNumber: number): GitHubIssueState | null {
  */
 export class IssueResolver implements CompletionResolver {
   private storage: PlanningStorage;
+  private githubRepo?: string;
 
-  constructor(storage: PlanningStorage) {
+  constructor(storage: PlanningStorage, githubRepo?: string) {
     this.storage = storage;
+    this.githubRepo = githubRepo;
   }
 
   async resolve(step: PlanStep): Promise<CompletionStatus> {
@@ -173,7 +183,7 @@ export class IssueResolver implements CompletionResolver {
     }
 
     // 3. Fetch from GitHub
-    const issueState = checkIssueState(issueNumber);
+    const issueState = checkIssueState(issueNumber, this.githubRepo);
     if (!issueState) {
       throw new Error(`GitHub CLI failed for issue #${issueNumber}`);
     }
@@ -253,8 +263,8 @@ export class ResolverFactory {
   private issueResolver: IssueResolver;
   private manualResolver: ManualResolver;
 
-  constructor(storage: PlanningStorage) {
-    this.issueResolver = new IssueResolver(storage);
+  constructor(storage: PlanningStorage, githubRepo?: string) {
+    this.issueResolver = new IssueResolver(storage, githubRepo);
     this.manualResolver = new ManualResolver(storage);
   }
 
