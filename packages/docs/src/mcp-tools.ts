@@ -1,5 +1,5 @@
-import { DocsStore } from "./store.ts";
 import { DocsSearch } from "./search.ts";
+import { DocsStore } from "./store.ts";
 import type { DocsIndexOptions } from "./types.ts";
 
 export interface MCPTool {
@@ -54,7 +54,7 @@ export class DocsMCPTools {
               type: "array",
               items: { type: "string" },
               description:
-                "Glob patterns for markdown files (e.g., ['docs/**/*.md', 'README.md'])",
+                "Glob patterns for markdown files (e.g., ['docs/**/*.md', 'README.md']). Omit to auto-detect all *.md files.",
             },
             cwd: {
               type: "string",
@@ -62,10 +62,11 @@ export class DocsMCPTools {
             },
             force: {
               type: "boolean",
-              description: "Re-index even if file hash unchanged (default: false)",
+              description:
+                "Re-index even if file hash unchanged (default: false)",
             },
           },
-          required: ["patterns"],
+          required: [],
         },
       },
       {
@@ -125,14 +126,19 @@ export class DocsMCPTools {
     }
   }
 
-  private async handleIndex(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleIndex(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const options = args as unknown as DocsIndexOptions;
     const result = await this.store.index(options);
 
     // After indexing, generate embeddings for new sections
     const graph = await this.store.load();
     const existingEmbeddings = new Set<string>(); // Fresh index — embed all
-    await this.search.embedSections(Object.values(graph.sections), existingEmbeddings);
+    await this.search.embedSections(
+      Object.values(graph.sections),
+      existingEmbeddings,
+    );
 
     return {
       content: [
@@ -154,7 +160,9 @@ export class DocsMCPTools {
     };
   }
 
-  private async handleQuery(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleQuery(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { query, limit, threshold } = args as {
       query: string;
       limit?: number;
@@ -162,27 +170,38 @@ export class DocsMCPTools {
     };
 
     const graph = await this.store.load();
-    const results = await this.search.search(graph, query, { limit, threshold });
+    const results = await this.search.search(graph, query, {
+      limit,
+      threshold,
+    });
 
     const summary = results.map((r) => ({
       heading: r.section.heading,
       filePath: r.section.filePath,
       anchor: r.section.anchor,
       similarity: Math.round(r.similarity * 100) / 100,
-      content: r.section.content.slice(0, 300) + (r.section.content.length > 300 ? "…" : ""),
+      content:
+        r.section.content.slice(0, 300) +
+        (r.section.content.length > 300 ? "…" : ""),
     }));
 
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify({ query, resultCount: summary.length, results: summary }, null, 2),
+          text: JSON.stringify(
+            { query, resultCount: summary.length, results: summary },
+            null,
+            2,
+          ),
         },
       ],
     };
   }
 
-  private async handleForCode(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleForCode(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { name } = args as { name: string };
 
     const graph = await this.store.load();

@@ -50,8 +50,8 @@ export interface DocsGraph {
  * Options for indexing a set of markdown files.
  */
 export interface DocsIndexOptions {
-  /** Glob patterns for markdown files, e.g. ['docs/**\/*.md', 'README.md'] */
-  patterns: string[];
+  /** Glob patterns for markdown files, e.g. ['docs/**\/*.md', 'README.md']. Omit to auto-detect. */
+  patterns?: string[];
   /** Working directory for glob expansion (default: cwd) */
   cwd?: string;
   /** Minimum section content length to index in chars (default: 50) */

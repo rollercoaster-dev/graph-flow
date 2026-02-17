@@ -1,5 +1,5 @@
-import { GraphQuery } from "./query.ts";
 import { CodeIndexer } from "./indexer.ts";
+import { GraphQuery } from "./query.ts";
 
 export interface MCPTool {
   name: string;
@@ -53,10 +53,16 @@ export class GraphMCPTools {
             files: {
               type: "array",
               items: { type: "string" },
-              description: "Files to search (glob patterns supported)",
+              description:
+                "Glob patterns to search (e.g. ['src/**/*.ts']). Omit to auto-detect source files.",
+            },
+            cwd: {
+              type: "string",
+              description:
+                "Working directory for file resolution (default: CLAUDE_PROJECT_DIR)",
             },
           },
-          required: ["name", "files"],
+          required: ["name"],
         },
       },
       {
@@ -73,14 +79,20 @@ export class GraphMCPTools {
             files: {
               type: "array",
               items: { type: "string" },
-              description: "Files to search",
+              description:
+                "Glob patterns to search (e.g. ['src/**/*.ts']). Omit to auto-detect source files.",
             },
             maxDepth: {
               type: "number",
               description: "Maximum depth to traverse (default: 3)",
             },
+            cwd: {
+              type: "string",
+              description:
+                "Working directory for file resolution (default: CLAUDE_PROJECT_DIR)",
+            },
           },
-          required: ["name", "files"],
+          required: ["name"],
         },
       },
       {
@@ -144,8 +156,12 @@ export class GraphMCPTools {
   private async handleWhatCalls(
     args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
-    const { name, files } = args as { name: string; files: string[] };
-    const result = await this.query.whatCalls(name, files);
+    const { name, files, cwd } = args as {
+      name: string;
+      files?: string[];
+      cwd?: string;
+    };
+    const result = await this.query.whatCalls(name, files, cwd);
 
     if (!result) {
       return {
@@ -185,13 +201,15 @@ export class GraphMCPTools {
       name,
       files,
       maxDepth = 3,
+      cwd,
     } = args as {
       name: string;
-      files: string[];
+      files?: string[];
       maxDepth?: number;
+      cwd?: string;
     };
 
-    const result = await this.query.blastRadius(name, files, maxDepth);
+    const result = await this.query.blastRadius(name, files, maxDepth, cwd);
 
     if (!result) {
       return {

@@ -8,12 +8,14 @@
  * Also provides graph traversal: getDocsForCode / getCodeForDoc.
  */
 
-import {
-  EmbeddingStorage,
-  getDefaultEmbedder,
-} from "@graph-flow/knowledge";
+import { EmbeddingStorage, getDefaultEmbedder } from "@graph-flow/knowledge";
 import { cosineSimilarity } from "@graph-flow/knowledge/embeddings";
-import type { DocSection, DocsGraph, DocSearchResult, DocSearchOptions } from "./types.ts";
+import type {
+  DocSearchOptions,
+  DocSearchResult,
+  DocSection,
+  DocsGraph,
+} from "./types.ts";
 
 const EMBEDDINGS_AREA = "docs";
 
@@ -47,7 +49,11 @@ export class DocsSearch {
       try {
         const text = `${section.heading}\n\n${section.content}`;
         const embedding = await embedder.generate(text);
-        await this.embeddingStorage.store(EMBEDDINGS_AREA, section.id, embedding);
+        await this.embeddingStorage.store(
+          EMBEDDINGS_AREA,
+          section.id,
+          embedding,
+        );
       } catch {
         // Non-blocking — section still indexed without embedding
       }
@@ -88,10 +94,7 @@ export class DocsSearch {
    * Find all doc sections that document a given code entity name.
    * Uses the DOCUMENTS relationship graph (codeToDoc map).
    */
-  getDocsForCode(
-    graph: DocsGraph,
-    entityName: string,
-  ): DocSection[] {
+  getDocsForCode(graph: DocsGraph, entityName: string): DocSection[] {
     const sectionIds = graph.codeToDoc[entityName] ?? [];
     return sectionIds
       .map((id) => graph.sections[id])
@@ -102,10 +105,7 @@ export class DocsSearch {
    * Find all code entity names documented by a given section.
    * Uses the reverse DOCUMENTS relationship (docToCode map).
    */
-  getCodeForDoc(
-    graph: DocsGraph,
-    sectionId: string,
-  ): string[] {
+  getCodeForDoc(graph: DocsGraph, sectionId: string): string[] {
     return graph.docToCode[sectionId] ?? [];
   }
 }

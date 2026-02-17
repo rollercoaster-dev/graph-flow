@@ -220,9 +220,7 @@ export class GraphFlowServer {
     };
   }
 
-  private async readResourceImpl(
-    uri: string,
-  ): Promise<{
+  private async readResourceImpl(uri: string): Promise<{
     contents: Array<{ uri: string; mimeType: string; text: string }>;
   }> {
     // Lazy init on resource read
@@ -278,9 +276,7 @@ export class GraphFlowServer {
     return this.listResourcesImpl();
   }
 
-  async readResourceForTests(
-    uri: string,
-  ): Promise<{
+  async readResourceForTests(uri: string): Promise<{
     contents: Array<{ uri: string; mimeType: string; text: string }>;
   }> {
     return this.readResourceImpl(uri);

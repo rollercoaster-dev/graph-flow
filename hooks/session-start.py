@@ -13,23 +13,23 @@ Output format matches the explanatory-output-style plugin's SessionStart mechani
 import json
 import os
 
-CONTEXT = """graph-flow MCP tools active. These answer different questions than grep/glob/LSP:
+CONTEXT = """graph-flow MCP tools are active. Prefer these over grep/glob/LSP for the use cases below.
 
-GRAPH TOOLS (run g-index first to populate the cache)
-g-index: Index code files before using other g- tools. Run once per session on packages you'll work in.
-g-calls: "What directly calls this function?" Structured caller data across the full indexed codebase — faster and more complete than grep.
-g-blast: "What breaks if I change X?" Traces the full transitive call graph. Use BEFORE modifying any shared function, type, or class.
-g-defs: "What is defined in this file?" All functions, classes, interfaces with line numbers.
+GRAPH TOOLS — no setup needed, auto-detect source files
+INSTEAD OF grepping for callers: use g-calls(name: "myFunction")
+INSTEAD OF manually tracing impact: use g-blast(name: "MyClass") — full transitive call graph
+INSTEAD OF reading a file to find its exports: use g-defs(file: "src/foo.ts")
+g-index: Pre-warm cache for large codebases. Omit to let g-calls/g-blast parse on-demand.
 
-DOCS GRAPH TOOLS (run d-index first)
-d-index: Index markdown files into the docs graph. Pass glob patterns e.g. ['docs/**/*.md', 'README.md']. Extracts hierarchical sections and builds DOCUMENTS relationships (backtick identifiers in docs → code entities).
-d-query: Semantic search over indexed doc sections.
-d-for-code: "What docs exist for function X?" Traverses DOCUMENTS relationships built during d-index.
+DOCS GRAPH TOOLS — no args needed, auto-detects *.md
+INSTEAD OF grepping docs: use d-query(query: "how does auth work")
+INSTEAD OF searching for which docs cover a function: use d-for-code(name: "handleLogin")
+d-index: Run once to index docs. No args required — auto-discovers all *.md files.
 
 KNOWLEDGE TOOLS
-k-query: "What do I already know about this area?" Run at the start of any non-trivial task, before opening files.
-k-store: "This was non-obvious." Capture gotchas, patterns, architectural decisions not in the code.
-k-index: Index markdown as session learnings (separate from docs graph — stores as searchable learnings).
+BEFORE opening files on any non-trivial task: k-query(query: "area you're about to work in")
+AFTER a non-obvious discovery: k-store(content: "what you learned", codeArea: "package/file")
+k-index: Index a markdown file as session learnings.
 k-related: Find learnings related to a given learning by ID."""
 
 
