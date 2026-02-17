@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { JSONLStorage } from "../src/storage.ts";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
+import { JSONLStorage } from "../src/storage.ts";
 
 const TEST_DIR = "/tmp/graph-flow-test-storage";
 

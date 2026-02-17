@@ -1,6 +1,6 @@
-import { join, resolve } from "node:path";
-import { mkdir, stat, access, readdir } from "node:fs/promises";
 import { constants } from "node:fs";
+import { access, mkdir, readdir, stat } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { CodeIndexer, type IndexResult } from "@graph-flow/graph";
 import { DocsIndexer, type DocsIndexResult } from "@graph-flow/knowledge";
 
@@ -223,7 +223,9 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
         patterns,
         cwd: resolvedRoot,
       });
-      console.error(`✓ Indexed ${result.codeIndexResult.totalFiles} files (${result.codeIndexResult.parsedFiles} parsed, ${result.codeIndexResult.cachedFiles} cached)`);
+      console.error(
+        `✓ Indexed ${result.codeIndexResult.totalFiles} files (${result.codeIndexResult.parsedFiles} parsed, ${result.codeIndexResult.cachedFiles} cached)`,
+      );
     } else {
       console.error("No code files found to index");
     }
@@ -237,14 +239,16 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
       console.error(`Patterns: ${patterns.join(", ")}`);
       const indexer = new DocsIndexer(
         join(dataDir, "learnings"),
-        join(dataDir, "embeddings")
+        join(dataDir, "embeddings"),
       );
       await indexer.init();
       result.docsIndexResult = await indexer.index({
         patterns,
         cwd: resolvedRoot,
       });
-      console.error(`✓ Indexed ${result.docsIndexResult.totalFiles} files, ${result.docsIndexResult.totalSections} sections`);
+      console.error(
+        `✓ Indexed ${result.docsIndexResult.totalFiles} files, ${result.docsIndexResult.totalSections} sections`,
+      );
     } else {
       console.error("No documentation files found to index");
     }
@@ -273,7 +277,9 @@ export function formatInitResult(result: InitResult): string {
   if (result.codeIndexResult) {
     const r = result.codeIndexResult;
     lines.push("Code indexing:");
-    lines.push(`  Files: ${r.totalFiles} (${r.parsedFiles} parsed, ${r.cachedFiles} cached)`);
+    lines.push(
+      `  Files: ${r.totalFiles} (${r.parsedFiles} parsed, ${r.cachedFiles} cached)`,
+    );
     lines.push(`  Entities: ${r.totalEntities}`);
     lines.push(`  Relationships: ${r.totalRelationships}`);
     if (r.failedFiles > 0) {
@@ -301,9 +307,13 @@ export function formatInitResult(result: InitResult): string {
 
   lines.push("Health check:");
   const h = result.healthCheck;
-  lines.push(`  Data dir: ${h.dataDir.exists ? "exists" : "missing"}, ${h.dataDir.writable ? "writable" : "not writable"}`);
+  lines.push(
+    `  Data dir: ${h.dataDir.exists ? "exists" : "missing"}, ${h.dataDir.writable ? "writable" : "not writable"}`,
+  );
   lines.push(`  Graphs: ${h.graphs.files} files`);
-  lines.push(`  Learnings: ${h.learnings.files} files, areas: [${h.learnings.areas.join(", ")}]`);
+  lines.push(
+    `  Learnings: ${h.learnings.files} files, areas: [${h.learnings.areas.join(", ")}]`,
+  );
   lines.push(`  Embeddings: ${h.embeddings.files} files`);
   lines.push(`  Workflows: ${h.workflows.files} files`);
   lines.push(`  Planning: ${h.planning.files} files`);

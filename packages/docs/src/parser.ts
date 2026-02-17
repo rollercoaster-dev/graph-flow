@@ -91,7 +91,10 @@ function chunkSection(section: ParsedSection): ParsedSection[] {
   for (const line of lines) {
     const lineTokens = estimateTokens(line);
 
-    if (currentTokens + lineTokens > MAX_SECTION_TOKENS && currentChunk.length > 0) {
+    if (
+      currentTokens + lineTokens > MAX_SECTION_TOKENS &&
+      currentChunk.length > 0
+    ) {
       chunks.push({
         ...section,
         content: currentChunk.join("\n"),
@@ -144,10 +147,12 @@ function chunkSection(section: ParsedSection): ParsedSection[] {
  */
 export function parseMarkdown(markdown: string): ParsedSection[] {
   if (typeof markdown !== "string") {
-    throw new TypeError(`parseMarkdown expects a string, got ${typeof markdown}`);
+    throw new TypeError(
+      `parseMarkdown expects a string, got ${typeof markdown}`,
+    );
   }
 
-  let tokens;
+  let tokens: ReturnType<typeof marked.lexer>;
   try {
     tokens = marked.lexer(markdown);
   } catch (error) {
@@ -193,7 +198,8 @@ export function parseMarkdown(markdown: string): ParsedSection[] {
       usedAnchors.set(baseAnchor, count + 1);
       currentAnchor = count === 0 ? baseAnchor : `${baseAnchor}-${count}`;
 
-      currentParentAnchor = stack.length > 0 ? stack[stack.length - 1].anchor : undefined;
+      currentParentAnchor =
+        stack.length > 0 ? stack[stack.length - 1].anchor : undefined;
       currentContent = [];
     } else {
       if (token.type === "paragraph") {

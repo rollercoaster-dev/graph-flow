@@ -10,12 +10,23 @@
 
 // Buffer import needed for ESLint - it's also global in Bun runtime
 import { Buffer } from "buffer";
-export { cosineSimilarity, dotProduct, magnitude, l2Normalize, findMostSimilar } from "./similarity.ts";
+
+export {
+  cosineSimilarity,
+  dotProduct,
+  findMostSimilar,
+  l2Normalize,
+  magnitude,
+} from "./similarity.ts";
+
 // Simple logger replacement
 const logger = {
-  info: (msg: string, meta?: unknown) => console.error(`[INFO] ${msg}`, meta || ""),
-  warn: (msg: string, meta?: unknown) => console.error(`[WARN] ${msg}`, meta || ""),
-  debug: (msg: string, meta?: unknown) => console.error(`[DEBUG] ${msg}`, meta || ""),
+  info: (msg: string, meta?: unknown) =>
+    console.error(`[INFO] ${msg}`, meta || ""),
+  warn: (msg: string, meta?: unknown) =>
+    console.error(`[WARN] ${msg}`, meta || ""),
+  debug: (msg: string, meta?: unknown) =>
+    console.error(`[DEBUG] ${msg}`, meta || ""),
 };
 
 /**
@@ -331,7 +342,9 @@ export async function getDefaultEmbedder(
       // Dynamically import to avoid loading when not needed
       const providers = await import("./api-providers");
       if (requestedType === "openrouter") {
-        defaultEmbedder = new providers.OpenRouterEmbedding(apiKey, { dimensions });
+        defaultEmbedder = new providers.OpenRouterEmbedding(apiKey, {
+          dimensions,
+        });
       } else {
         defaultEmbedder = new providers.OpenAIEmbedding(apiKey, { dimensions });
       }

@@ -5,17 +5,17 @@
  * Uses in-memory cache for fast access with <100 items.
  */
 
-import { mkdir, rename } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { mkdir, rename } from "node:fs/promises";
 import { join } from "node:path";
 import type {
+  CompletionStatus,
+  ManualStatus,
+  Plan,
   PlanningEntity,
   PlanningRelationship,
-  Plan,
   PlanStep,
-  ManualStatus,
   ResolvedStatus,
-  CompletionStatus,
 } from "./types";
 
 export interface StorageOptions {
@@ -70,7 +70,7 @@ export class PlanningStorage {
   private async loadAll(): Promise<void> {
     // Load entities
     const entityRecords = await this.readJSONL<PlanningEntity & JSONLRecord>(
-      FILES.stack
+      FILES.stack,
     );
     for (const record of entityRecords) {
       this.entities.set(record.id, record);
@@ -84,7 +84,7 @@ export class PlanningStorage {
 
     // Load steps
     const stepRecords = await this.readJSONL<PlanStep & JSONLRecord>(
-      FILES.steps
+      FILES.steps,
     );
     for (const record of stepRecords) {
       this.steps.set(record.id, record);
@@ -92,7 +92,7 @@ export class PlanningStorage {
 
     // Load relationships
     const relRecords = await this.readJSONL<PlanningRelationship & JSONLRecord>(
-      FILES.relationships
+      FILES.relationships,
     );
     for (const record of relRecords) {
       this.relationships.set(record.id, record);
@@ -108,7 +108,7 @@ export class PlanningStorage {
 
     // Load manual status overrides
     const statusRecords = await this.readJSONL<ManualStatus & JSONLRecord>(
-      FILES.manualStatus
+      FILES.manualStatus,
     );
     for (const record of statusRecords) {
       this.manualStatus.set(record.stepId, record);
@@ -116,7 +116,7 @@ export class PlanningStorage {
 
     // Load resolved statuses
     const resolvedRecords = await this.readJSONL<ResolvedStatus & JSONLRecord>(
-      FILES.resolvedStatus
+      FILES.resolvedStatus,
     );
     for (const record of resolvedRecords) {
       this.resolvedStatuses.set(record.stepId, record);
@@ -128,7 +128,9 @@ export class PlanningStorage {
    * Missing files return empty array. Permission/IO errors are thrown.
    * Corrupted lines are skipped with a warning.
    */
-  private async readJSONL<T extends JSONLRecord>(filename: string): Promise<T[]> {
+  private async readJSONL<T extends JSONLRecord>(
+    filename: string,
+  ): Promise<T[]> {
     const filepath = join(this.baseDir, filename);
 
     let content: string;
@@ -136,7 +138,12 @@ export class PlanningStorage {
       content = await Bun.file(filepath).text();
     } catch (error: unknown) {
       // Missing file on first run is expected — start fresh
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
         return [];
       }
       // Permission errors, IO errors, etc. should not be silently ignored
@@ -157,7 +164,7 @@ export class PlanningStorage {
 
     if (corrupted > 0) {
       console.warn(
-        `[planning-storage] ${filename}: skipped ${corrupted} corrupted line(s) of ${lines.length} total`
+        `[planning-storage] ${filename}: skipped ${corrupted} corrupted line(s) of ${lines.length} total`,
       );
     }
 
@@ -170,13 +177,14 @@ export class PlanningStorage {
    */
   private async writeJSONL(
     filename: string,
-    records: JSONLRecord[]
+    records: JSONLRecord[],
   ): Promise<void> {
     const filepath = join(this.baseDir, filename);
     const tmpPath = filepath + ".tmp";
-    const content = records.length === 0
-      ? ""
-      : records.map((r) => JSON.stringify(r)).join("\n") + "\n";
+    const content =
+      records.length === 0
+        ? ""
+        : records.map((r) => JSON.stringify(r)).join("\n") + "\n";
     await Bun.write(tmpPath, content, { createPath: true });
     await rename(tmpPath, filepath);
   }
@@ -261,7 +269,9 @@ export class PlanningStorage {
 
   getStack(): PlanningEntity[] {
     return Array.from(this.entities.values())
-      .filter((e) => e.stackOrder !== null && ["active", "paused"].includes(e.status))
+      .filter(
+        (e) => e.stackOrder !== null && ["active", "paused"].includes(e.status),
+      )
       .sort((a, b) => (a.stackOrder ?? 0) - (b.stackOrder ?? 0));
   }
 
@@ -347,7 +357,7 @@ export class PlanningStorage {
 
   getRelationshipsFor(entityId: string): PlanningRelationship[] {
     return Array.from(this.relationships.values()).filter(
-      (r) => r.fromId === entityId || r.toId === entityId
+      (r) => r.fromId === entityId || r.toId === entityId,
     );
   }
 

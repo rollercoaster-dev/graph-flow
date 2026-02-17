@@ -5,14 +5,14 @@
  * Adapted from claude-knowledge/src/planning/progress.ts.
  */
 
-import type {
-  Plan,
-  PlanStep,
-  PlanProgress,
-  NextStep,
-  CompletionStatus,
-} from "./types";
 import type { ResolverFactory } from "./resolvers";
+import type {
+  CompletionStatus,
+  NextStep,
+  Plan,
+  PlanProgress,
+  PlanStep,
+} from "./types";
 
 /**
  * Compute plan progress by resolving step completion status.
@@ -25,7 +25,7 @@ import type { ResolverFactory } from "./resolvers";
 export async function computePlanProgress(
   _plan: Plan,
   steps: PlanStep[],
-  resolverFactory: ResolverFactory
+  resolverFactory: ResolverFactory,
 ): Promise<PlanProgress> {
   // Handle empty plan
   if (steps.length === 0) {
@@ -58,7 +58,8 @@ export async function computePlanProgress(
   const nonDoneWaves = steps
     .filter((s) => statusMap.get(s.id) !== "done")
     .map((s) => s.wave);
-  const currentWave = nonDoneWaves.length > 0 ? Math.min(...nonDoneWaves) : null;
+  const currentWave =
+    nonDoneWaves.length > 0 ? Math.min(...nonDoneWaves) : null;
 
   // Build blocked set and next steps in one pass
   const blockedStepIds = new Set<string>();

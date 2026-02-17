@@ -1,5 +1,5 @@
-import { mkdir, readdir, unlink, appendFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { appendFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 
 export interface StorageOptions {
@@ -47,7 +47,7 @@ export class JSONLStorage {
     const content = await Bun.file(filepath).text();
     const lines = content.trim().split("\n").filter(Boolean);
 
-    return lines.map(line => JSON.parse(line) as T);
+    return lines.map((line) => JSON.parse(line) as T);
   }
 
   /**
@@ -55,7 +55,7 @@ export class JSONLStorage {
    */
   async write(filename: string, records: JSONLRecord[]): Promise<void> {
     const filepath = join(this.baseDir, filename);
-    const content = records.map(r => JSON.stringify(r)).join("\n") + "\n";
+    const content = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
     await Bun.write(filepath, content, { createPath: true });
   }
 
@@ -77,7 +77,7 @@ export class JSONLStorage {
       return [];
     }
     const files = await readdir(this.baseDir);
-    return files.filter(f => f.endsWith(".jsonl"));
+    return files.filter((f) => f.endsWith(".jsonl"));
   }
 
   /**

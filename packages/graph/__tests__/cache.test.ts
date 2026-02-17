@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { GraphCache } from "../src/cache.ts";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
+import { GraphCache } from "../src/cache.ts";
 
 const TEST_DIR = "/tmp/graph-flow-test-cache";
 

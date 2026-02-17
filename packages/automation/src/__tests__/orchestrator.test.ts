@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
-import { PlanningManager } from "@graph-flow/planning/manager";
 import { WorkflowManager } from "@graph-flow/checkpoint/workflow";
+import { PlanningManager } from "@graph-flow/planning/manager";
 import { AutomationOrchestrator, type GitHubClient } from "../orchestrator";
 
 const TEST_PLANNING_DIR = "/tmp/graph-flow-test-automation-planning";
@@ -97,7 +97,7 @@ describe("AutomationOrchestrator", () => {
       const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
 
       await expect(orchestrator.import("milestone", 999)).rejects.toThrow(
-        "Milestone 999 not found"
+        "Milestone 999 not found",
       );
     });
 
@@ -158,7 +158,7 @@ describe("AutomationOrchestrator", () => {
       const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
 
       await expect(orchestrator.import("epic", 999)).rejects.toThrow(
-        "Epic issue #999 not found"
+        "Epic issue #999 not found",
       );
     });
   });
@@ -221,7 +221,7 @@ describe("AutomationOrchestrator", () => {
       const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
 
       await expect(
-        orchestrator.createIssue({ title: "Failing issue" })
+        orchestrator.createIssue({ title: "Failing issue" }),
       ).rejects.toThrow("Failed to create GitHub issue");
     });
   });

@@ -1,9 +1,15 @@
-import { JSONLStorage, type JSONLRecord } from "./storage.ts";
 import { LRUCache } from "./cache.ts";
+import { type JSONLRecord, JSONLStorage } from "./storage.ts";
 
 export type WorkflowPhase =
-  | "research" | "implement" | "review" | "finalize"     // issue workflows
-  | "planning" | "execute" | "merge" | "cleanup"          // milestone workflows
+  | "research"
+  | "implement"
+  | "review"
+  | "finalize" // issue workflows
+  | "planning"
+  | "execute"
+  | "merge"
+  | "cleanup" // milestone workflows
   | "completed";
 
 export type WorkflowStatus = "running" | "paused" | "completed" | "failed";
@@ -50,9 +56,16 @@ export interface WorkflowState {
 
 export interface WorkflowEvent extends JSONLRecord {
   type:
-    | "created" | "phase_change" | "context_added" | "decision_made"
-    | "blocker_added" | "blocker_resolved" | "completed"
-    | "status_changed" | "action_logged" | "commit_logged";
+    | "created"
+    | "phase_change"
+    | "context_added"
+    | "decision_made"
+    | "blocker_added"
+    | "blocker_resolved"
+    | "completed"
+    | "status_changed"
+    | "action_logged"
+    | "commit_logged";
   data: Partial<WorkflowState> & {
     logAction?: WorkflowAction;
     logCommit?: WorkflowCommit;
@@ -73,10 +86,11 @@ export class WorkflowManager {
 
   private assertSafeId(id: string): void {
     const trimmed = id.trim();
-    const isSafe = trimmed.length > 0
-      && !trimmed.includes("..")
-      && !trimmed.includes("/")
-      && !trimmed.includes("\\");
+    const isSafe =
+      trimmed.length > 0 &&
+      !trimmed.includes("..") &&
+      !trimmed.includes("/") &&
+      !trimmed.includes("\\");
     if (!isSafe) {
       throw new Error(`Invalid workflow id: ${id}`);
     }
@@ -158,18 +172,21 @@ export class WorkflowManager {
   /**
    * Update workflow (append event)
    */
-  async update(id: string, update: {
-    phase?: WorkflowPhase;
-    context?: string[];
-    decisions?: string[];
-    blockers?: string[];
-    status?: WorkflowStatus;
-    branch?: string;
-    worktree?: string;
-    taskId?: string;
-    logAction?: WorkflowAction;
-    logCommit?: WorkflowCommit;
-  }): Promise<WorkflowState> {
+  async update(
+    id: string,
+    update: {
+      phase?: WorkflowPhase;
+      context?: string[];
+      decisions?: string[];
+      blockers?: string[];
+      status?: WorkflowStatus;
+      branch?: string;
+      worktree?: string;
+      taskId?: string;
+      logAction?: WorkflowAction;
+      logCommit?: WorkflowCommit;
+    },
+  ): Promise<WorkflowState> {
     this.assertSafeId(id);
     const current = await this.get(id);
     if (!current) {
@@ -182,16 +199,29 @@ export class WorkflowManager {
     const updated: WorkflowState = {
       ...current,
       phase: update.phase ?? current.phase,
-      context: update.context ? [...current.context, ...update.context] : current.context,
-      decisions: update.decisions ? [...current.decisions, ...update.decisions] : current.decisions,
-      blockers: update.blockers ? [...current.blockers, ...update.blockers] : current.blockers,
+      context: update.context
+        ? [...current.context, ...update.context]
+        : current.context,
+      decisions: update.decisions
+        ? [...current.decisions, ...update.decisions]
+        : current.decisions,
+      blockers: update.blockers
+        ? [...current.blockers, ...update.blockers]
+        : current.blockers,
       status: update.status ?? current.status,
       branch: update.branch ?? current.branch,
       worktree: update.worktree ?? current.worktree,
       taskId: update.taskId ?? current.taskId,
-      actions: update.logAction ? [...current.actions, update.logAction] : current.actions,
-      commits: update.logCommit ? [...current.commits, update.logCommit] : current.commits,
-      retryCount: update.status === "failed" ? current.retryCount + 1 : current.retryCount,
+      actions: update.logAction
+        ? [...current.actions, update.logAction]
+        : current.actions,
+      commits: update.logCommit
+        ? [...current.commits, update.logCommit]
+        : current.commits,
+      retryCount:
+        update.status === "failed"
+          ? current.retryCount + 1
+          : current.retryCount,
       updatedAt: now,
     };
 
@@ -258,7 +288,11 @@ export class WorkflowManager {
     for (const file of files) {
       const id = file.replace(".jsonl", "");
       const workflow = await this.get(id);
-      if (workflow && workflow.phase !== "completed" && workflow.status !== "completed") {
+      if (
+        workflow &&
+        workflow.phase !== "completed" &&
+        workflow.status !== "completed"
+      ) {
         workflows.push(workflow);
       }
     }
@@ -271,7 +305,7 @@ export class WorkflowManager {
    */
   async findByIssue(issueNumber: number): Promise<WorkflowState | null> {
     const workflows = await this.list();
-    return workflows.find(w => w.issueNumber === issueNumber) || null;
+    return workflows.find((w) => w.issueNumber === issueNumber) || null;
   }
 
   /**
@@ -286,20 +320,29 @@ export class WorkflowManager {
     }
 
     const workflow = this.reconstructState(events);
-    const pendingActions = workflow.actions.filter(a => a.result === "pending");
-    const lastCommit = workflow.commits.length > 0
-      ? workflow.commits[workflow.commits.length - 1]
-      : null;
+    const pendingActions = workflow.actions.filter(
+      (a) => a.result === "pending",
+    );
+    const lastCommit =
+      workflow.commits.length > 0
+        ? workflow.commits[workflow.commits.length - 1]
+        : null;
 
     const parts: string[] = [
       `Workflow "${workflow.title}" (${workflow.id})`,
       `Phase: ${workflow.phase}, Status: ${workflow.status}`,
     ];
     if (workflow.branch) parts.push(`Branch: ${workflow.branch}`);
-    if (lastCommit) parts.push(`Last commit: ${lastCommit.sha.substring(0, 7)} - ${lastCommit.message}`);
-    if (pendingActions.length > 0) parts.push(`${pendingActions.length} pending action(s) to resume`);
-    if (workflow.blockers.length > 0) parts.push(`${workflow.blockers.length} blocker(s) present`);
-    if (workflow.retryCount > 0) parts.push(`Retry count: ${workflow.retryCount}`);
+    if (lastCommit)
+      parts.push(
+        `Last commit: ${lastCommit.sha.substring(0, 7)} - ${lastCommit.message}`,
+      );
+    if (pendingActions.length > 0)
+      parts.push(`${pendingActions.length} pending action(s) to resume`);
+    if (workflow.blockers.length > 0)
+      parts.push(`${workflow.blockers.length} blocker(s) present`);
+    if (workflow.retryCount > 0)
+      parts.push(`Retry count: ${workflow.retryCount}`);
 
     return {
       workflow,
@@ -332,9 +375,15 @@ export class WorkflowManager {
         state = {
           ...state,
           phase: update.phase ?? state.phase,
-          context: update.context ? [...state.context, ...update.context] : state.context,
-          decisions: update.decisions ? [...state.decisions, ...update.decisions] : state.decisions,
-          blockers: update.blockers ? [...state.blockers, ...update.blockers] : state.blockers,
+          context: update.context
+            ? [...state.context, ...update.context]
+            : state.context,
+          decisions: update.decisions
+            ? [...state.decisions, ...update.decisions]
+            : state.decisions,
+          blockers: update.blockers
+            ? [...state.blockers, ...update.blockers]
+            : state.blockers,
           status: update.status ?? state.status,
           branch: update.branch ?? state.branch,
           worktree: update.worktree ?? state.worktree,

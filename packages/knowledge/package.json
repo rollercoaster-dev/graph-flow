@@ -12,8 +12,19 @@
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "knowledge", "learning", "semantic-search", "tfidf", "embeddings"],
-  "files": ["src", "package.json", "README.md"],
+  "keywords": [
+    "mcp",
+    "knowledge",
+    "learning",
+    "semantic-search",
+    "tfidf",
+    "embeddings"
+  ],
+  "files": [
+    "src",
+    "package.json",
+    "README.md"
+  ],
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",

@@ -1,6 +1,6 @@
-import { CodeParser } from "./parser.ts";
-import { GraphCache } from "./cache.ts";
 import { expandGlobs } from "@graph-flow/shared";
+import { GraphCache } from "./cache.ts";
+import { CodeParser } from "./parser.ts";
 
 export interface IndexOptions {
   patterns: string[];

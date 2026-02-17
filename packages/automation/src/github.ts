@@ -6,11 +6,7 @@
  */
 
 import { spawnSync } from "bun";
-import type {
-  GitHubMilestone,
-  GitHubIssue,
-  GitHubSubIssue,
-} from "./types";
+import type { GitHubIssue, GitHubMilestone, GitHubSubIssue } from "./types";
 
 // 5-minute cache (same pattern as resolvers.ts)
 const cache = new Map<string, { data: unknown; fetchedAt: number }>();
@@ -179,8 +175,7 @@ export function fetchEpicSubIssues(epicNum: number): GitHubSubIssue[] {
     `query=query { repository(owner: "{owner}", name: "{repo}") { issue(number: ${epicNum}) { subIssues(first: 100) { nodes { number title state } } } } }`,
   ]);
 
-  const nodes =
-    graphqlResult?.data?.repository?.issue?.subIssues?.nodes;
+  const nodes = graphqlResult?.data?.repository?.issue?.subIssues?.nodes;
   if (nodes && nodes.length > 0) {
     const subIssues: GitHubSubIssue[] = nodes.map((n) => ({
       number: n.number,
@@ -205,23 +200,17 @@ export function fetchEpicSubIssues(epicNum: number): GitHubSubIssue[] {
  * Matches patterns like `- [ ] #42` or `- [x] #42 title`.
  */
 function parseTaskListIssueRefs(body: string): GitHubSubIssue[] {
-  const refs: GitHubSubIssue[] = [];
   const regex = /^- \[([ x])\] #(\d+)\b(.*)/gm;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(body)) !== null) {
+  return [...body.matchAll(regex)].map((match) => {
     const completed = match[1] === "x";
     const number = parseInt(match[2], 10);
     const title = match[3].trim() || `Issue #${number}`;
-
-    refs.push({
+    return {
       number,
       title,
       state: completed ? "CLOSED" : "OPEN",
-    });
-  }
-
-  return refs;
+    } as GitHubSubIssue;
+  });
 }
 
 /**
