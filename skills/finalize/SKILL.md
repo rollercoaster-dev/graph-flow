@@ -38,11 +38,9 @@ Completes the workflow by creating PR and cleaning up.
 4. Cleans up dev plan file
 5. Sends Telegram notification with PR link
 
-## Skills Used
+## Prerequisites
 
-Load these skills for reference:
-
-- `board-manager` - GraphQL for board operations
+Requires graph-flow MCP tools. If unavailable, run `/graph-flow:init` first, then restart Claude Code.
 
 ## Workflow
 
@@ -149,42 +147,10 @@ Extract PR number and URL from output.
 
 ### Step 5: Update Board (unless skip_board)
 
-**Get item ID:**
+Use the `a-board-update` MCP tool:
 
-```bash
-gh api graphql -f query='
-  query {
-    organization(login: "rollercoaster-dev") {
-      projectV2(number: 11) {
-        items(first: 100) {
-          nodes {
-            id
-            content { ... on Issue { number } }
-          }
-        }
-      }
-    }
-  }' | jq -r '.data.organization.projectV2.items.nodes[] | select(.content.number == <issue_number>) | .id'
 ```
-
-**Set status to "Blocked" (awaiting review):**
-
-<!-- Board IDs are defined in .claude/skills/board-manager/SKILL.md and helpers/board.ts -->
-
-```bash
-gh api graphql \
-  -f projectId="PVT_kwDOB1lz3c4BI2yZ" \
-  -f itemId="<item_id>" \
-  -f fieldId="PVTSSF_lADOB1lz3c4BI2yZzg5MUx4" \
-  -f optionId="51c2af7b" \
-  -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-    updateProjectV2ItemFieldValue(input: {
-      projectId: $projectId
-      itemId: $itemId
-      fieldId: $fieldId
-      value: { singleSelectOptionId: $optionId }
-    }) { projectV2Item { id } }
-  }'
+a-board-update({ issueNumber: <issue_number>, status: "Blocked" })
 ```
 
 **If board update fails:** Log warning, continue.
