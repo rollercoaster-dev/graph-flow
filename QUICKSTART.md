@@ -1,4 +1,4 @@
-# graph-flow v2.0 Quick Start
+# graph-flow v3.0 Quick Start
 
 Get up and running in 5 minutes.
 
@@ -12,7 +12,7 @@ bun test
 
 ## Configuration
 
-Add a `.mcp.json` to your project root (or run `graph-flow init` to generate one):
+Add a `.mcp.json` to your project root (or run `/graph-flow:init` after installing the plugin):
 
 ```json
 {
@@ -36,8 +36,8 @@ Restart Claude Code.
 
 ### 1. Create a workflow checkpoint
 
-```typescript
-checkpoint-update {
+```
+c-update {
   id: "my-first-workflow",
   phase: "research",
   context: ["Learning how graph-flow works"],
@@ -47,8 +47,8 @@ checkpoint-update {
 
 ### 2. Store a learning
 
-```typescript
-knowledge-store {
+```
+k-store {
   area: "graph-flow",
   type: "pattern",
   content: "Workflows use event sourcing with JSONL files"
@@ -57,55 +57,77 @@ knowledge-store {
 
 ### 3. Search learnings
 
-```typescript
-knowledge-query {
+```
+k-query {
   text: "workflow event",
   limit: 5
 }
 ```
 
-### 4. Analyze code
+### 4. Analyze blast radius
 
-```typescript
-graph-defs {
-  file: "packages/checkpoint/src/workflow.ts"
+```
+g-blast {
+  name: "WorkflowManager",
+  files: ["packages/checkpoint/src/**/*.ts"]
 }
 ```
 
-### 5. Find function callers
+### 5. Index code for analysis
 
-```typescript
-graph-calls {
-  name: "WorkflowManager",
+```
+g-index {
   files: ["packages/checkpoint/src/**/*.ts"]
 }
 ```
 
 ## Tool Reference
 
-### Checkpoint Tools
+### Checkpoint Tools (4)
 
 | Tool | Purpose | Example |
 |------|---------|---------|
-| `checkpoint-find` | Find workflow by issue or ID | `checkpoint-find { issue: 123 }` |
-| `checkpoint-update` | Update workflow state | `checkpoint-update { id: "w-123", phase: "implement" }` |
-| `checkpoint-complete` | Mark complete and delete | `checkpoint-complete { id: "w-123" }` |
+| `c-find` | Find workflow by issue or ID | `c-find { issue: 123 }` |
+| `c-update` | Update workflow state | `c-update { id: "w-123", phase: "implement" }` |
+| `c-complete` | Mark complete and delete | `c-complete { id: "w-123" }` |
+| `c-recover` | Recover lost workflow | `c-recover { id: "w-123" }` |
 
-### Knowledge Tools
-
-| Tool | Purpose | Example |
-|------|---------|---------|
-| `knowledge-query` | Search learnings | `knowledge-query { text: "API", area: "backend" }` |
-| `knowledge-store` | Store new learning | `knowledge-store { area: "api", type: "entity", content: "..." }` |
-| `knowledge-related` | Find related learnings | `knowledge-related { id: "uuid" }` |
-
-### Graph Tools
+### Knowledge Tools (4)
 
 | Tool | Purpose | Example |
 |------|---------|---------|
-| `graph-calls` | What calls this? | `graph-calls { name: "login", files: ["src/**/*.ts"] }` |
-| `graph-blast` | Blast radius | `graph-blast { name: "updateUser", files: ["src/**/*.ts"] }` |
-| `graph-defs` | List definitions | `graph-defs { file: "src/auth.ts" }` |
+| `k-query` | Search learnings | `k-query { text: "API", area: "backend" }` |
+| `k-store` | Store new learning | `k-store { area: "api", type: "entity", content: "..." }` |
+| `k-related` | Find related learnings | `k-related { id: "uuid" }` |
+| `k-index` | Rebuild search index | `k-index {}` |
+
+### Graph Tools (2)
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `g-blast` | Transitive impact analysis | `g-blast { name: "updateUser", files: ["src/**/*.ts"] }` |
+| `g-index` | Populate code analysis cache | `g-index { files: ["src/**/*.ts"] }` |
+
+### Planning Tools (8)
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `p-goal` | Push goal onto stack | `p-goal { title: "Feature X" }` |
+| `p-interrupt` | Push interrupt | `p-interrupt { title: "Bug fix", reason: "Prod issue" }` |
+| `p-done` | Pop and complete top item | `p-done { summary: "Finished" }` |
+| `p-stack` | View current stack | `p-stack {}` |
+| `p-plan` | Create execution plan | `p-plan { title: "Plan", goalId: "goal-..." }` |
+| `p-steps` | Add steps to plan | `p-steps { planId: "plan-...", steps: [...] }` |
+| `p-progress` | Get plan + steps + progress | `p-progress { goalId: "goal-..." }` |
+| `p-sync` | Sync step statuses from GitHub | `p-sync { planId: "plan-..." }` |
+
+### Automation Tools (3)
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `a-import` | Import milestone or epic | `a-import { type: "milestone", number: 1 }` |
+| `a-create-issue` | Create GitHub issue + link to plan | `a-create-issue { title: "New feature", planId: "plan-..." }` |
+| `a-board-update` | Update GitHub project board status | `a-board-update { issueNumber: 123, status: "In Progress" }` |
 
 ## Storage Locations
 
@@ -126,58 +148,46 @@ Falls back to `~/.claude/` if `CLAUDE_PROJECT_DIR` is not set (shared across all
 
 ### Starting a new task
 
-```typescript
-// 1. Create checkpoint
-checkpoint-update {
+```
+// 1. Push goal
+p-goal { title: "Fix authentication bug" }
+
+// 2. Create checkpoint
+c-update {
   id: "issue-456",
   phase: "research",
   context: ["Working on authentication bug"]
 }
 
-// 2. As you learn, store knowledge
-knowledge-store {
+// 3. As you learn, store knowledge
+k-store {
   area: "auth",
   type: "pattern",
   content: "JWT tokens stored in httpOnly cookies"
 }
 
-// 3. Understand code impact
-graph-blast {
+// 4. Understand code impact
+g-blast {
   name: "validateToken",
   files: ["src/**/*.ts"]
 }
 
-// 4. Make decision
-checkpoint-update {
-  id: "issue-456",
-  decisions: ["Will add refresh token rotation"]
-}
-
 // 5. Complete
-checkpoint-complete { id: "issue-456" }
+p-done { summary: "Fixed auth bug" }
+c-complete { id: "issue-456" }
 ```
 
-### Searching for context
+### Import from GitHub
 
-```typescript
-// Find learnings about a topic
-knowledge-query {
-  text: "authentication security",
-  limit: 10
-}
+```
+// Import a milestone into planning
+a-import { type: "milestone", number: 1 }
 
-// Find what calls a function
-graph-calls {
-  name: "hashPassword",
-  files: ["src/**/*.ts"]
-}
+// Import an epic
+a-import { type: "epic", number: 42 }
 
-// Check blast radius before refactoring
-graph-blast {
-  name: "UserModel",
-  files: ["src/**/*.ts"],
-  maxDepth: 2
-}
+// Update board status
+a-board-update { issueNumber: 123, status: "In Progress" }
 ```
 
 ## Troubleshooting
@@ -186,12 +196,12 @@ graph-blast {
 
 1. Check `.mcp.json` in your project root has correct path
 2. Restart Claude Code completely
-3. Check logs: `<project-root>/.claude/logs/` (or `~/.claude/logs/` if `CLAUDE_PROJECT_DIR` not set)
+3. Run `/graph-flow:init` to auto-configure
 
 ### Slow search?
 
 ```bash
-# Check learning count (use your project root if CLAUDE_PROJECT_DIR is set)
+# Check learning count
 ls -l <project-root>/.claude/learnings/*.jsonl | wc -l
 
 # TF-IDF is fast for <50k learnings
@@ -205,20 +215,22 @@ ls -l <project-root>/.claude/learnings/*.jsonl | wc -l
 rm -rf <project-root>/.claude/graphs/*.json
 ```
 
-## Migration from v1.x
+## Migration from v2.x
 
-If you have existing SQLite data:
+v3.0 renames tools to use short prefixes. Old tool names (`checkpoint-find`, `knowledge-query`, `graph-calls`, etc.) are no longer available. Update any scripts or CLAUDE.md references to use the new names (`c-find`, `k-query`, `g-blast`, etc.).
 
-```bash
-bun run migrate
-# Follow prompts, backup is created automatically
-```
+Removed tools:
+- `g-calls` and `g-defs` — use LSP `findReferences` and `goToDefinition` instead
+- `p-planget` — merged into `p-progress`
+- `p-step-update` — folded into `p-sync` as `manualOverrides` parameter
+- `a-from-milestone` and `a-from-epic` — merged into `a-import`
+- `a-start-issue` — use `p-goal` + `c-update` directly
 
 ## Next Steps
 
 - Read [README.md](README.md) for full feature overview
 - Read [ARCHITECTURE.md](ARCHITECTURE.md) to understand how it works
-- Read [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment
+- See [PLUGIN_INSTALLATION.md](PLUGIN_INSTALLATION.md) for plugin setup
 
 ## Help
 
