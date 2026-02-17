@@ -212,17 +212,18 @@ The issue-researcher will:
 
 ## Phase 3: Implement
 
-The orchestrator handles implementation directly with per-commit gates.
+```
+Skill(implement):
+  Input:  { issue_number: <N>, plan_path: <from Phase 2> }
+  Output: { commits, files_changed }
+```
 
-For each commit in the plan:
+The implement skill handles the full implementation cycle with per-commit gates:
 
-1. **Make changes** per plan step
-2. **Run validation:**
-   ```
-   bun run type-check
-   bun run lint
-   ```
-3. **Show diff** to user
+- Makes changes per plan step
+- Runs validation (type-check, lint)
+- Shows diff and proposed commit message at each gate
+- Waits for explicit approval before each commit
 
 ### GATE 3: Commit Review (per commit)
 
@@ -243,8 +244,8 @@ For each commit in the plan:
 
 **Wait for:** "proceed", "yes", "approved"
 
-4. **If approved:** Commit changes
-5. **If rejected:** Ask for guidance, modify, re-show
+- **If approved:** Commit changes
+- **If rejected:** Ask for guidance, modify, re-show
 
 ---
 
