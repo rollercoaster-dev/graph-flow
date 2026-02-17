@@ -42,8 +42,10 @@ describe("MCP Integration", () => {
     await graph.init();
 
     const tools = graph.getTools();
-    expect(tools.length).toBe(2);
+    expect(tools.length).toBe(4);
+    expect(tools.map(t => t.name)).toContain("g-calls");
     expect(tools.map(t => t.name)).toContain("g-blast");
+    expect(tools.map(t => t.name)).toContain("g-defs");
     expect(tools.map(t => t.name)).toContain("g-index");
 
     // Clean up
@@ -69,7 +71,7 @@ describe("MCP Integration", () => {
     const uniqueNames = new Set(names);
 
     expect(names.length).toBe(uniqueNames.size);
-    expect(names.length).toBe(10); // 4 checkpoint + 4 knowledge + 2 graph
+    expect(names.length).toBe(12); // 4 checkpoint + 4 knowledge + 4 graph
 
     // Clean up
     await rm(TEST_WORKFLOWS_DIR, { recursive: true, force: true });

@@ -1,5 +1,5 @@
-import { CodeIndexer } from "./indexer.ts";
 import { GraphQuery } from "./query.ts";
+import { CodeIndexer } from "./indexer.ts";
 
 export interface MCPTool {
   name: string;
@@ -20,10 +20,6 @@ export interface MCPToolResult {
 
 /**
  * MCP tools for code graph operations
- *
- * Provides g-blast (transitive impact analysis) and g-index (cache population).
- * g-calls and g-defs were removed — LSP provides findReferences, goToDefinition,
- * and documentSymbol natively with better accuracy.
  */
 export class GraphMCPTools {
   private query: GraphQuery;
@@ -44,6 +40,25 @@ export class GraphMCPTools {
    */
   getTools(): MCPTool[] {
     return [
+      {
+        name: "g-calls",
+        description: "Find what calls a given function or method",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Entity name (function, class, method)",
+            },
+            files: {
+              type: "array",
+              items: { type: "string" },
+              description: "Files to search (glob patterns supported)",
+            },
+          },
+          required: ["name", "files"],
+        },
+      },
       {
         name: "g-blast",
         description:
@@ -66,6 +81,20 @@ export class GraphMCPTools {
             },
           },
           required: ["name", "files"],
+        },
+      },
+      {
+        name: "g-defs",
+        description: "Get all definitions in a file",
+        inputSchema: {
+          type: "object",
+          properties: {
+            file: {
+              type: "string",
+              description: "File path",
+            },
+          },
+          required: ["file"],
         },
       },
       {
@@ -99,13 +128,54 @@ export class GraphMCPTools {
     args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
     switch (name) {
+      case "g-calls":
+        return this.handleWhatCalls(args);
       case "g-blast":
         return this.handleBlastRadius(args);
+      case "g-defs":
+        return this.handleDefinitions(args);
       case "g-index":
         return this.handleIndex(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
+  }
+
+  private async handleWhatCalls(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
+    const { name, files } = args as { name: string; files: string[] };
+    const result = await this.query.whatCalls(name, files);
+
+    if (!result) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Entity "${name}" not found`,
+          },
+        ],
+      };
+    }
+
+    const summary = {
+      entity: result.entity,
+      callerCount: result.callers.length,
+      callers: result.callers.map((c) => ({
+        name: c.caller.name,
+        type: c.caller.type,
+        location: c.caller.location,
+      })),
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(summary, null, 2),
+        },
+      ],
+    };
   }
 
   private async handleBlastRadius(
@@ -143,6 +213,32 @@ export class GraphMCPTools {
         distance: i.distance,
         path: i.path,
         location: i.entity.location,
+      })),
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(summary, null, 2),
+        },
+      ],
+    };
+  }
+
+  private async handleDefinitions(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
+    const { file } = args as { file: string };
+    const definitions = await this.query.getDefinitions(file);
+
+    const summary = {
+      file,
+      count: definitions.length,
+      definitions: definitions.map((d) => ({
+        name: d.name,
+        type: d.type,
+        line: d.location.line,
       })),
     };
 
