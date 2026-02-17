@@ -68,18 +68,14 @@ export class GraphQuery {
   /**
    * Parse all files matching the given patterns and collect entities and relationships.
    */
-  private async parseFiles(
-    files: string[],
-    cwd?: string,
-  ): Promise<{
+  private async parseFiles(files: string[]): Promise<{
     entities: GraphEntity[];
     relationships: GraphRelationship[];
   }> {
-    const expandedFiles = await expandGlobs(files, cwd);
     const entities: GraphEntity[] = [];
     const relationships: GraphRelationship[] = [];
 
-    for (const file of expandedFiles) {
+    for (const file of files) {
       const result = await this.parser.parse(file, {
         includeCallGraph: true,
       });
