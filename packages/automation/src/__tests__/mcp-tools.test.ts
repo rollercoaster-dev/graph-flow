@@ -30,21 +30,20 @@ describe("AutomationMCPTools", () => {
     await rm(TEST_WORKFLOWS_DIR, { recursive: true, force: true });
   });
 
-  test("provides 4 tools", () => {
+  test("provides 3 tools", () => {
     const tools = automation.getTools();
-    expect(tools).toHaveLength(4);
+    expect(tools).toHaveLength(3);
     expect(tools.map((t) => t.name)).toEqual([
-      "automation-from-milestone",
-      "automation-from-epic",
-      "automation-create-issue",
-      "automation-start-issue",
+      "a-import",
+      "a-create-issue",
+      "a-board-update",
     ]);
   });
 
-  test("all tools have automation- prefix", () => {
+  test("all tools have a- prefix", () => {
     const tools = automation.getTools();
     for (const tool of tools) {
-      expect(tool.name).toStartWith("automation-");
+      expect(tool.name).toStartWith("a-");
     }
   });
 
@@ -58,8 +57,8 @@ describe("AutomationMCPTools", () => {
 
   test("handleToolCall throws for unknown tool", async () => {
     await expect(
-      automation.handleToolCall("automation-unknown", {})
-    ).rejects.toThrow("Unknown tool: automation-unknown");
+      automation.handleToolCall("a-unknown", {})
+    ).rejects.toThrow("Unknown tool: a-unknown");
   });
 
   test("tool names are unique and don't clash with other subsystems", () => {
