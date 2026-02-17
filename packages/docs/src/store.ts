@@ -90,11 +90,27 @@ export class DocsStore {
     if (!existsSync(this.graphPath)) {
       return emptyGraph();
     }
+
+    let raw: string;
     try {
-      const raw = await Bun.file(this.graphPath).text();
+      raw = await Bun.file(this.graphPath).text();
+    } catch (error) {
+      throw new Error(
+        `[docs/store] Failed to read graph file at "${this.graphPath}": ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    try {
       return JSON.parse(raw) as DocsGraph;
-    } catch {
-      return emptyGraph();
+    } catch (error) {
+      throw new Error(
+        `[docs/store] Graph file at "${this.graphPath}" contains invalid JSON and may be corrupted. ` +
+          `Delete or restore it before re-indexing. Parse error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+      );
     }
   }
 

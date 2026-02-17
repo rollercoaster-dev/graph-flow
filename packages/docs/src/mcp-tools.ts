@@ -132,9 +132,10 @@ export class DocsMCPTools {
     const options = args as unknown as DocsIndexOptions;
     const result = await this.store.index(options);
 
-    // After indexing, generate embeddings for new sections
+    // After indexing, generate embeddings for sections that don't have them yet.
+    // Load existing IDs first so incremental re-index doesn't re-embed unchanged sections.
     const graph = await this.store.load();
-    const existingEmbeddings = new Set<string>(); // Fresh index — embed all
+    const existingEmbeddings = await this.search.getExistingEmbeddingIds();
     await this.search.embedSections(
       Object.values(graph.sections),
       existingEmbeddings,

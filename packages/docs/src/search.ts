@@ -34,6 +34,15 @@ export class DocsSearch {
   }
 
   /**
+   * Returns the set of section IDs that already have stored embeddings.
+   * Used by callers to skip re-embedding unchanged sections.
+   */
+  async getExistingEmbeddingIds(): Promise<Set<string>> {
+    const all = await this.embeddingStorage.readAll(EMBEDDINGS_AREA);
+    return new Set(all.keys());
+  }
+
+  /**
    * Generate and store embeddings for newly indexed sections.
    * Only generates for sections that don't already have an embedding.
    */
@@ -54,8 +63,13 @@ export class DocsSearch {
           section.id,
           embedding,
         );
-      } catch {
-        // Non-blocking — section still indexed without embedding
+      } catch (error) {
+        // Non-blocking: section is indexed but will be excluded from semantic search.
+        console.error(
+          `[docs/search] Failed to embed section "${section.id}" (${section.heading}): ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
       }
     }
   }
