@@ -1,36 +1,37 @@
 {
-  "name": "@graph-flow/knowledge",
-  "version": "2.0.0",
+  "name": "@graph-flow/docs",
+  "version": "3.0.0",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/rollercoaster-dev/graph-flow.git",
-    "directory": "packages/knowledge"
+    "directory": "packages/docs"
   },
   "author": "rollercoaster.dev",
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "knowledge", "learning", "semantic-search", "tfidf", "embeddings"],
+  "keywords": ["mcp", "docs", "documentation", "graph", "semantic-search", "markdown"],
   "files": ["src", "package.json", "README.md"],
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./storage": "./src/storage.ts",
+    "./parser": "./src/parser.ts",
+    "./store": "./src/store.ts",
     "./search": "./src/search.ts",
-    "./learning": "./src/learning.ts",
-    "./mcp-tools": "./src/mcp-tools.ts",
-    "./embeddings": "./src/embeddings/index.ts"
+    "./mcp-tools": "./src/mcp-tools.ts"
   },
   "scripts": {
     "test": "bun test"
   },
   "dependencies": {
-    "@graph-flow/shared": "workspace:*"
+    "@graph-flow/knowledge": "workspace:*",
+    "@graph-flow/shared": "workspace:*",
+    "marked": "^9.0.0"
   },
   "devDependencies": {
     "@types/bun": "^1.0.0"
   },
-  "description": "JSONL-based learning persistence with TF-IDF search"
+  "description": "Hierarchical markdown docs graph with code-doc linking and semantic search"
 }

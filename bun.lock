@@ -44,6 +44,18 @@
         "@types/bun": "^1.0.0",
       },
     },
+    "packages/docs": {
+      "name": "@graph-flow/docs",
+      "version": "3.0.0",
+      "dependencies": {
+        "@graph-flow/knowledge": "workspace:*",
+        "@graph-flow/shared": "workspace:*",
+        "marked": "^9.0.0",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.0.0",
+      },
+    },
     "packages/graph": {
       "name": "@graph-flow/graph",
       "version": "2.0.0",
@@ -75,6 +87,7 @@
       "dependencies": {
         "@graph-flow/automation": "workspace:*",
         "@graph-flow/checkpoint": "workspace:*",
+        "@graph-flow/docs": "workspace:*",
         "@graph-flow/graph": "workspace:*",
         "@graph-flow/knowledge": "workspace:*",
         "@graph-flow/planning": "workspace:*",
@@ -113,6 +126,8 @@
     "@graph-flow/checkpoint": ["@graph-flow/checkpoint@workspace:packages/checkpoint"],
 
     "@graph-flow/cli": ["@graph-flow/cli@workspace:packages/cli"],
+
+    "@graph-flow/docs": ["@graph-flow/docs@workspace:packages/docs"],
 
     "@graph-flow/graph": ["@graph-flow/graph@workspace:packages/graph"],
 
@@ -277,6 +292,8 @@
     "json-schema-typed": ["json-schema-typed@8.0.2", "", {}, "sha512-fQhoXdcvc3V28x7C7BMs4P5+kNlgUURe2jmUT1T//oBRMDrqy1QPelJimwZGo7Hg9VPV3EQV5Bnq4hbFy2vetA=="],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
+
+    "marked": ["marked@9.1.6", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-jcByLnIFkd5gSXZmjNvS1TlmRhCXZjIzHYlaGkPlLIekG55JDR2Z4va9tZwCiP+/RDERiNhMOFu01xd6O5ct1Q=="],
 
     "math-intrinsics": ["math-intrinsics@1.1.0", "", {}, "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="],
 

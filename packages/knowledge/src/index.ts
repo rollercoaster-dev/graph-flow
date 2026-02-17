@@ -23,4 +23,9 @@ export {
   type DocsIndexResult,
 } from "./docs-indexer.ts";
 export { EmbeddingStorage } from "./embeddings-storage.ts";
-export { getCurrentProviderType } from "./embeddings/index.ts";
+export {
+  getCurrentProviderType,
+  getDefaultEmbedder,
+  floatArrayToBuffer,
+  bufferToFloatArray,
+} from "./embeddings/index.ts";
