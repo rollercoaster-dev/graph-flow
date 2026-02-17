@@ -1,19 +1,22 @@
 #!/usr/bin/env bun
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { AutomationMCPTools } from "@graph-flow/automation";
+import { CheckpointMCPTools } from "@graph-flow/checkpoint";
+import { GraphMCPTools } from "@graph-flow/graph";
+import {
+  getCurrentProviderType,
+  KnowledgeMCPTools,
+} from "@graph-flow/knowledge";
+import { PlanningMCPTools } from "@graph-flow/planning";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
-  ListToolsRequestSchema,
   ListResourcesRequestSchema,
+  ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { CheckpointMCPTools } from "@graph-flow/checkpoint";
-import { KnowledgeMCPTools, getCurrentProviderType } from "@graph-flow/knowledge";
-import { GraphMCPTools } from "@graph-flow/graph";
-import { PlanningMCPTools } from "@graph-flow/planning";
-import { AutomationMCPTools } from "@graph-flow/automation";
-import { homedir } from "node:os";
-import { join } from "node:path";
 
 const pkgModule = await import("../package.json");
 const pkg = pkgModule.default ?? pkgModule;
@@ -30,7 +33,7 @@ function resolveBaseDir(): string {
   }
   console.error(
     "warning: CLAUDE_PROJECT_DIR not set, using ~/.claude (data will be shared across all projects). " +
-      "Set CLAUDE_PROJECT_DIR in your .mcp.json env or run 'graph-flow init' in your project."
+      "Set CLAUDE_PROJECT_DIR in your .mcp.json env or run 'graph-flow init' in your project.",
   );
   return join(homedir(), ".claude");
 }
@@ -64,7 +67,7 @@ export class GraphFlowServer {
           tools: {},
           resources: {},
         },
-      }
+      },
     );
 
     this.checkpoint = new CheckpointMCPTools(workflowsDir);
@@ -96,7 +99,7 @@ export class GraphFlowServer {
       await this.planning.init();
       this.automation = new AutomationMCPTools(
         this.planning.getManager(),
-        this.checkpoint.getManager()
+        this.checkpoint.getManager(),
       );
       await this.automation.init();
       this.initialized = true;
@@ -122,7 +125,13 @@ export class GraphFlowServer {
       const automationTools = this.automation.getTools();
 
       return {
-        tools: [...checkpointTools, ...knowledgeTools, ...graphTools, ...planningTools, ...automationTools],
+        tools: [
+          ...checkpointTools,
+          ...knowledgeTools,
+          ...graphTools,
+          ...planningTools,
+          ...automationTools,
+        ],
       };
     });
 
@@ -167,13 +176,23 @@ export class GraphFlowServer {
     });
 
     // Read resources
-    this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-      const { uri } = request.params;
-      return this.readResourceImpl(uri);
-    });
+    this.server.setRequestHandler(
+      ReadResourceRequestSchema,
+      async (request) => {
+        const { uri } = request.params;
+        return this.readResourceImpl(uri);
+      },
+    );
   }
 
-  private listResourcesImpl(): { resources: Array<{ uri: string; name: string; mimeType: string; description: string }> } {
+  private listResourcesImpl(): {
+    resources: Array<{
+      uri: string;
+      name: string;
+      mimeType: string;
+      description: string;
+    }>;
+  } {
     return {
       resources: [
         {
@@ -193,14 +212,16 @@ export class GraphFlowServer {
   }
 
   private async readResourceImpl(
-    uri: string
-  ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+    uri: string,
+  ): Promise<{
+    contents: Array<{ uri: string; mimeType: string; text: string }>;
+  }> {
     // Lazy init on resource read
     await this.ensureInitialized();
 
     if (uri.startsWith("checkpoint://")) {
       // Return list of active workflows
-      const result = await this.checkpoint.handleToolCall("checkpoint-find", {});
+      const result = await this.checkpoint.handleToolCall("c-find", {});
       return {
         contents: [
           {
@@ -222,7 +243,7 @@ export class GraphFlowServer {
       } else {
         throw new Error(`Unknown knowledge resource: ${uri}`);
       }
-      const result = await this.knowledge.handleToolCall("knowledge-query", args);
+      const result = await this.knowledge.handleToolCall("k-query", args);
       return {
         contents: [
           {
@@ -237,13 +258,22 @@ export class GraphFlowServer {
     }
   }
 
-  listResourcesForTests(): { resources: Array<{ uri: string; name: string; mimeType: string; description: string }> } {
+  listResourcesForTests(): {
+    resources: Array<{
+      uri: string;
+      name: string;
+      mimeType: string;
+      description: string;
+    }>;
+  } {
     return this.listResourcesImpl();
   }
 
   async readResourceForTests(
-    uri: string
-  ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+    uri: string,
+  ): Promise<{
+    contents: Array<{ uri: string; mimeType: string; text: string }>;
+  }> {
     return this.readResourceImpl(uri);
   }
 
@@ -251,7 +281,9 @@ export class GraphFlowServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     const provider = getCurrentProviderType() ?? "tfidf";
-    console.error(`graph-flow MCP server running on stdio (embeddings: ${provider})`);
+    console.error(
+      `graph-flow MCP server running on stdio (embeddings: ${provider})`,
+    );
   }
 
   async close(): Promise<void> {

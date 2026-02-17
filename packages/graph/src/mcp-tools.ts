@@ -1,5 +1,5 @@
-import { GraphQuery } from "./query.ts";
 import { CodeIndexer } from "./indexer.ts";
+import { GraphQuery } from "./query.ts";
 
 export interface MCPTool {
   name: string;
@@ -20,6 +20,10 @@ export interface MCPToolResult {
 
 /**
  * MCP tools for code graph operations
+ *
+ * Provides g-blast (transitive impact analysis) and g-index (cache population).
+ * g-calls and g-defs were removed — LSP provides findReferences, goToDefinition,
+ * and documentSymbol natively with better accuracy.
  */
 export class GraphMCPTools {
   private query: GraphQuery;
@@ -41,27 +45,9 @@ export class GraphMCPTools {
   getTools(): MCPTool[] {
     return [
       {
-        name: "g-calls",
-        description: "Find what calls a given function or method",
-        inputSchema: {
-          type: "object",
-          properties: {
-            name: {
-              type: "string",
-              description: "Entity name (function, class, method)",
-            },
-            files: {
-              type: "array",
-              items: { type: "string" },
-              description: "Files to search (glob patterns supported)",
-            },
-          },
-          required: ["name", "files"],
-        },
-      },
-      {
         name: "g-blast",
-        description: "Calculate blast radius - what entities are impacted by changes",
+        description:
+          "Calculate blast radius - what entities are impacted by changes",
         inputSchema: {
           type: "object",
           properties: {
@@ -83,20 +69,6 @@ export class GraphMCPTools {
         },
       },
       {
-        name: "g-defs",
-        description: "Get all definitions in a file",
-        inputSchema: {
-          type: "object",
-          properties: {
-            file: {
-              type: "string",
-              description: "File path",
-            },
-          },
-          required: ["file"],
-        },
-      },
-      {
         name: "g-index",
         description: "Batch index code files to populate graph cache",
         inputSchema: {
@@ -105,7 +77,8 @@ export class GraphMCPTools {
             patterns: {
               type: "array",
               items: { type: "string" },
-              description: "Glob patterns for files to index (e.g., ['src/**/*.ts'])",
+              description:
+                "Glob patterns for files to index (e.g., ['src/**/*.ts'])",
             },
             cwd: {
               type: "string",
@@ -121,14 +94,13 @@ export class GraphMCPTools {
   /**
    * Handle MCP tool call
    */
-  async handleToolCall(name: string, args: Record<string, unknown>): Promise<MCPToolResult> {
+  async handleToolCall(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     switch (name) {
-      case "g-calls":
-        return this.handleWhatCalls(args);
       case "g-blast":
         return this.handleBlastRadius(args);
-      case "g-defs":
-        return this.handleDefinitions(args);
       case "g-index":
         return this.handleIndex(args);
       default:
@@ -136,39 +108,14 @@ export class GraphMCPTools {
     }
   }
 
-  private async handleWhatCalls(args: Record<string, unknown>): Promise<MCPToolResult> {
-    const { name, files } = args as { name: string; files: string[] };
-    const result = await this.query.whatCalls(name, files);
-
-    if (!result) {
-      return {
-        content: [{
-          type: "text",
-          text: `Entity "${name}" not found`,
-        }],
-      };
-    }
-
-    const summary = {
-      entity: result.entity,
-      callerCount: result.callers.length,
-      callers: result.callers.map(c => ({
-        name: c.caller.name,
-        type: c.caller.type,
-        location: c.caller.location,
-      })),
-    };
-
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(summary, null, 2),
-      }],
-    };
-  }
-
-  private async handleBlastRadius(args: Record<string, unknown>): Promise<MCPToolResult> {
-    const { name, files, maxDepth = 3 } = args as {
+  private async handleBlastRadius(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
+    const {
+      name,
+      files,
+      maxDepth = 3,
+    } = args as {
       name: string;
       files: string[];
       maxDepth?: number;
@@ -178,17 +125,19 @@ export class GraphMCPTools {
 
     if (!result) {
       return {
-        content: [{
-          type: "text",
-          text: `Entity "${name}" not found`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Entity "${name}" not found`,
+          },
+        ],
       };
     }
 
     const summary = {
       entity: result.entity,
       impactCount: result.impactedEntities.length,
-      impactedEntities: result.impactedEntities.map(i => ({
+      impactedEntities: result.impactedEntities.map((i) => ({
         name: i.entity.name,
         type: i.entity.type,
         distance: i.distance,
@@ -198,36 +147,18 @@ export class GraphMCPTools {
     };
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(summary, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(summary, null, 2),
+        },
+      ],
     };
   }
 
-  private async handleDefinitions(args: Record<string, unknown>): Promise<MCPToolResult> {
-    const { file } = args as { file: string };
-    const definitions = await this.query.getDefinitions(file);
-
-    const summary = {
-      file,
-      count: definitions.length,
-      definitions: definitions.map(d => ({
-        name: d.name,
-        type: d.type,
-        line: d.location.line,
-      })),
-    };
-
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(summary, null, 2),
-      }],
-    };
-  }
-
-  private async handleIndex(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleIndex(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { patterns, cwd } = args as { patterns: string[]; cwd?: string };
 
     const result = await this.indexer.index({ patterns, cwd });
@@ -244,10 +175,12 @@ export class GraphMCPTools {
     };
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(summary, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(summary, null, 2),
+        },
+      ],
     };
   }
 }

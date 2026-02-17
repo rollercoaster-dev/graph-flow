@@ -1,12 +1,16 @@
 /**
  * Automation MCP Tools
  *
- * MCP tool definitions and handlers for GitHub automation workflows.
- * Same pattern as PlanningMCPTools and CheckpointMCPTools.
+ * 3 tools: a-import, a-create-issue, a-board-update
+ *
+ * Changes in v3:
+ * - Merged a-from-milestone/a-from-epic into a-import { type, number }
+ * - Removed a-start-issue (setup skill handles this via p-goal + c-update)
+ * - Added a-board-update for GitHub Project board operations
  */
 
-import type { PlanningManager } from "@graph-flow/planning/manager";
 import type { WorkflowManager } from "@graph-flow/checkpoint/workflow";
+import type { PlanningManager } from "@graph-flow/planning/manager";
 import { AutomationOrchestrator } from "./orchestrator";
 
 export interface MCPTool {
@@ -40,33 +44,23 @@ export class AutomationMCPTools {
   getTools(): MCPTool[] {
     return [
       {
-        name: "a-from-milestone",
+        name: "a-import",
         description:
-          "Fetch a GitHub milestone and its issues via `gh`, then create a Goal, Plan, and Steps in the planning stack.",
+          "Import a GitHub milestone or epic into the planning stack. Creates a Goal, Plan, and Steps (one per issue/sub-issue).",
         inputSchema: {
           type: "object",
           properties: {
+            type: {
+              type: "string",
+              enum: ["milestone", "epic"],
+              description: "Type of entity to import",
+            },
             number: {
               type: "number",
-              description: "GitHub milestone number",
+              description: "GitHub milestone number or epic issue number",
             },
           },
-          required: ["number"],
-        },
-      },
-      {
-        name: "a-from-epic",
-        description:
-          "Fetch a GitHub epic issue and its sub-issues, then create a Goal, Plan, and Steps in the planning stack.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            number: {
-              type: "number",
-              description: "GitHub issue number of the epic",
-            },
-          },
-          required: ["number"],
+          required: ["type", "number"],
         },
       },
       {
@@ -102,18 +96,23 @@ export class AutomationMCPTools {
         },
       },
       {
-        name: "a-start-issue",
+        name: "a-board-update",
         description:
-          "Start working on a GitHub issue: fetch it, create a branch, push a Goal onto the planning stack, and create a workflow checkpoint.",
+          "Update a GitHub Project board item's status. Adds the issue to the board if not already present.",
         inputSchema: {
           type: "object",
           properties: {
-            number: {
+            issueNumber: {
               type: "number",
               description: "GitHub issue number",
             },
+            status: {
+              type: "string",
+              enum: ["Backlog", "Next", "In Progress", "Blocked", "Done"],
+              description: "Board status to set",
+            },
           },
-          required: ["number"],
+          required: ["issueNumber", "status"],
         },
       },
     ];
@@ -121,44 +120,35 @@ export class AutomationMCPTools {
 
   async handleToolCall(
     name: string,
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
     switch (name) {
-      case "a-from-milestone":
-        return this.handleFromMilestone(args);
-      case "a-from-epic":
-        return this.handleFromEpic(args);
+      case "a-import":
+        return this.handleImport(args);
       case "a-create-issue":
         return this.handleCreateIssue(args);
-      case "a-start-issue":
-        return this.handleStartIssue(args);
+      case "a-board-update":
+        return this.handleBoardUpdate(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
   }
 
-  private async handleFromMilestone(
-    args: Record<string, unknown>
+  private async handleImport(
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
-    const { number: num } = args as { number: number };
-    const result = await this.orchestrator.fromMilestone(num);
-    return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    const { type, number: num } = args as {
+      type: "milestone" | "epic";
+      number: number;
     };
-  }
-
-  private async handleFromEpic(
-    args: Record<string, unknown>
-  ): Promise<MCPToolResult> {
-    const { number: num } = args as { number: number };
-    const result = await this.orchestrator.fromEpic(num);
+    const result = await this.orchestrator.import(type, num);
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
   }
 
   private async handleCreateIssue(
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
     const { title, body, labels, milestone, planId } = args as {
       title: string;
@@ -179,11 +169,14 @@ export class AutomationMCPTools {
     };
   }
 
-  private async handleStartIssue(
-    args: Record<string, unknown>
+  private async handleBoardUpdate(
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
-    const { number: num } = args as { number: number };
-    const result = await this.orchestrator.startIssue(num);
+    const { issueNumber, status } = args as {
+      issueNumber: number;
+      status: "Backlog" | "Next" | "In Progress" | "Blocked" | "Done";
+    };
+    const result = await this.orchestrator.boardUpdate(issueNumber, status);
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
