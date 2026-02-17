@@ -41,6 +41,10 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Skill
 - `commit_created`: { sha, message, files } (per commit)
 - `implementation_complete`: { commitCount, validationPassed }
 
+## Prerequisites
+
+Requires graph-flow MCP tools. If unavailable, run `/graph-flow:init` first, then restart Claude Code.
+
 ---
 
 ## Tool Selection (MANDATORY)

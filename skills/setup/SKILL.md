@@ -35,11 +35,9 @@ Prepares everything needed before implementation work begins.
 2. Adds issue to project board as "In Progress" (unless skip_board)
 3. Sends Telegram notification (unless skip_notify)
 
-## Skills Used
+## Prerequisites
 
-Load these skills for reference:
-
-- `board-manager` - GraphQL for board operations
+Requires graph-flow MCP tools. If unavailable, run `/graph-flow:init` first, then restart Claude Code.
 
 ## Workflow
 
@@ -89,61 +87,13 @@ git checkout <branch_name>
 
 ### Step 4: Update Board (unless skip_board)
 
-**4a. Get issue node ID:**
+Use the `a-board-update` MCP tool:
 
-```bash
-gh issue view <issue_number> --json id -q .id
+```
+a-board-update({ issueNumber: <issue_number>, status: "In Progress" })
 ```
 
-**4b. Add to project board:**
-
-```bash
-gh api graphql -f query='
-  mutation($projectId: ID!, $contentId: ID!) {
-    addProjectV2ItemById(input: {
-      projectId: $projectId
-      contentId: $contentId
-    }) { item { id } }
-  }' -f projectId="PVT_kwDOB1lz3c4BI2yZ" -f contentId="<issue_node_id>"
-```
-
-**4c. Get item ID:**
-
-```bash
-gh api graphql -f query='
-  query {
-    organization(login: "rollercoaster-dev") {
-      projectV2(number: 11) {
-        items(first: 100) {
-          nodes {
-            id
-            content { ... on Issue { number } }
-          }
-        }
-      }
-    }
-  }' | jq -r '.data.organization.projectV2.items.nodes[] | select(.content.number == <issue_number>) | .id'
-```
-
-**4d. Set status to "In Progress":**
-
-```bash
-gh api graphql \
-  -f projectId="PVT_kwDOB1lz3c4BI2yZ" \
-  -f itemId="<item_id>" \
-  -f fieldId="PVTSSF_lADOB1lz3c4BI2yZzg5MUx4" \
-  -f optionId="3e320f16" \
-  -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-    updateProjectV2ItemFieldValue(input: {
-      projectId: $projectId
-      itemId: $itemId
-      fieldId: $fieldId
-      value: { singleSelectOptionId: $optionId }
-    }) { projectV2Item { id } }
-  }'
-```
-
-**If any board operation fails:** Log warning, continue (non-critical).
+**If board update fails:** Log warning, continue (non-critical).
 
 ### Step 5: Send Notification (unless skip_notify)
 

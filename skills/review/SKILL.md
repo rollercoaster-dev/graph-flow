@@ -18,7 +18,7 @@ Coordinates code review and manages the auto-fix cycle.
 | `skip_agents`           | string[] | No       | Agents to skip (default: none)                    |
 | `max_retry`             | number   | No       | Max fix attempts per finding (default: 3)         |
 | `parallel`              | boolean  | No       | Run agents in parallel (default: true)            |
-| `include_ob_compliance` | boolean  | No       | Force OB compliance review (default: auto-detect) |
+| `include_ob_compliance` | boolean  | No       | Force OB compliance review if agent exists in project (default: auto-detect) |
 
 ### Output
 
@@ -50,6 +50,10 @@ Coordinates code review and manages the auto-fix cycle.
 - `fix_attempted`: { file, line, attempt, result }
 - `review_complete`: { summary }
 
+## Prerequisites
+
+Requires graph-flow MCP tools. If unavailable, run `/graph-flow:init` first, then restart Claude Code.
+
 ## Review Agents
 
 | Agent                                     | Purpose                | Critical Threshold                   |
@@ -57,7 +61,8 @@ Coordinates code review and manages the auto-fix cycle.
 | `pr-review-toolkit:code-reviewer`         | Code quality, patterns | Confidence >= 91 OR label="Critical" |
 | `pr-review-toolkit:pr-test-analyzer`      | Test coverage gaps     | Gap rating >= 8                      |
 | `pr-review-toolkit:silent-failure-hunter` | Error handling         | Severity = "CRITICAL"                |
-| `openbadges-compliance-reviewer`          | OB spec compliance     | "MUST violation"                     |
+
+Additional review agents can be defined in the project's `.claude/agents/` directory. If an `openbadges-compliance-reviewer` agent is present there, it will be used for OB spec compliance checks (triggers on badge/credential code changes).
 
 ## Workflow
 
@@ -91,7 +96,7 @@ Spawn all agents simultaneously using Task tool with multiple calls:
 Task(pr-review-toolkit:code-reviewer): "Review code changes for issue workflow <workflow_id>"
 Task(pr-review-toolkit:pr-test-analyzer): "Analyze test coverage for changes"
 Task(pr-review-toolkit:silent-failure-hunter): "Check for silent failures in changes"
-Task(openbadges-compliance-reviewer): "Check OB spec compliance" (if badge code)
+Task(openbadges-compliance-reviewer): "Check OB spec compliance" (if badge code AND agent exists in project)
 ```
 
 **If sequential mode:**
@@ -120,7 +125,7 @@ Each agent returns findings in different formats. Normalize to:
 | code-reviewer          | Confidence >= 91 OR label="Critical" | Confidence >= 75   | Confidence < 75         |
 | silent-failure-hunter  | Severity="CRITICAL"                  | Severity="HIGH"    | Severity="MEDIUM"/"LOW" |
 | pr-test-analyzer       | Gap rating >= 8                      | Gap rating >= 5    | Gap rating < 5          |
-| ob-compliance-reviewer | "MUST violation"                     | "SHOULD violation" | "MAY" / warnings        |
+| ob-compliance-reviewer (if present) | "MUST violation"                     | "SHOULD violation" | "MAY" / warnings        |
 
 ### Step 4: Auto-Fix Loop
 
