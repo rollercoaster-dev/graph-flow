@@ -28,6 +28,7 @@
     "@graph-flow/graph": "workspace:*",
     "@graph-flow/planning": "workspace:*",
     "@graph-flow/automation": "workspace:*",
+    "@graph-flow/docs": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.4"
   },
   "devDependencies": {

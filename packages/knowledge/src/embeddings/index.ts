@@ -10,6 +10,7 @@
 
 // Buffer import needed for ESLint - it's also global in Bun runtime
 import { Buffer } from "buffer";
+export { cosineSimilarity, dotProduct, magnitude, l2Normalize, findMostSimilar } from "./similarity.ts";
 // Simple logger replacement
 const logger = {
   info: (msg: string, meta?: unknown) => console.error(`[INFO] ${msg}`, meta || ""),

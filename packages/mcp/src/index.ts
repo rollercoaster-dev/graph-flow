@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { AutomationMCPTools } from "@graph-flow/automation";
 import { CheckpointMCPTools } from "@graph-flow/checkpoint";
+import { DocsMCPTools } from "@graph-flow/docs";
 import { GraphMCPTools } from "@graph-flow/graph";
 import {
   getCurrentProviderType,
@@ -46,6 +47,7 @@ export class GraphFlowServer {
   private checkpoint: CheckpointMCPTools;
   private knowledge: KnowledgeMCPTools;
   private graph: GraphMCPTools;
+  private docs: DocsMCPTools;
   private planning: PlanningMCPTools;
   private automation!: AutomationMCPTools;
 
@@ -55,6 +57,7 @@ export class GraphFlowServer {
     const learningsDir = join(baseDir, "learnings");
     const embeddingsDir = join(baseDir, "embeddings");
     const graphsDir = join(baseDir, "graphs");
+    const docsDir = join(baseDir, "docs");
     const planningDir = join(baseDir, "planning");
 
     this.server = new Server(
@@ -73,6 +76,7 @@ export class GraphFlowServer {
     this.checkpoint = new CheckpointMCPTools(workflowsDir);
     this.knowledge = new KnowledgeMCPTools(learningsDir, embeddingsDir);
     this.graph = new GraphMCPTools(graphsDir);
+    this.docs = new DocsMCPTools(docsDir, embeddingsDir);
     this.planning = new PlanningMCPTools(planningDir);
 
     this.setupHandlers();
@@ -96,6 +100,7 @@ export class GraphFlowServer {
       await this.checkpoint.init();
       await this.knowledge.init();
       await this.graph.init();
+      await this.docs.init();
       await this.planning.init();
       this.automation = new AutomationMCPTools(
         this.planning.getManager(),
@@ -121,6 +126,7 @@ export class GraphFlowServer {
       const checkpointTools = this.checkpoint.getTools();
       const knowledgeTools = this.knowledge.getTools();
       const graphTools = this.graph.getTools();
+      const docsTools = this.docs.getTools();
       const planningTools = this.planning.getTools();
       const automationTools = this.automation.getTools();
 
@@ -129,6 +135,7 @@ export class GraphFlowServer {
           ...checkpointTools,
           ...knowledgeTools,
           ...graphTools,
+          ...docsTools,
           ...planningTools,
           ...automationTools,
         ],
@@ -150,6 +157,8 @@ export class GraphFlowServer {
           return await this.knowledge.handleToolCall(name, args || {});
         } else if (name.startsWith("g-")) {
           return await this.graph.handleToolCall(name, args || {});
+        } else if (name.startsWith("d-")) {
+          return await this.docs.handleToolCall(name, args || {});
         } else if (name.startsWith("p-")) {
           return await this.planning.handleToolCall(name, args || {});
         } else if (name.startsWith("a-")) {
