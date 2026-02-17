@@ -12,8 +12,17 @@
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "model-context-protocol", "graph-flow", "claude-code"],
-  "files": ["src", "package.json", "README.md"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "graph-flow",
+    "claude-code"
+  ],
+  "files": [
+    "src",
+    "package.json",
+    "README.md"
+  ],
   "main": "./src/index.ts",
   "bin": {
     "graph-flow": "./src/index.ts"

@@ -1,7 +1,11 @@
-import { LearningStorage, type LearningRecord } from "./storage.ts";
-import { EmbeddingStorage } from "./embeddings-storage.ts";
-import { getDefaultEmbedder, floatArrayToBuffer, bufferToFloatArray } from "./embeddings";
+import {
+  bufferToFloatArray,
+  floatArrayToBuffer,
+  getDefaultEmbedder,
+} from "./embeddings";
 import { cosineSimilarity } from "./embeddings/similarity";
+import { EmbeddingStorage } from "./embeddings-storage.ts";
+import { type LearningRecord, LearningStorage } from "./storage.ts";
 
 export interface SemanticSearchOptions {
   /** Maximum number of results to return (default: 10) */
@@ -43,10 +47,17 @@ export class SemanticSearch {
       const embedding = await embedder.generate(learning.content);
 
       if (embedding) {
-        await this.embeddingStorage.store(learning.area, learning.id, embedding);
+        await this.embeddingStorage.store(
+          learning.area,
+          learning.id,
+          embedding,
+        );
       }
     } catch (error) {
-      console.error(`Failed to generate embedding for learning ${learning.id}:`, error);
+      console.error(
+        `Failed to generate embedding for learning ${learning.id}:`,
+        error,
+      );
       // Non-blocking - learning still stored without embedding
     }
   }
@@ -56,7 +67,7 @@ export class SemanticSearch {
    */
   async search(
     queryText: string,
-    options: SemanticSearchOptions = {}
+    options: SemanticSearchOptions = {},
   ): Promise<SemanticSearchResult[]> {
     const { limit = 10, threshold = 0.3, area } = options;
 
@@ -110,13 +121,13 @@ export class SemanticSearch {
    */
   async findSimilar(
     learningId: string,
-    options: Omit<SemanticSearchOptions, "area"> = {}
+    options: Omit<SemanticSearchOptions, "area"> = {},
   ): Promise<SemanticSearchResult[]> {
     const { limit = 5, threshold = 0.3 } = options;
 
     // Find the target learning
     const allLearnings = await this.learningStorage.readAll();
-    const targetLearning = allLearnings.find(l => l.id === learningId);
+    const targetLearning = allLearnings.find((l) => l.id === learningId);
 
     if (!targetLearning) {
       return [];

@@ -14,7 +14,11 @@ export class LearningSearch {
   /**
    * Search learnings using TF-IDF scoring
    */
-  search(query: string, learnings: LearningRecord[], limit: number = 10): LearningRecord[] {
+  search(
+    query: string,
+    learnings: LearningRecord[],
+    limit: number = 10,
+  ): LearningRecord[] {
     const queryTerms = this.tokenize(query);
 
     if (queryTerms.length === 0) {
@@ -25,17 +29,17 @@ export class LearningSearch {
     this.buildIDF(learnings);
 
     // Score each learning
-    const scores: TFIDFScore[] = learnings.map(learning => ({
+    const scores: TFIDFScore[] = learnings.map((learning) => ({
       learning,
       score: this.calculateScore(queryTerms, learning, learnings.length),
     }));
 
     // Sort by score and return top results
     return scores
-      .filter(s => s.score > 0)
+      .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
-      .map(s => s.learning);
+      .map((s) => s.learning);
   }
 
   /**
@@ -65,7 +69,7 @@ export class LearningSearch {
   private calculateScore(
     queryTerms: string[],
     learning: LearningRecord,
-    totalDocs: number
+    totalDocs: number,
   ): number {
     const docTerms = this.tokenize(learning.content);
     const termFrequency = new Map<string, number>();
@@ -84,7 +88,7 @@ export class LearningSearch {
     }
 
     // Boost score based on type and area match
-    if (queryTerms.some(t => learning.area.toLowerCase().includes(t))) {
+    if (queryTerms.some((t) => learning.area.toLowerCase().includes(t))) {
       score *= 1.5;
     }
 
@@ -99,7 +103,7 @@ export class LearningSearch {
       .toLowerCase()
       .replace(/[^\w\s]/g, " ")
       .split(/\s+/)
-      .filter(t => t.length > 2); // Filter out very short terms
+      .filter((t) => t.length > 2); // Filter out very short terms
   }
 
   /**

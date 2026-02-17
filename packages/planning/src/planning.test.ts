@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
+import { join } from "node:path";
 import { PlanningManager } from "./manager";
 import { PlanningMCPTools } from "./mcp-tools";
 
@@ -421,4 +421,3 @@ describe("PlanningMCPTools", () => {
     expect(progressData.progress.percentage).toBe(0);
   });
 });
-

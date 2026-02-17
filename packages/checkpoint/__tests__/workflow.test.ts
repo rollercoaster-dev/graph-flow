@@ -1,6 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { WorkflowManager, type WorkflowAction, type WorkflowCommit } from "../src/workflow.ts";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
+import {
+  type WorkflowAction,
+  type WorkflowCommit,
+  WorkflowManager,
+} from "../src/workflow.ts";
 
 const TEST_DIR = "/tmp/graph-flow-test-workflows";
 
@@ -91,7 +95,7 @@ describe("WorkflowManager", () => {
     await manager.complete("test-123", true);
 
     // Wait for deletion
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     const workflow = await manager.get("test-123");
     expect(workflow).toBeNull();

@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { expandGlobs } from "./glob";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { expandGlobs } from "./glob";
 
 const TEST_DIR = join(import.meta.dir, "__test_glob_fixtures__");
 
@@ -23,7 +23,7 @@ beforeAll(() => {
   // .gitignore that mirrors common patterns
   writeFileSync(
     join(TEST_DIR, ".gitignore"),
-    ["node_modules/", "dist/", "*.log", ""].join("\n")
+    ["node_modules/", "dist/", "*.log", ""].join("\n"),
   );
 });
 
@@ -59,10 +59,7 @@ describe("expandGlobs", () => {
   });
 
   it("filters non-glob literal paths through gitignore", async () => {
-    const results = await expandGlobs(
-      ["node_modules/pkg/index.js"],
-      TEST_DIR
-    );
+    const results = await expandGlobs(["node_modules/pkg/index.js"], TEST_DIR);
     expect(results).toEqual([]);
   });
 

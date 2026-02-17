@@ -1,8 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { join } from "node:path";
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { runInit, formatInitResult, type InitOptions } from "../src/init.ts";
+import { join } from "node:path";
+import { formatInitResult, type InitOptions, runInit } from "../src/init.ts";
 
 describe("runInit", () => {
   let projectDir: string;
@@ -44,8 +44,12 @@ describe("runInit", () => {
       indexDocs: false,
     });
 
-    const config = result.mcpConfig as { mcpServers: { "graph-flow": { env: { CLAUDE_PROJECT_DIR: string } } } };
-    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(projectDir);
+    const config = result.mcpConfig as {
+      mcpServers: { "graph-flow": { env: { CLAUDE_PROJECT_DIR: string } } };
+    };
+    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
   });
 
   test("indexes code files when indexCode is true", async () => {
@@ -53,7 +57,7 @@ describe("runInit", () => {
     await mkdir(join(projectDir, "src"), { recursive: true });
     await writeFile(
       join(projectDir, "src", "main.ts"),
-      "export function main() { console.log('hello'); }"
+      "export function main() { console.log('hello'); }",
     );
 
     const result = await runInit({
@@ -70,7 +74,7 @@ describe("runInit", () => {
     await mkdir(join(projectDir, "src"), { recursive: true });
     await writeFile(
       join(projectDir, "src", "main.ts"),
-      "export function main() {}"
+      "export function main() {}",
     );
 
     const result = await runInit({
@@ -87,7 +91,7 @@ describe("runInit", () => {
     await mkdir(join(projectDir, "docs"), { recursive: true });
     await writeFile(
       join(projectDir, "docs", "guide.md"),
-      "# Guide\n\nThis is a guide with enough content to be indexed properly."
+      "# Guide\n\nThis is a guide with enough content to be indexed properly.",
     );
 
     const result = await runInit({
@@ -117,7 +121,7 @@ describe("runInit", () => {
     await mkdir(join(projectDir, "custom"), { recursive: true });
     await writeFile(
       join(projectDir, "custom", "code.ts"),
-      "export const x = 1;"
+      "export const x = 1;",
     );
 
     const result = await runInit({
@@ -136,7 +140,7 @@ describe("runInit", () => {
     await mkdir(join(projectDir, "notes"), { recursive: true });
     await writeFile(
       join(projectDir, "notes", "info.md"),
-      "# Notes\n\nSome notes with enough content to be indexed."
+      "# Notes\n\nSome notes with enough content to be indexed.",
     );
 
     const result = await runInit({
@@ -152,10 +156,7 @@ describe("runInit", () => {
 
   test("auto-detects src directory for code patterns", async () => {
     await mkdir(join(projectDir, "src"), { recursive: true });
-    await writeFile(
-      join(projectDir, "src", "app.ts"),
-      "export class App {}"
-    );
+    await writeFile(join(projectDir, "src", "app.ts"), "export class App {}");
 
     const result = await runInit({
       projectRoot: projectDir,
@@ -171,7 +172,7 @@ describe("runInit", () => {
     await mkdir(join(projectDir, "docs"), { recursive: true });
     await writeFile(
       join(projectDir, "docs", "api.md"),
-      "# API\n\nAPI documentation with enough content to be indexed."
+      "# API\n\nAPI documentation with enough content to be indexed.",
     );
 
     const result = await runInit({
@@ -200,7 +201,7 @@ describe("runInit", () => {
     await mkdir(join(projectDir, "src"), { recursive: true });
     await writeFile(
       join(projectDir, "src", "util.ts"),
-      "export function util() {}"
+      "export function util() {}",
     );
 
     const result = await runInit({

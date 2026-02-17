@@ -1,9 +1,9 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { extractVueScripts, extractTemplateComponents } from "../src/vue.ts";
+import { join } from "node:path";
 import { CodeParser } from "../src/parser.ts";
+import { extractTemplateComponents, extractVueScripts } from "../src/vue.ts";
 
 const CACHE_DIR = "/tmp/graph-flow-test-vue-cache";
 
@@ -115,8 +115,8 @@ describe("extractVueScripts", () => {
     const blocks = extractVueScripts(BOTH_SCRIPTS);
     expect(blocks).toHaveLength(2);
 
-    const regular = blocks.find(b => !b.setup)!;
-    const setup = blocks.find(b => b.setup)!;
+    const regular = blocks.find((b) => !b.setup)!;
+    const setup = blocks.find((b) => b.setup)!;
 
     expect(regular.content).toContain("Config");
     expect(setup.content).toContain("ref(true)");
@@ -185,11 +185,11 @@ describe("CodeParser with .vue files", () => {
     const filepath = await writeFixture("ScriptTs.vue", SCRIPT_TS);
     const { entities } = await parser.parse(filepath);
 
-    const fn = entities.find(e => e.name === "greet");
+    const fn = entities.find((e) => e.name === "greet");
     expect(fn).toBeDefined();
     expect(fn!.type).toBe("function");
 
-    const iface = entities.find(e => e.name === "Props");
+    const iface = entities.find((e) => e.name === "Props");
     expect(iface).toBeDefined();
     expect(iface!.type).toBe("interface");
   });
@@ -198,11 +198,11 @@ describe("CodeParser with .vue files", () => {
     const filepath = await writeFixture("Counter.vue", SCRIPT_SETUP);
     const { entities } = await parser.parse(filepath);
 
-    const comp = entities.find(e => e.type === "component");
+    const comp = entities.find((e) => e.type === "component");
     expect(comp).toBeDefined();
     expect(comp!.name).toBe("Counter");
 
-    const countVar = entities.find(e => e.name === "count");
+    const countVar = entities.find((e) => e.name === "count");
     expect(countVar).toBeDefined();
     expect(countVar!.type).toBe("variable");
   });
@@ -212,20 +212,23 @@ describe("CodeParser with .vue files", () => {
     const { entities } = await parser.parse(filepath);
 
     // In SCRIPT_TS: <script> is line 5, greet function is on line 12
-    const fn = entities.find(e => e.name === "greet")!;
+    const fn = entities.find((e) => e.name === "greet")!;
     expect(fn.location.line).toBe(12);
 
     // Props interface is on line 8
-    const iface = entities.find(e => e.name === "Props")!;
+    const iface = entities.find((e) => e.name === "Props")!;
     expect(iface.location.line).toBe(8);
   });
 
   test("template component usage creates 'uses' relationships", async () => {
-    const filepath = await writeFixture("WithComponents.vue", TEMPLATE_COMPONENTS);
+    const filepath = await writeFixture(
+      "WithComponents.vue",
+      TEMPLATE_COMPONENTS,
+    );
     const { relationships } = await parser.parse(filepath);
 
-    const uses = relationships.filter(r => r.type === "uses");
-    const usedNames = uses.map(r => r.to);
+    const uses = relationships.filter((r) => r.type === "uses");
+    const usedNames = uses.map((r) => r.to);
     expect(usedNames).toContain("MyHeader");
     expect(usedNames).toContain("SidebarNav");
     expect(usedNames).toContain("ArticleCard");
@@ -243,14 +246,14 @@ describe("CodeParser with .vue files", () => {
     const filepath = await writeFixture("Both.vue", BOTH_SCRIPTS);
     const { entities } = await parser.parse(filepath);
 
-    const iface = entities.find(e => e.name === "Config");
+    const iface = entities.find((e) => e.name === "Config");
     expect(iface).toBeDefined();
     expect(iface!.type).toBe("interface");
 
-    const variable = entities.find(e => e.name === "enabled");
+    const variable = entities.find((e) => e.name === "enabled");
     expect(variable).toBeDefined();
 
-    const comp = entities.find(e => e.type === "component");
+    const comp = entities.find((e) => e.type === "component");
     expect(comp).toBeDefined();
     expect(comp!.name).toBe("Both");
   });
@@ -272,9 +275,9 @@ describe("CodeParser with .vue files", () => {
     const filepath = await writeFixture("WithImports.vue", SCRIPT_SETUP);
     const { relationships } = await parser.parse(filepath);
 
-    const imports = relationships.filter(r => r.type === "imports");
+    const imports = relationships.filter((r) => r.type === "imports");
     expect(imports.length).toBeGreaterThan(0);
-    expect(imports.some(r => r.to.includes("ref"))).toBe(true);
+    expect(imports.some((r) => r.to.includes("ref"))).toBe(true);
   });
 
   test("non-.vue files are completely unaffected", async () => {

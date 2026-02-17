@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
-import { PlanningMCPTools } from "@graph-flow/planning";
 import { CheckpointMCPTools } from "@graph-flow/checkpoint";
+import { PlanningMCPTools } from "@graph-flow/planning";
 import { AutomationMCPTools } from "../mcp-tools";
 
 const TEST_PLANNING_DIR = "/tmp/graph-flow-test-automation-mcp-planning";
@@ -20,7 +20,7 @@ describe("AutomationMCPTools", () => {
 
     automation = new AutomationMCPTools(
       planning.getManager(),
-      checkpoint.getManager()
+      checkpoint.getManager(),
     );
     await automation.init();
   });
@@ -56,9 +56,9 @@ describe("AutomationMCPTools", () => {
   });
 
   test("handleToolCall throws for unknown tool", async () => {
-    await expect(
-      automation.handleToolCall("a-unknown", {})
-    ).rejects.toThrow("Unknown tool: a-unknown");
+    await expect(automation.handleToolCall("a-unknown", {})).rejects.toThrow(
+      "Unknown tool: a-unknown",
+    );
   });
 
   test("tool names are unique and don't clash with other subsystems", () => {

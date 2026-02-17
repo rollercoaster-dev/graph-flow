@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { join } from "node:path";
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { CodeIndexer, type IndexProgress } from "../src/indexer.ts";
 
 const CACHE_DIR = "/tmp/graph-flow-test-indexer-cache";
@@ -68,7 +68,7 @@ export function main() {
   const svc = new Service();
   svc.run();
 }
-`
+`,
     );
 
     const result = await indexer.index({

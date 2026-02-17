@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { GraphFlowServer } from "../src/index.ts";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
+import { GraphFlowServer } from "../src/index.ts";
 
 const TEST_BASE_DIR = "/tmp/graph-flow-test-mcp-resources";
 
@@ -19,7 +19,7 @@ describe("MCP Resources", () => {
 
   test("list resources includes checkpoint and knowledge", () => {
     const result = server.listResourcesForTests();
-    const uris = result.resources.map(r => r.uri);
+    const uris = result.resources.map((r) => r.uri);
     expect(uris).toContain("checkpoint://workflows");
     expect(uris).toContain("knowledge://learnings");
   });
@@ -39,7 +39,9 @@ describe("MCP Resources", () => {
   });
 
   test("read knowledge learnings with area returns json list", async () => {
-    const result = await server.readResourceForTests("knowledge://learnings/auth");
+    const result = await server.readResourceForTests(
+      "knowledge://learnings/auth",
+    );
     const text = result.contents[0]?.text ?? "";
     const parsed = JSON.parse(text);
     expect(Array.isArray(parsed)).toBe(true);

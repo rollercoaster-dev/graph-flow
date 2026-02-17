@@ -1,17 +1,17 @@
-export * from "./types";
-export { PlanningStorage, type StorageOptions } from "./storage";
 export { PlanningManager } from "./manager";
-export { computePlanProgress } from "./progress";
-export { detectStaleItems, clearStaleCache } from "./stale";
 export {
+  type MCPTool,
+  type MCPToolResult,
+  PlanningMCPTools,
+} from "./mcp-tools";
+export { computePlanProgress } from "./progress";
+export {
+  type CompletionResolver,
+  clearStatusCache,
   IssueResolver,
   ManualResolver,
   ResolverFactory,
-  clearStatusCache,
-  type CompletionResolver,
 } from "./resolvers";
-export {
-  PlanningMCPTools,
-  type MCPTool,
-  type MCPToolResult,
-} from "./mcp-tools";
+export { clearStaleCache, detectStaleItems } from "./stale";
+export { PlanningStorage, type StorageOptions } from "./storage";
+export * from "./types";

@@ -8,8 +8,8 @@
  */
 
 import { spawnSync } from "bun";
-import type { PlanStep, CompletionStatus, ExternalRefType } from "./types";
 import type { PlanningStorage } from "./storage";
+import type { CompletionStatus, ExternalRefType, PlanStep } from "./types";
 
 // ============================================================================
 // Completion Cache
@@ -28,7 +28,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
  */
 function getCachedStatus(
   stepId: string,
-  externalRefKey: string
+  externalRefKey: string,
 ): CompletionStatus | null {
   const cacheKey = `${stepId}:${externalRefKey}`;
   const cached = statusCache.get(cacheKey);
@@ -46,7 +46,7 @@ function getCachedStatus(
 function setCachedStatus(
   stepId: string,
   externalRefKey: string,
-  status: CompletionStatus
+  status: CompletionStatus,
 ): void {
   const cacheKey = `${stepId}:${externalRefKey}`;
   statusCache.set(cacheKey, { status, fetchedAt: Date.now() });

@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
-import { parseArgs } from "node:util";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { CheckpointMCPTools } from "@graph-flow/checkpoint";
-import { KnowledgeMCPTools } from "@graph-flow/knowledge";
-import { GraphMCPTools } from "@graph-flow/graph";
-import { PlanningMCPTools } from "@graph-flow/planning";
+import { parseArgs } from "node:util";
 import { AutomationMCPTools } from "@graph-flow/automation";
-import { runInit, formatInitResult, type InitOptions } from "./init.ts";
+import { CheckpointMCPTools } from "@graph-flow/checkpoint";
+import { GraphMCPTools } from "@graph-flow/graph";
+import { KnowledgeMCPTools } from "@graph-flow/knowledge";
+import { PlanningMCPTools } from "@graph-flow/planning";
+import { formatInitResult, type InitOptions, runInit } from "./init.ts";
 
 function resolveBaseDir(): string {
   const explicit = process.env.GRAPH_FLOW_DIR?.trim();
@@ -165,7 +165,7 @@ async function main(): Promise<void> {
 
   const automation = new AutomationMCPTools(
     planning.getManager(),
-    checkpoint.getManager()
+    checkpoint.getManager(),
   );
   await automation.init();
 
@@ -194,7 +194,7 @@ async function main(): Promise<void> {
     }
   }
 
-  let result;
+  let result: Awaited<ReturnType<typeof checkpoint.handleToolCall>>;
   if (tool.startsWith("c-")) {
     result = await checkpoint.handleToolCall(tool, args);
   } else if (tool.startsWith("k-")) {

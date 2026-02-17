@@ -12,8 +12,19 @@
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "checkpoint", "knowledge", "graph", "planning", "cli"],
-  "files": ["src", "package.json", "README.md"],
+  "keywords": [
+    "mcp",
+    "checkpoint",
+    "knowledge",
+    "graph",
+    "planning",
+    "cli"
+  ],
+  "files": [
+    "src",
+    "package.json",
+    "README.md"
+  ],
   "bin": {
     "graph-flow": "src/index.ts"
   },

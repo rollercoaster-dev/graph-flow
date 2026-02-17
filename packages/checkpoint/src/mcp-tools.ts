@@ -1,11 +1,11 @@
 import {
-  WorkflowManager,
-  type WorkflowState,
-  type WorkflowPhase,
-  type WorkflowStatus,
+  type RecoveryPlan,
   type WorkflowAction,
   type WorkflowCommit,
-  type RecoveryPlan,
+  WorkflowManager,
+  type WorkflowPhase,
+  type WorkflowState,
+  type WorkflowStatus,
 } from "./workflow.ts";
 
 export interface MCPTool {
@@ -70,7 +70,8 @@ export class CheckpointMCPTools {
       },
       {
         name: "c-update",
-        description: "Update workflow checkpoint with new context, decisions, or blockers",
+        description:
+          "Update workflow checkpoint with new context, decisions, or blockers",
         inputSchema: {
           type: "object",
           properties: {
@@ -80,7 +81,17 @@ export class CheckpointMCPTools {
             },
             phase: {
               type: "string",
-              enum: ["research", "implement", "review", "finalize", "planning", "execute", "merge", "cleanup", "completed"],
+              enum: [
+                "research",
+                "implement",
+                "review",
+                "finalize",
+                "planning",
+                "execute",
+                "merge",
+                "cleanup",
+                "completed",
+              ],
               description: "Current workflow phase",
             },
             context: {
@@ -120,7 +131,11 @@ export class CheckpointMCPTools {
               description: "Action to log",
               properties: {
                 action: { type: "string", description: "Action description" },
-                result: { type: "string", enum: ["success", "failed", "pending"], description: "Action result" },
+                result: {
+                  type: "string",
+                  enum: ["success", "failed", "pending"],
+                  description: "Action result",
+                },
                 metadata: { type: "object", description: "Optional metadata" },
               },
               required: ["action", "result"],
@@ -140,7 +155,8 @@ export class CheckpointMCPTools {
       },
       {
         name: "c-complete",
-        description: "Mark workflow as completed and optionally delete checkpoint",
+        description:
+          "Mark workflow as completed and optionally delete checkpoint",
         inputSchema: {
           type: "object",
           properties: {
@@ -150,7 +166,8 @@ export class CheckpointMCPTools {
             },
             delete: {
               type: "boolean",
-              description: "Delete checkpoint file after completion (default: true)",
+              description:
+                "Delete checkpoint file after completion (default: true)",
             },
           },
           required: ["id"],
@@ -158,7 +175,8 @@ export class CheckpointMCPTools {
       },
       {
         name: "c-recover",
-        description: "Recover workflow state and build resume plan after interruption",
+        description:
+          "Recover workflow state and build resume plan after interruption",
         inputSchema: {
           type: "object",
           properties: {
@@ -179,7 +197,10 @@ export class CheckpointMCPTools {
   /**
    * Handle MCP tool call
    */
-  async handleToolCall(name: string, args: Record<string, unknown>): Promise<MCPToolResult> {
+  async handleToolCall(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     switch (name) {
       case "c-find":
         return this.handleFind(args);
@@ -194,7 +215,9 @@ export class CheckpointMCPTools {
     }
   }
 
-  private async handleFind(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleFind(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { issue, id } = args as { issue?: number; id?: string };
 
     let workflow: WorkflowState | null = null;
@@ -207,19 +230,23 @@ export class CheckpointMCPTools {
       // List all workflows
       const workflows = await this.manager.list();
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(workflows, null, 2),
-        }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(workflows, null, 2),
+          },
+        ],
       };
     }
 
     if (!workflow) {
       return {
-        content: [{
-          type: "text",
-          text: "Workflow not found",
-        }],
+        content: [
+          {
+            type: "text",
+            text: "Workflow not found",
+          },
+        ],
       };
     }
 
@@ -231,15 +258,31 @@ export class CheckpointMCPTools {
     };
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(response, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(response, null, 2),
+        },
+      ],
     };
   }
 
-  private async handleUpdate(args: Record<string, unknown>): Promise<MCPToolResult> {
-    const { id, phase, context, decisions, blockers, status, branch, worktree, taskId, logAction, logCommit } = args as {
+  private async handleUpdate(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
+    const {
+      id,
+      phase,
+      context,
+      decisions,
+      blockers,
+      status,
+      branch,
+      worktree,
+      taskId,
+      logAction,
+      logCommit,
+    } = args as {
       id: string;
       phase?: WorkflowPhase;
       context?: string[];
@@ -249,7 +292,11 @@ export class CheckpointMCPTools {
       branch?: string;
       worktree?: string;
       taskId?: string;
-      logAction?: { action: string; result: "success" | "failed" | "pending"; metadata?: Record<string, unknown> };
+      logAction?: {
+        action: string;
+        result: "success" | "failed" | "pending";
+        metadata?: Record<string, unknown>;
+      };
       logCommit?: { sha: string; message: string };
     };
 
@@ -276,14 +323,18 @@ export class CheckpointMCPTools {
     });
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(workflow, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(workflow, null, 2),
+        },
+      ],
     };
   }
 
-  private async handleComplete(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleComplete(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { id, delete: shouldDelete = true } = args as {
       id: string;
       delete?: boolean;
@@ -292,14 +343,18 @@ export class CheckpointMCPTools {
     await this.manager.complete(id, shouldDelete);
 
     return {
-      content: [{
-        type: "text",
-        text: `Workflow ${id} completed${shouldDelete ? " and deleted" : ""}`,
-      }],
+      content: [
+        {
+          type: "text",
+          text: `Workflow ${id} completed${shouldDelete ? " and deleted" : ""}`,
+        },
+      ],
     };
   }
 
-  private async handleRecover(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleRecover(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { issue, id } = args as { issue?: number; id?: string };
 
     let workflowId = id;
@@ -313,28 +368,34 @@ export class CheckpointMCPTools {
 
     if (!workflowId) {
       return {
-        content: [{
-          type: "text",
-          text: "Workflow not found. Provide either an id or issue number.",
-        }],
+        content: [
+          {
+            type: "text",
+            text: "Workflow not found. Provide either an id or issue number.",
+          },
+        ],
       };
     }
 
     const plan = await this.manager.recover(workflowId);
     if (!plan) {
       return {
-        content: [{
-          type: "text",
-          text: `No workflow found for id: ${workflowId}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `No workflow found for id: ${workflowId}`,
+          },
+        ],
       };
     }
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(plan, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(plan, null, 2),
+        },
+      ],
     };
   }
 }
