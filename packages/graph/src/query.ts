@@ -1,23 +1,37 @@
-import { CodeParser } from "./parser.ts";
+import { expandGlobs } from "@graph-flow/shared";
 import type { GraphEntity, GraphRelationship } from "./cache.ts";
+import { CodeParser } from "./parser.ts";
 
 /**
- * Expand glob patterns in file list using Bun.Glob.
- * Non-glob paths are returned as-is.
+ * Default source file patterns for auto-detection.
+ * Covers standard TypeScript/JavaScript project layouts.
  */
-async function expandGlobs(patterns: string[]): Promise<string[]> {
-  const files: string[] = [];
-  for (const pattern of patterns) {
-    if (pattern.includes("*") || pattern.includes("?") || pattern.includes("{")) {
-      const glob = new Bun.Glob(pattern);
-      for await (const path of glob.scan({ dot: false })) {
-        files.push(path);
-      }
-    } else {
-      files.push(pattern);
-    }
+const DEFAULT_SOURCE_PATTERNS = [
+  "src/**/*.ts",
+  "src/**/*.tsx",
+  "packages/*/src/**/*.ts",
+  "packages/*/src/**/*.tsx",
+  "lib/**/*.ts",
+  "app/**/*.ts",
+  "app/**/*.tsx",
+];
+
+/**
+ * Resolve the files to search, falling back to auto-detected source files
+ * when none are provided.
+ */
+async function resolveFiles(files?: string[], cwd?: string): Promise<string[]> {
+  if (files && files.length > 0) {
+    return expandGlobs(files, cwd);
   }
-  return [...new Set(files)];
+
+  // Auto-detect: try default patterns, fall back to **\/*.ts if nothing found
+  const detected = await expandGlobs(DEFAULT_SOURCE_PATTERNS, cwd);
+  if (detected.length > 0) {
+    return detected;
+  }
+
+  return expandGlobs(["**/*.ts", "**/*.tsx", "**/*.js"], cwd);
 }
 
 export interface WhatCallsResult {
@@ -54,11 +68,14 @@ export class GraphQuery {
   /**
    * Parse all files matching the given patterns and collect entities and relationships.
    */
-  private async parseFiles(files: string[]): Promise<{
+  private async parseFiles(
+    files: string[],
+    cwd?: string,
+  ): Promise<{
     entities: GraphEntity[];
     relationships: GraphRelationship[];
   }> {
-    const expandedFiles = await expandGlobs(files);
+    const expandedFiles = await expandGlobs(files, cwd);
     const entities: GraphEntity[] = [];
     const relationships: GraphRelationship[] = [];
 
@@ -74,41 +91,50 @@ export class GraphQuery {
   }
 
   /**
-   * Find what calls a given entity
+   * Find what calls a given entity.
+   * If files is omitted, auto-detects source files from cwd.
    */
   async whatCalls(
     entityName: string,
-    files: string[]
+    files?: string[],
+    cwd?: string,
   ): Promise<WhatCallsResult | null> {
-    const { entities, relationships } = await this.parseFiles(files);
+    const resolvedFiles = await resolveFiles(files, cwd);
+    const { entities, relationships } = await this.parseFiles(resolvedFiles);
 
-    const entity = entities.find(e => e.name === entityName);
+    const entity = entities.find((e) => e.name === entityName);
     if (!entity) {
       return null;
     }
 
     const callers = relationships
-      .filter(r => r.type === "calls" && r.to === entityName)
-      .map(relationship => {
-        const caller = entities.find(e => e.name === relationship.from);
+      .filter((r) => r.type === "calls" && r.to === entityName)
+      .map((relationship) => {
+        const caller = entities.find((e) => e.name === relationship.from);
         return caller ? { caller, relationship } : null;
       })
-      .filter((c): c is { caller: GraphEntity; relationship: GraphRelationship } => c !== null);
+      .filter(
+        (c): c is { caller: GraphEntity; relationship: GraphRelationship } =>
+          c !== null,
+      );
 
     return { entity, callers };
   }
 
   /**
-   * Calculate blast radius - what entities are impacted by changes
+   * Calculate blast radius — what entities are impacted by changes.
+   * If files is omitted, auto-detects source files from cwd.
    */
   async blastRadius(
     entityName: string,
-    files: string[],
-    maxDepth: number = 3
+    files?: string[],
+    maxDepth: number = 3,
+    cwd?: string,
   ): Promise<BlastRadiusResult | null> {
-    const { entities, relationships } = await this.parseFiles(files);
+    const resolvedFiles = await resolveFiles(files, cwd);
+    const { entities, relationships } = await this.parseFiles(resolvedFiles);
 
-    const entity = entities.find(e => e.name === entityName);
+    const entity = entities.find((e) => e.name === entityName);
     if (!entity) {
       return null;
     }
@@ -129,14 +155,13 @@ export class GraphQuery {
 
       visited.add(current.name);
 
-      // Find all entities that call current
       const callers = relationships
-        .filter(r => r.type === "calls" && r.to === current.name)
-        .map(r => r.from);
+        .filter((r) => r.type === "calls" && r.to === current.name)
+        .map((r) => r.from);
 
       for (const caller of callers) {
         if (!visited.has(caller)) {
-          const callerEntity = entities.find(e => e.name === caller);
+          const callerEntity = entities.find((e) => e.name === caller);
           if (callerEntity && caller !== entityName) {
             impactedEntities.push({
               entity: callerEntity,

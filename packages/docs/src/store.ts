@@ -9,10 +9,10 @@
  * from that section to any code entity named myFunction.
  */
 
-import { mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { expandGlobs } from "@graph-flow/shared";
 import { parseMarkdown } from "./parser.ts";
 import type {
@@ -111,7 +111,7 @@ export class DocsStore {
    */
   async index(options: DocsIndexOptions): Promise<DocsIndexResult> {
     const {
-      patterns,
+      patterns = ["**/*.md", "**/*.mdx"],
       cwd,
       minContentLength = 50,
       force = false,
@@ -126,7 +126,7 @@ export class DocsStore {
       errors: [],
     };
 
-    const files = await expandGlobs(patterns, cwd);
+    const files = await expandGlobs(patterns ?? ["**/*.md", "**/*.mdx"], cwd);
 
     for (const filePath of files) {
       try {
