@@ -32,6 +32,17 @@ Setting `CLAUDE_PROJECT_DIR` ensures each project stores its data in its own `.c
 
 Restart Claude Code.
 
+### Optional: Configure Board Automation
+
+`a-board-update` now reads board IDs from `.graph-flow.json` (or `BOARD_*` env vars).
+
+```bash
+cp .graph-flow.json.example .graph-flow.json
+```
+
+Then fill `board.projectId`, `board.fieldId`, `board.orgLogin`,
+`board.projectNumber`, and all `board.statusOptions.*` fields.
+
 ## First Steps
 
 ### 1. Create a workflow checkpoint
@@ -207,6 +218,7 @@ a-board-update { issueNumber: 123, status: "In Progress" }
 1. Check `.mcp.json` in your project root has correct path
 2. Restart Claude Code completely
 3. Run `/graph-flow:init` to auto-configure
+4. Run `graph-flow doctor` for a full environment check
 
 ### Slow search?
 
