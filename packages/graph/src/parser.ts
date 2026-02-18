@@ -1,6 +1,10 @@
 import { basename } from "node:path";
-import { Project, SyntaxKind, type Node, type SourceFile, ts } from "ts-morph";
-import { GraphCache, type GraphEntity, type GraphRelationship } from "./cache.ts";
+import { type Node, Project, type SourceFile, SyntaxKind, ts } from "ts-morph";
+import {
+  GraphCache,
+  type GraphEntity,
+  type GraphRelationship,
+} from "./cache.ts";
 import { parseVueSFC as parseVueSFCContent } from "./vue.ts";
 
 export interface ParseOptions {
@@ -17,18 +21,27 @@ function findEnclosingEntityName(node: Node): string | null {
     const kind = current.getKind();
 
     if (kind === SyntaxKind.FunctionDeclaration) {
-      return current.asKindOrThrow(SyntaxKind.FunctionDeclaration).getName() || null;
+      return (
+        current.asKindOrThrow(SyntaxKind.FunctionDeclaration).getName() || null
+      );
     }
 
-    if (kind === SyntaxKind.ArrowFunction || kind === SyntaxKind.FunctionExpression) {
+    if (
+      kind === SyntaxKind.ArrowFunction ||
+      kind === SyntaxKind.FunctionExpression
+    ) {
       // Direct: const X = () => ...
-      const parent = current.getParent()?.asKind(SyntaxKind.VariableDeclaration);
+      const parent = current
+        .getParent()
+        ?.asKind(SyntaxKind.VariableDeclaration);
       if (parent) {
         return parent.getName();
       }
       // Wrapped: const X = memo(() => ...) / forwardRef(function() { ... })
       const callParent = current.getParent()?.asKind(SyntaxKind.CallExpression);
-      const varParent = callParent?.getParent()?.asKind(SyntaxKind.VariableDeclaration);
+      const varParent = callParent
+        ?.getParent()
+        ?.asKind(SyntaxKind.VariableDeclaration);
       if (varParent) {
         return varParent.getName();
       }
@@ -73,10 +86,10 @@ export class CodeParser {
   async parse(
     filepath: string,
     options: ParseOptions = {},
-    content?: string
+    content?: string,
   ): Promise<{ entities: GraphEntity[]; relationships: GraphRelationship[] }> {
     // Read file content if not provided
-    const fileContent = content ?? await Bun.file(filepath).text();
+    const fileContent = content ?? (await Bun.file(filepath).text());
 
     // Check cache
     const cached = await this.cache.read(filepath, fileContent);
@@ -91,12 +104,21 @@ export class CodeParser {
     let relationships: GraphRelationship[];
 
     if (filepath.endsWith(".vue")) {
-      ({ entities, relationships } = this.parseVueSFC(filepath, fileContent, options));
+      ({ entities, relationships } = this.parseVueSFC(
+        filepath,
+        fileContent,
+        options,
+      ));
     } else {
-      const ext = filepath.endsWith(".tsx") || filepath.endsWith(".jsx") ? "tsx" : "ts";
-      const sourceFile = this.project.createSourceFile(`temp.${ext}`, fileContent, {
-        overwrite: true,
-      });
+      const ext =
+        filepath.endsWith(".tsx") || filepath.endsWith(".jsx") ? "tsx" : "ts";
+      const sourceFile = this.project.createSourceFile(
+        `temp.${ext}`,
+        fileContent,
+        {
+          overwrite: true,
+        },
+      );
       entities = this.extractEntities(sourceFile, filepath);
       relationships = this.extractRelationships(sourceFile, filepath, options);
     }
@@ -113,7 +135,7 @@ export class CodeParser {
   private parseVueSFC(
     filepath: string,
     content: string,
-    options: ParseOptions
+    options: ParseOptions,
   ): { entities: GraphEntity[]; relationships: GraphRelationship[] } {
     const { scripts, templateComponents } = parseVueSFCContent(content);
 
@@ -122,16 +144,22 @@ export class CodeParser {
 
     for (const script of scripts) {
       const ext = script.lang === "ts" ? "ts" : "js";
-      const sourceFile = this.project.createSourceFile(`temp.${ext}`, script.content, {
-        overwrite: true,
-      });
+      const sourceFile = this.project.createSourceFile(
+        `temp.${ext}`,
+        script.content,
+        {
+          overwrite: true,
+        },
+      );
 
       // startLine points to the <script> tag line. The extracted content begins with a
       // leading newline, so ts-morph line 1 = that newline, line 2 = first real code.
       // Subtract 1 so that (ts-morph line + offset) equals the .vue file line.
       const lineOffset = script.startLine - 1;
       entities.push(...this.extractEntities(sourceFile, filepath, lineOffset));
-      relationships.push(...this.extractRelationships(sourceFile, filepath, options, lineOffset));
+      relationships.push(
+        ...this.extractRelationships(sourceFile, filepath, options, lineOffset),
+      );
 
       // For <script setup> files, add a component entity derived from the filename
       if (script.setup) {
@@ -160,11 +188,15 @@ export class CodeParser {
   /**
    * Extract entities (functions, classes, etc.)
    */
-  private extractEntities(sourceFile: SourceFile, filepath: string, lineOffset = 0): GraphEntity[] {
+  private extractEntities(
+    sourceFile: SourceFile,
+    filepath: string,
+    lineOffset = 0,
+  ): GraphEntity[] {
     const entities: GraphEntity[] = [];
 
     // Functions
-    sourceFile.getFunctions().forEach(fn => {
+    sourceFile.getFunctions().forEach((fn) => {
       const name = fn.getName();
       if (name) {
         entities.push({
@@ -180,7 +212,7 @@ export class CodeParser {
     });
 
     // Classes
-    sourceFile.getClasses().forEach(cls => {
+    sourceFile.getClasses().forEach((cls) => {
       entities.push({
         name: cls.getName() || "AnonymousClass",
         type: "class",
@@ -192,7 +224,7 @@ export class CodeParser {
     });
 
     // Interfaces
-    sourceFile.getInterfaces().forEach(iface => {
+    sourceFile.getInterfaces().forEach((iface) => {
       entities.push({
         name: iface.getName(),
         type: "interface",
@@ -204,7 +236,7 @@ export class CodeParser {
     });
 
     // Type aliases
-    sourceFile.getTypeAliases().forEach(typeAlias => {
+    sourceFile.getTypeAliases().forEach((typeAlias) => {
       entities.push({
         name: typeAlias.getName(),
         type: "type",
@@ -216,25 +248,37 @@ export class CodeParser {
     });
 
     // Variables (with React component/hook detection for arrow/function expressions)
-    sourceFile.getVariableDeclarations().forEach(varDecl => {
+    sourceFile.getVariableDeclarations().forEach((varDecl) => {
       const name = varDecl.getName();
       let type: GraphEntity["type"] = "variable";
 
       const initializer = varDecl.getInitializer();
       if (initializer) {
         const initKind = initializer.getKind();
-        const isFunctionLike = initKind === SyntaxKind.ArrowFunction || initKind === SyntaxKind.FunctionExpression;
+        const isFunctionLike =
+          initKind === SyntaxKind.ArrowFunction ||
+          initKind === SyntaxKind.FunctionExpression;
 
         // Also detect wrapper patterns like memo(() => ...), forwardRef(function() { ... })
-        const isWrappedFunction = initKind === SyntaxKind.CallExpression && (() => {
-          const callExpr = initializer.asKindOrThrow(SyntaxKind.CallExpression);
-          const callee = callExpr.getExpression().getText();
-          if (!/^(memo|forwardRef|React\.memo|React\.forwardRef)$/.test(callee)) return false;
-          const firstArg = callExpr.getArguments()[0];
-          if (!firstArg) return false;
-          const argKind = firstArg.getKind();
-          return argKind === SyntaxKind.ArrowFunction || argKind === SyntaxKind.FunctionExpression;
-        })();
+        const isWrappedFunction =
+          initKind === SyntaxKind.CallExpression &&
+          (() => {
+            const callExpr = initializer.asKindOrThrow(
+              SyntaxKind.CallExpression,
+            );
+            const callee = callExpr.getExpression().getText();
+            if (
+              !/^(memo|forwardRef|React\.memo|React\.forwardRef)$/.test(callee)
+            )
+              return false;
+            const firstArg = callExpr.getArguments()[0];
+            if (!firstArg) return false;
+            const argKind = firstArg.getKind();
+            return (
+              argKind === SyntaxKind.ArrowFunction ||
+              argKind === SyntaxKind.FunctionExpression
+            );
+          })();
 
         if (isFunctionLike || isWrappedFunction) {
           if (/^use[A-Z]/.test(name)) {
@@ -265,15 +309,15 @@ export class CodeParser {
     sourceFile: SourceFile,
     filepath: string,
     options: ParseOptions,
-    lineOffset = 0
+    lineOffset = 0,
   ): GraphRelationship[] {
     const relationships: GraphRelationship[] = [];
 
     // Imports
     if (options.includeImports !== false) {
-      sourceFile.getImportDeclarations().forEach(importDecl => {
+      sourceFile.getImportDeclarations().forEach((importDecl) => {
         const moduleSpecifier = importDecl.getModuleSpecifierValue();
-        importDecl.getNamedImports().forEach(namedImport => {
+        importDecl.getNamedImports().forEach((namedImport) => {
           relationships.push({
             from: filepath,
             to: `${moduleSpecifier}#${namedImport.getName()}`,
@@ -289,56 +333,59 @@ export class CodeParser {
 
     // Function calls
     if (options.includeCallGraph !== false) {
-      sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(call => {
-        const expr = call.getExpression();
-        // For simple identifiers use the name directly; for property access (a.b.c)
-        // use the last name to avoid noisy chained expressions in the graph.
-        let callName: string;
-        if (expr.getKind() === SyntaxKind.PropertyAccessExpression) {
-          const pae = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
-          callName = pae.getName();
-        } else if (expr.getKind() === SyntaxKind.Identifier) {
-          callName = expr.getText();
-        } else {
-          // Fallback for complex expressions (element access, etc.)
-          callName = expr.getText();
-        }
-        const enclosingName = findEnclosingEntityName(call);
-        if (enclosingName) {
-          relationships.push({
-            from: enclosingName,
-            to: callName,
-            type: "calls",
-            location: {
-              file: filepath,
-              line: call.getStartLineNumber() + lineOffset,
-            },
-          });
-        }
-      });
-
-      // JSX element usage (React components)
-      const jsxKinds = [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement];
-      for (const kind of jsxKinds) {
-        sourceFile.getDescendantsOfKind(kind).forEach(jsx => {
-          const tagName = jsx.getTagNameNode().getText();
-
-          // Skip intrinsic HTML/SVG elements (lowercase)
-          if (/^[a-z]/.test(tagName)) return;
-
-          const enclosingName = findEnclosingEntityName(jsx);
+      sourceFile
+        .getDescendantsOfKind(SyntaxKind.CallExpression)
+        .forEach((call) => {
+          const expr = call.getExpression();
+          // For simple identifiers use the name directly; for property access (a.b.c)
+          // use the last name to avoid noisy chained expressions in the graph.
+          let callName: string;
+          if (expr.getKind() === SyntaxKind.PropertyAccessExpression) {
+            const pae = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+            callName = pae.getName();
+          } else if (expr.getKind() === SyntaxKind.Identifier) {
+            callName = expr.getText();
+          } else {
+            // Fallback for complex expressions (element access, etc.)
+            callName = expr.getText();
+          }
+          const enclosingName = findEnclosingEntityName(call);
           if (enclosingName) {
             relationships.push({
               from: enclosingName,
-              to: tagName,
+              to: callName,
               type: "calls",
               location: {
                 file: filepath,
-                line: jsx.getStartLineNumber() + lineOffset,
+                line: call.getStartLineNumber() + lineOffset,
               },
             });
           }
         });
+
+      // JSX element usage (React components)
+      const jsxNodes = [
+        ...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+        ...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+      ];
+      for (const jsx of jsxNodes) {
+        const tagName = jsx.getTagNameNode().getText();
+
+        // Skip intrinsic HTML/SVG elements (lowercase)
+        if (/^[a-z]/.test(tagName)) continue;
+
+        const enclosingName = findEnclosingEntityName(jsx);
+        if (enclosingName) {
+          relationships.push({
+            from: enclosingName,
+            to: tagName,
+            type: "calls",
+            location: {
+              file: filepath,
+              line: jsx.getStartLineNumber() + lineOffset,
+            },
+          });
+        }
       }
     }
 

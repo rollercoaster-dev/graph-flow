@@ -1,26 +1,100 @@
 ---
 name: auto-issue
-description: "Use when the user wants to create a GitHub issue, file a bug, or add a task. Optionally links the new issue to an existing plan."
+description: Fully autonomous issue-to-PR workflow. Use when a worker should execute one issue end-to-end without human gates.
+allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Skill, Task
 ---
 
-# Auto-Issue
+# Auto-Issue Skill
 
-Create a GitHub issue and optionally link it as a step in an existing plan.
+Runs a single issue from setup to PR creation.
+
+## Contract
+
+### Input
+
+| Field          | Type    | Required | Description                                   |
+| -------------- | ------- | -------- | --------------------------------------------- |
+| `issue_number` | number  | Yes      | GitHub issue number                           |
+| `dry_run`      | boolean | No       | Stop after research and output the plan       |
+| `skip_review`  | boolean | No       | Skip review phase and continue to finalize    |
+| `force_pr`     | boolean | No       | Allow PR creation even with unresolved issues |
+
+### Output
+
+| Field            | Type   | Description                    |
+| ---------------- | ------ | ------------------------------ |
+| `issue_number`   | number | Processed issue               |
+| `branch`         | string | Branch used for implementation |
+| `plan_path`      | string | Development plan path          |
+| `pr_number`      | number | PR number (if created)         |
+| `pr_url`         | string | PR URL (if created)            |
+| `status`         | string | `dry_run`, `completed`, `failed` |
 
 ## Workflow
 
-1. **Gather details** — Ask the user for:
-   - Title (required)
-   - Body/description (required — must include test plan/acceptance criteria)
-   - Labels (optional)
-   - Milestone number (optional)
-   - Plan ID to link to (optional — check `p-stack` for active plans)
-2. **Ensure test planning** — The issue body MUST include:
-   - **Acceptance Criteria** — Clear, testable requirements
-   - **Test Plan** — How this will be tested (unit tests, integration tests, manual testing)
-   - **Test Cases** — Specific scenarios to verify
-3. **Call the tool** — Use `a-create-issue` with the gathered details including test plan.
-4. **Report results** — Show: issue number, URL, and step ID if linked.
-5. **Suggest next steps:**
-   - "Use `/work-on-issue` to start working on it immediately"
-   - "The issue is now tracked in your plan" (if linked)
+### Phase 1: Setup
+
+Run:
+
+```text
+Skill(setup, args: { issue_number: <N> })
+```
+
+Capture `branch` and issue metadata from output.
+
+### Phase 2: Research
+
+Run issue analysis with the issue-researcher agent using `Task` and create a plan at:
+
+```text
+.claude/dev-plans/issue-<N>.md
+```
+
+If `dry_run=true`, return the plan path and stop.
+
+### Phase 3: Implement
+
+Run:
+
+```text
+Skill(implement, args: { issue_number: <N>, plan_path: "<path>" })
+```
+
+Implementation must be incremental and committed in logical chunks.
+
+### Phase 4: Review
+
+If `skip_review=true`, skip this phase.
+
+Otherwise run:
+
+```text
+Skill(review, args: { workflow_id: "issue-<N>" })
+```
+
+If unresolved critical findings remain and `force_pr` is false, stop with `failed` status.
+
+### Phase 5: Finalize
+
+Run:
+
+```text
+Skill(finalize, args: { issue_number: <N>, force: <force_pr> })
+```
+
+Return PR details and `completed` status.
+
+## Error Handling
+
+| Condition | Behavior |
+| --------- | -------- |
+| Setup fails | Stop immediately and return failure |
+| Research fails | Stop and report blocker |
+| Implement fails | Stop and report failing step |
+| Review unresolved criticals + force_pr=false | Stop and escalate |
+| Finalize fails | Stop and report push/PR failure |
+
+## Compatibility Notes
+
+- This skill exists to support worker prompts that call `Skill(graph-flow:auto-issue, args: "<issue>")`.
+- The canonical workflow definition remains `/auto-issue`.

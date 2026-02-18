@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { clearGitHubCache } from "../github";
 
 // We test the parseTaskListIssueRefs logic via fetchEpicSubIssues fallback path.

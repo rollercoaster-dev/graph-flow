@@ -1,6 +1,6 @@
 {
   "name": "@graph-flow/automation",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -12,8 +12,19 @@
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "automation", "github", "milestone", "epic", "cli"],
-  "files": ["src", "package.json", "README.md"],
+  "keywords": [
+    "mcp",
+    "automation",
+    "github",
+    "milestone",
+    "epic",
+    "cli"
+  ],
+  "files": [
+    "src",
+    "package.json",
+    "README.md"
+  ],
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",

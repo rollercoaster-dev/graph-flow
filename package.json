@@ -1,6 +1,6 @@
 {
   "name": "graph-flow",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -18,10 +18,14 @@
   "scripts": {
     "build": "bun run build --filter=./packages/*",
     "test": "bun test",
+    "lint": "biome check packages/",
+    "lint:fix": "biome check --write packages/",
+    "validate:references": "bun run scripts/validate-references.ts",
     "migrate": "bun run scripts/migrate-to-v2.ts",
     "mcp": "bun run packages/mcp/src/index.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.3.15",
     "@types/bun": "^1.0.0",
     "typescript": "^5.0.0"
   },

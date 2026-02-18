@@ -1,7 +1,7 @@
-import { LearningStorage, type LearningRecord } from "./storage.ts";
+import { randomUUID } from "node:crypto";
 import { LearningSearch } from "./search.ts";
 import { SemanticSearch } from "./semantic.ts";
-import { randomUUID } from "node:crypto";
+import { type LearningRecord, LearningStorage } from "./storage.ts";
 
 export type LearningType = "entity" | "relationship" | "pattern" | "decision";
 
@@ -75,9 +75,9 @@ export class LearningManager {
       });
 
       // Filter by type if specified
-      let learnings = results.map(r => r.learning);
+      let learnings = results.map((r) => r.learning);
       if (params.type) {
-        learnings = learnings.filter(l => l.type === params.type);
+        learnings = learnings.filter((l) => l.type === params.type);
       }
 
       return learnings;
@@ -95,12 +95,16 @@ export class LearningManager {
 
     // Filter by type if specified
     if (params.type) {
-      learnings = learnings.filter(l => l.type === params.type);
+      learnings = learnings.filter((l) => l.type === params.type);
     }
 
     // Search by text if specified
     if (params.text) {
-      learnings = this.search.search(params.text, learnings, params.limit || 10);
+      learnings = this.search.search(
+        params.text,
+        learnings,
+        params.limit || 10,
+      );
     } else if (params.limit) {
       // Just limit results if no text search
       learnings = learnings.slice(0, params.limit);
@@ -132,7 +136,7 @@ export class LearningManager {
     const related = this.search.search(learning.content, sameArea, limit + 1);
 
     // Filter out the original learning and limit
-    return related.filter(l => l.id !== id).slice(0, limit);
+    return related.filter((l) => l.id !== id).slice(0, limit);
   }
 
   /**

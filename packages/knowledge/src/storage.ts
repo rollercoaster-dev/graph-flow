@@ -1,5 +1,5 @@
-import { mkdir, readdir, appendFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { appendFile, mkdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 export interface LearningRecord {
@@ -23,10 +23,11 @@ export class LearningStorage {
 
   private normalizeArea(area: string): string {
     const trimmed = area.trim();
-    const isSafe = trimmed.length > 0
-      && !trimmed.includes("..")
-      && !trimmed.includes("/")
-      && !trimmed.includes("\\");
+    const isSafe =
+      trimmed.length > 0 &&
+      !trimmed.includes("..") &&
+      !trimmed.includes("/") &&
+      !trimmed.includes("\\");
     if (!isSafe) {
       throw new Error(`Invalid area: ${area}`);
     }
@@ -44,7 +45,7 @@ export class LearningStorage {
     const area = this.normalizeArea(learning.area);
     const filename = `${area}.jsonl`;
     const filepath = join(this.baseDir, filename);
-    const line = JSON.stringify(learning) + "\n";
+    const line = `${JSON.stringify(learning)}\n`;
     await appendFile(filepath, line, "utf-8");
   }
 
@@ -62,7 +63,7 @@ export class LearningStorage {
     const content = await Bun.file(filepath).text();
     const lines = content.trim().split("\n").filter(Boolean);
 
-    return lines.map(line => JSON.parse(line) as LearningRecord);
+    return lines.map((line) => JSON.parse(line) as LearningRecord);
   }
 
   /**
@@ -90,8 +91,8 @@ export class LearningStorage {
 
     const files = await readdir(this.baseDir);
     return files
-      .filter(f => f.endsWith(".jsonl"))
-      .map(f => f.replace(".jsonl", ""));
+      .filter((f) => f.endsWith(".jsonl"))
+      .map((f) => f.replace(".jsonl", ""));
   }
 
   /**
@@ -99,6 +100,6 @@ export class LearningStorage {
    */
   async findById(id: string): Promise<LearningRecord | null> {
     const all = await this.readAll();
-    return all.find(l => l.id === id) || null;
+    return all.find((l) => l.id === id) || null;
   }
 }

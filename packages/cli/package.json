@@ -1,6 +1,6 @@
 {
   "name": "@graph-flow/cli",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -12,8 +12,19 @@
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "checkpoint", "knowledge", "graph", "planning", "cli"],
-  "files": ["src", "package.json", "README.md"],
+  "keywords": [
+    "mcp",
+    "checkpoint",
+    "knowledge",
+    "graph",
+    "planning",
+    "cli"
+  ],
+  "files": [
+    "src",
+    "package.json",
+    "README.md"
+  ],
   "bin": {
     "graph-flow": "src/index.ts"
   },
@@ -24,11 +35,13 @@
     "@graph-flow/checkpoint": "workspace:*",
     "@graph-flow/knowledge": "workspace:*",
     "@graph-flow/graph": "workspace:*",
+    "@graph-flow/docs": "workspace:*",
     "@graph-flow/planning": "workspace:*",
-    "@graph-flow/automation": "workspace:*"
+    "@graph-flow/automation": "workspace:*",
+    "@graph-flow/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.0.0"
   },
-  "description": "CLI wrapper for graph-flow checkpoint, knowledge, graph, planning, and automation tools"
+  "description": "CLI wrapper for graph-flow checkpoint, knowledge, graph, docs, planning, and automation tools"
 }

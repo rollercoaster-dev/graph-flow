@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { LearningSearch } from "../src/search.ts";
 import type { LearningRecord } from "../src/storage.ts";
 
@@ -18,7 +18,8 @@ describe("LearningSearch", () => {
       timestamp: "2024-01-01T00:00:01Z",
       area: "auth",
       type: "pattern",
-      content: "Authentication middleware validates JWT and attaches user to request",
+      content:
+        "Authentication middleware validates JWT and attaches user to request",
     },
     {
       id: "3",
@@ -38,7 +39,7 @@ describe("LearningSearch", () => {
   test("should boost results matching area", () => {
     const results = search.search("authentication", learnings);
     expect(results.length).toBe(2);
-    expect(results.every(r => r.area === "auth")).toBe(true);
+    expect(results.every((r) => r.area === "auth")).toBe(true);
   });
 
   test("should return empty array for no matches", () => {

@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { join } from "node:path";
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { DocsIndexer, type DocsIndexProgress } from "../src/docs-indexer.ts";
 
 describe("DocsIndexer", () => {
@@ -35,8 +35,14 @@ describe("DocsIndexer", () => {
   }
 
   test("indexes markdown files matching glob pattern", async () => {
-    await writeFixture("doc1.md", "# Title\n\nThis is some content that is long enough to be indexed.");
-    await writeFixture("doc2.md", "# Another Doc\n\nMore content here that meets the minimum length requirement.");
+    await writeFixture(
+      "doc1.md",
+      "# Title\n\nThis is some content that is long enough to be indexed.",
+    );
+    await writeFixture(
+      "doc2.md",
+      "# Another Doc\n\nMore content here that meets the minimum length requirement.",
+    );
     await writeFixture("other.txt", "This is not markdown");
 
     const result = await indexer.index({
@@ -67,7 +73,7 @@ Content of the second section that should also be extracted as its own learning.
 ### Subsection
 
 A subsection with its own content that meets the minimum length requirements.
-`
+`,
     );
 
     const result = await indexer.index({
@@ -94,7 +100,7 @@ Content one.
 ## Section 2
 
 Content two.
-`
+`,
     );
 
     const result = await indexer.index({
@@ -109,7 +115,8 @@ Content two.
   });
 
   test("deduplicates by content hash", async () => {
-    const content = "# Duplicate\n\nThis is duplicate content that should only be indexed once.";
+    const content =
+      "# Duplicate\n\nThis is duplicate content that should only be indexed once.";
     await writeFixture("dup1.md", content);
     await writeFixture("dup2.md", content);
 
@@ -134,7 +141,7 @@ Short.
 ## Long Section
 
 This section has enough content to pass the minimum length filter and should be indexed.
-`
+`,
     );
 
     const result = await indexer.index({
@@ -150,7 +157,10 @@ This section has enough content to pass the minimum length filter and should be 
 
   test("uses path-based area strategy by default", async () => {
     await mkdir(join(fixtureDir, "api"), { recursive: true });
-    await writeFixture("api/endpoints.md", "# API Endpoints\n\nDocumentation about API endpoints with enough content.");
+    await writeFixture(
+      "api/endpoints.md",
+      "# API Endpoints\n\nDocumentation about API endpoints with enough content.",
+    );
 
     const result = await indexer.index({
       patterns: ["**/*.md"],
@@ -158,11 +168,14 @@ This section has enough content to pass the minimum length filter and should be 
       areaStrategy: "path",
     });
 
-    expect(result.learningsByArea["api"]).toBeGreaterThanOrEqual(1);
+    expect(result.learningsByArea.api).toBeGreaterThanOrEqual(1);
   });
 
   test("uses filename-based area strategy when specified", async () => {
-    await writeFixture("authentication.md", "# Auth\n\nContent about authentication that is long enough to be indexed.");
+    await writeFixture(
+      "authentication.md",
+      "# Auth\n\nContent about authentication that is long enough to be indexed.",
+    );
 
     const result = await indexer.index({
       patterns: ["*.md"],
@@ -170,11 +183,14 @@ This section has enough content to pass the minimum length filter and should be 
       areaStrategy: "filename",
     });
 
-    expect(result.learningsByArea["authentication"]).toBeGreaterThanOrEqual(1);
+    expect(result.learningsByArea.authentication).toBeGreaterThanOrEqual(1);
   });
 
   test("uses content-based area strategy when specified", async () => {
-    await writeFixture("doc.md", "# Database Design\n\nContent about database design that is long enough to index.");
+    await writeFixture(
+      "doc.md",
+      "# Database Design\n\nContent about database design that is long enough to index.",
+    );
 
     const result = await indexer.index({
       patterns: ["*.md"],
@@ -197,7 +213,7 @@ We decided to use TypeScript for better type safety and developer experience.
 ## Rationale
 
 TypeScript provides compile-time type checking which catches many bugs early.
-`
+`,
     );
 
     // This test verifies the file is indexed without errors
@@ -228,7 +244,7 @@ try {
   throw new AppError('Operation failed', error);
 }
 \`\`\`
-`
+`,
     );
 
     const result = await indexer.index({
@@ -251,8 +267,14 @@ try {
   });
 
   test("progress callback receives correct data", async () => {
-    await writeFixture("p1.md", "# Progress 1\n\nContent for progress tracking test file one.");
-    await writeFixture("p2.md", "# Progress 2\n\nContent for progress tracking test file two.");
+    await writeFixture(
+      "p1.md",
+      "# Progress 1\n\nContent for progress tracking test file one.",
+    );
+    await writeFixture(
+      "p2.md",
+      "# Progress 2\n\nContent for progress tracking test file two.",
+    );
 
     const progressUpdates: DocsIndexProgress[] = [];
 
@@ -285,7 +307,7 @@ First section content that is long enough.
 ## Section Two
 
 Second section content that is long enough.
-`
+`,
     );
 
     let lastProgress: DocsIndexProgress | null = null;
@@ -300,7 +322,7 @@ Second section content that is long enough.
     });
 
     expect(lastProgress).not.toBeNull();
-    expect(lastProgress!.sectionsExtracted).toBeGreaterThanOrEqual(2);
+    expect(lastProgress?.sectionsExtracted).toBeGreaterThanOrEqual(2);
   });
 
   test("empty pattern array returns zero counts", async () => {
@@ -315,8 +337,14 @@ Second section content that is long enough.
   });
 
   test("handles multiple glob patterns", async () => {
-    await writeFixture("readme.md", "# README\n\nProject readme with enough content to be indexed.");
-    await writeFixture("docs/guide.md", "# Guide\n\nGuide content that is long enough to be indexed.");
+    await writeFixture(
+      "readme.md",
+      "# README\n\nProject readme with enough content to be indexed.",
+    );
+    await writeFixture(
+      "docs/guide.md",
+      "# Guide\n\nGuide content that is long enough to be indexed.",
+    );
 
     const result = await indexer.index({
       patterns: ["*.md", "docs/**/*.md"],
@@ -327,7 +355,10 @@ Second section content that is long enough.
   });
 
   test("deduplicates files from overlapping patterns", async () => {
-    await writeFixture("overlap.md", "# Overlap\n\nContent that should only be indexed once despite pattern overlap.");
+    await writeFixture(
+      "overlap.md",
+      "# Overlap\n\nContent that should only be indexed once despite pattern overlap.",
+    );
 
     const result = await indexer.index({
       patterns: ["*.md", "overlap.md"],
@@ -340,7 +371,10 @@ Second section content that is long enough.
   });
 
   test("tracks total time", async () => {
-    await writeFixture("timed.md", "# Timed\n\nContent for timing test that is long enough.");
+    await writeFixture(
+      "timed.md",
+      "# Timed\n\nContent for timing test that is long enough.",
+    );
 
     const result = await indexer.index({
       patterns: ["timed.md"],
@@ -351,7 +385,8 @@ Second section content that is long enough.
   });
 
   test("clearHashCache allows re-indexing same content", async () => {
-    const content = "# Reindex\n\nContent that will be indexed multiple times after cache clear.";
+    const content =
+      "# Reindex\n\nContent that will be indexed multiple times after cache clear.";
     await writeFixture("reindex.md", content);
 
     // First index
@@ -394,7 +429,7 @@ Second section content that is long enough.
 # First Heading
 
 Content under the first heading that is long enough to be indexed.
-`
+`,
     );
 
     const result = await indexer.index({

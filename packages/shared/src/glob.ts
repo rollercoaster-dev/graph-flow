@@ -1,4 +1,4 @@
-import { join, isAbsolute, relative } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 
 /** Directories always excluded from indexing, regardless of .gitignore */
 const ALWAYS_EXCLUDED_DIRS = ["node_modules"];
@@ -8,7 +8,7 @@ const ALWAYS_EXCLUDED_DIRS = ["node_modules"];
  * Skips blank lines, comments (#), and negation patterns (!).
  */
 async function loadGitignorePatterns(
-  dir: string
+  dir: string,
 ): Promise<{ glob: InstanceType<typeof Bun.Glob>; dirOnly: boolean }[]> {
   try {
     const content = await Bun.file(join(dir, ".gitignore")).text();
@@ -32,7 +32,7 @@ async function loadGitignorePatterns(
  */
 function shouldExclude(
   relativePath: string,
-  patterns: { glob: InstanceType<typeof Bun.Glob>; dirOnly: boolean }[]
+  patterns: { glob: InstanceType<typeof Bun.Glob>; dirOnly: boolean }[],
 ): boolean {
   const segments = relativePath.split("/");
 
@@ -63,7 +63,7 @@ function shouldExclude(
  */
 export async function expandGlobs(
   patterns: string[],
-  cwd?: string
+  cwd?: string,
 ): Promise<string[]> {
   const effectiveCwd = cwd || process.cwd();
   const ignorePatterns = await loadGitignorePatterns(effectiveCwd);

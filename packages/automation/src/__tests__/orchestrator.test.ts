@@ -1,11 +1,9 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
 import { PlanningManager } from "@graph-flow/planning/manager";
-import { WorkflowManager } from "@graph-flow/checkpoint/workflow";
 import { AutomationOrchestrator, type GitHubClient } from "../orchestrator";
 
 const TEST_PLANNING_DIR = "/tmp/graph-flow-test-automation-planning";
-const TEST_WORKFLOWS_DIR = "/tmp/graph-flow-test-automation-workflows";
 
 /** Create a mock GitHub client with sensible defaults. */
 function mockGitHub(overrides: Partial<GitHubClient> = {}): GitHubClient {
@@ -22,21 +20,17 @@ function mockGitHub(overrides: Partial<GitHubClient> = {}): GitHubClient {
 
 describe("AutomationOrchestrator", () => {
   let planning: PlanningManager;
-  let workflows: WorkflowManager;
 
   beforeEach(async () => {
     planning = new PlanningManager(TEST_PLANNING_DIR);
-    workflows = new WorkflowManager(TEST_WORKFLOWS_DIR);
     await planning.init();
-    await workflows.init();
   });
 
   afterEach(async () => {
     await rm(TEST_PLANNING_DIR, { recursive: true, force: true });
-    await rm(TEST_WORKFLOWS_DIR, { recursive: true, force: true });
   });
 
-  describe("fromMilestone", () => {
+  describe("importSource (milestone)", () => {
     test("creates goal, plan, and steps from milestone", async () => {
       const gh = mockGitHub({
         fetchMilestone: () => ({
@@ -68,8 +62,8 @@ describe("AutomationOrchestrator", () => {
         ],
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
-      const result = await orchestrator.fromMilestone(1);
+      const orchestrator = new AutomationOrchestrator(planning, gh);
+      const result = await orchestrator.importSource("milestone", 1);
 
       expect(result.goalId).toStartWith("goal-");
       expect(result.planId).toStartWith("plan-");
@@ -84,7 +78,7 @@ describe("AutomationOrchestrator", () => {
 
       const plan = planning.getPlan(result.planId);
       expect(plan).not.toBeNull();
-      expect(plan!.sourceType).toBe("milestone");
+      expect(plan?.sourceType).toBe("milestone");
 
       const steps = planning.getStepsByPlan(result.planId);
       expect(steps).toHaveLength(2);
@@ -94,10 +88,10 @@ describe("AutomationOrchestrator", () => {
 
     test("throws when milestone not found", async () => {
       const gh = mockGitHub({ fetchMilestone: () => null });
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, gh);
 
-      await expect(orchestrator.fromMilestone(999)).rejects.toThrow(
-        "Milestone 999 not found"
+      await expect(orchestrator.importSource("milestone", 999)).rejects.toThrow(
+        "Milestone 999 not found",
       );
     });
 
@@ -115,15 +109,15 @@ describe("AutomationOrchestrator", () => {
         fetchMilestoneIssues: () => [],
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
-      const result = await orchestrator.fromMilestone(2);
+      const orchestrator = new AutomationOrchestrator(planning, gh);
+      const result = await orchestrator.importSource("milestone", 2);
 
       expect(result.stepIds).toHaveLength(0);
       expect(result.issueCount).toBe(0);
     });
   });
 
-  describe("fromEpic", () => {
+  describe("importSource (epic)", () => {
     test("creates goal, plan, and steps from epic", async () => {
       const gh = mockGitHub({
         fetchIssue: () => ({
@@ -140,8 +134,8 @@ describe("AutomationOrchestrator", () => {
         ],
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
-      const result = await orchestrator.fromEpic(5);
+      const orchestrator = new AutomationOrchestrator(planning, gh);
+      const result = await orchestrator.importSource("epic", 5);
 
       expect(result.goalId).toStartWith("goal-");
       expect(result.planId).toStartWith("plan-");
@@ -150,15 +144,15 @@ describe("AutomationOrchestrator", () => {
       expect(result.summary).toContain("Epic: Auth system");
 
       const plan = planning.getPlan(result.planId);
-      expect(plan!.sourceType).toBe("epic");
+      expect(plan?.sourceType).toBe("epic");
     });
 
     test("throws when epic not found", async () => {
       const gh = mockGitHub({ fetchIssue: () => null });
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, gh);
 
-      await expect(orchestrator.fromEpic(999)).rejects.toThrow(
-        "Epic issue #999 not found"
+      await expect(orchestrator.importSource("epic", 999)).rejects.toThrow(
+        "Epic issue #999 not found",
       );
     });
   });
@@ -172,7 +166,7 @@ describe("AutomationOrchestrator", () => {
         }),
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, gh);
 
       // Set up a plan to link to
       const { goal } = await planning.pushGoal({ title: "Test goal" });
@@ -207,7 +201,7 @@ describe("AutomationOrchestrator", () => {
         }),
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, gh);
       const result = await orchestrator.createIssue({
         title: "Standalone issue",
       });
@@ -218,110 +212,11 @@ describe("AutomationOrchestrator", () => {
 
     test("throws when gh create fails", async () => {
       const gh = mockGitHub({ createIssue: () => null });
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, gh);
 
       await expect(
-        orchestrator.createIssue({ title: "Failing issue" })
+        orchestrator.createIssue({ title: "Failing issue" }),
       ).rejects.toThrow("Failed to create GitHub issue");
-    });
-  });
-
-  describe("startIssue", () => {
-    test("creates branch, goal, and checkpoint", async () => {
-      const gh = mockGitHub({
-        fetchIssue: () => ({
-          number: 15,
-          title: "Fix login bug",
-          body: "Users cannot login",
-          state: "OPEN",
-          labels: ["bug"],
-          url: "https://github.com/test/repo/issues/15",
-        }),
-        createBranch: () => true,
-      });
-
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
-      const result = await orchestrator.startIssue(15);
-
-      expect(result.branch).toBe("issue-15-fix-login-bug");
-      expect(result.goalId).toStartWith("goal-");
-      expect(result.checkpointId).toBe("workflow-15");
-      expect(result.issue.number).toBe(15);
-      expect(result.planStepId).toBeUndefined();
-
-      // Verify planning stack
-      const stack = planning.peekStack();
-      expect(stack.topItem?.title).toBe("Fix login bug");
-
-      // Verify checkpoint
-      const workflow = await workflows.get("workflow-15");
-      expect(workflow).not.toBeNull();
-      expect(workflow!.branch).toBe("issue-15-fix-login-bug");
-      expect(workflow!.status).toBe("running");
-    });
-
-    test("links to existing plan step when tracked", async () => {
-      const gh = mockGitHub({
-        fetchIssue: () => ({
-          number: 20,
-          title: "Add feature X",
-          body: "",
-          state: "OPEN",
-          labels: [],
-          url: "https://github.com/test/repo/issues/20",
-        }),
-        createBranch: () => true,
-      });
-
-      // Set up a plan with this issue tracked
-      const { goal } = await planning.pushGoal({ title: "Parent goal" });
-      const plan = await planning.createPlan({
-        title: "Parent plan",
-        goalId: goal.id,
-        sourceType: "milestone",
-      });
-      const steps = await planning.createSteps(plan.id, [
-        {
-          title: "Add feature X",
-          ordinal: 1,
-          wave: 1,
-          externalRef: { type: "issue", number: 20 },
-        },
-      ]);
-
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
-      const result = await orchestrator.startIssue(20);
-
-      expect(result.planStepId).toBe(steps[0].id);
-    });
-
-    test("throws when issue not found", async () => {
-      const gh = mockGitHub({ fetchIssue: () => null });
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
-
-      await expect(orchestrator.startIssue(999)).rejects.toThrow(
-        "Issue #999 not found"
-      );
-    });
-
-    test("throws when branch creation fails", async () => {
-      const gh = mockGitHub({
-        fetchIssue: () => ({
-          number: 30,
-          title: "Some issue",
-          body: "",
-          state: "OPEN",
-          labels: [],
-          url: "",
-        }),
-        createBranch: () => false,
-      });
-
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
-
-      await expect(orchestrator.startIssue(30)).rejects.toThrow(
-        "Failed to create branch"
-      );
     });
   });
 });

@@ -1,7 +1,7 @@
-import { mkdir, readdir, unlink } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { mkdir, readdir, unlink } from "node:fs/promises";
+import { join } from "node:path";
 
 export interface CachedGraphData {
   fileHash: string;
@@ -12,7 +12,14 @@ export interface CachedGraphData {
 
 export interface GraphEntity {
   name: string;
-  type: "function" | "class" | "interface" | "type" | "variable" | "component" | "hook";
+  type:
+    | "function"
+    | "class"
+    | "interface"
+    | "type"
+    | "variable"
+    | "component"
+    | "hook";
   location: {
     file: string;
     line: number;
@@ -62,7 +69,10 @@ export class GraphCache {
   /**
    * Read from cache
    */
-  async read(filepath: string, content: string): Promise<CachedGraphData | null> {
+  async read(
+    filepath: string,
+    content: string,
+  ): Promise<CachedGraphData | null> {
     const hash = this.hashContent(content);
     const cacheKey = this.getCacheKey(filepath, hash);
     const cachePath = join(this.baseDir, cacheKey);
@@ -71,7 +81,7 @@ export class GraphCache {
       return null;
     }
 
-    const cached = await Bun.file(cachePath).json() as CachedGraphData;
+    const cached = (await Bun.file(cachePath).json()) as CachedGraphData;
 
     // Validate hash matches
     if (cached.fileHash !== hash) {
@@ -87,7 +97,7 @@ export class GraphCache {
   async write(
     filepath: string,
     content: string,
-    data: Omit<CachedGraphData, "fileHash" | "timestamp">
+    data: Omit<CachedGraphData, "fileHash" | "timestamp">,
   ): Promise<void> {
     const hash = this.hashContent(content);
     const cacheKey = this.getCacheKey(filepath, hash);

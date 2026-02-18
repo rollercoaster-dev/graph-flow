@@ -67,34 +67,43 @@ claude plugin install graph-flow@local --scope user
 claude plugin list | grep graph-flow
 ```
 
-## Available Skills
+## Available Skills (5)
 
 After installation, these skills are available in all projects:
 
-- `/setup` - Prepares environment for issue work
-- `/implement` - Implementation phase
-- `/review` - Review phase
-- `/finalize` - Finalization phase
+- `/setup` - Prepares environment for issue work (branch, board, checkpoint)
+- `/implement` - Implementation phase with per-commit gates
+- `/review` - Coordinates review agents and auto-fix loop
+- `/finalize` - Creates PR, updates board, completes workflow
+- `/auto-issue` - Fully autonomous issue-to-PR workflow
+
+## Available Commands (6)
+
 - `/auto-issue` - Autonomous issue-to-PR workflow
-- `/auto-milestone` - Create milestone workflow
-- `/work-on-issue` - Work on existing issue
-- `/issue-fetcher` - Fetch GitHub issue details
-- `/board-manager` - Manage project board
-- `/board-status` - Check board status
-- `/milestone-tracker` - Track milestone progress
-- `/pr-review-checker` - Check PR review status
-- `/markdown-reviewer` - Review markdown files
-
-## Available Commands
-
-- `/auto-epic` - Create epic from milestone
-- `/auto-issue` - Create and work on issue
-- `/auto-milestone` - Create milestone workflow
+- `/work-on-issue` - Gated workflow with human approval at each phase
+- `/auto-epic` - Orchestrate epic execution (sub-issues with dependency waves)
+- `/auto-milestone` - Orchestrate milestone execution (planner + workers)
 - `/auto-merge` - Auto-merge workflow
-- `/visual-auto-issue` - Visual issue workflow
-- `/visual-work-on-issue` - Visual work on issue
-- `/work-on-issue` - Work on existing issue
-- `/worktree` - Git worktree management
+- `/init` - Set up MCP tools in current project
+
+## Available Agents (3)
+
+- `auto-fixer` - Attempts automated fixes for review findings
+- `issue-researcher` - Analyzes codebase to create development plans
+- `milestone-planner` - Plans milestone execution waves from dependencies
+
+## MCP Tools Setup
+
+After installing the plugin, run `/graph-flow:init` in each project to configure the MCP server. This creates a `.mcp.json` that connects to the 26 graph-flow MCP tools:
+
+| Subsystem  | Tools |
+|------------|-------|
+| Checkpoint | `c-find`, `c-update`, `c-complete`, `c-recover` |
+| Knowledge  | `k-query`, `k-store`, `k-related`, `k-index` |
+| Graph      | `g-blast`, `g-index`, `g-calls`, `g-defs` |
+| Docs       | `d-index`, `d-query`, `d-for-code` |
+| Planning   | `p-goal`, `p-interrupt`, `p-done`, `p-stack`, `p-plan`, `p-steps`, `p-progress`, `p-sync` |
+| Automation | `a-import`, `a-create-issue`, `a-board-update` |
 
 ## Updating the Plugin
 
@@ -140,6 +149,12 @@ claude plugin validate ~/Code/graph-flow
 ### Skills Not Available
 
 Skills and commands are loaded when Claude Code starts. After installing or updating the plugin, restart Claude Code for changes to take effect.
+
+### MCP Tools Not Available
+
+Run `/graph-flow:init` in the project, then restart Claude Code. This creates the `.mcp.json` that connects to the MCP server.
+
+For local CLI validation, run `graph-flow doctor` inside the project root.
 
 ### Symlink Issues
 

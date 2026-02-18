@@ -44,10 +44,12 @@ export interface IssueCreationResult {
   stepId?: string;
 }
 
-export interface WorkStartResult {
-  branch: string;
-  goalId: string;
-  checkpointId: string;
-  issue: GitHubIssue;
-  planStepId?: string;
-}
+export type BoardUpdateResult =
+  | { issueNumber: number; itemId: string; status: string; success: true }
+  | {
+      issueNumber: number;
+      itemId: string;
+      status: string;
+      success: false;
+      error: string;
+    };

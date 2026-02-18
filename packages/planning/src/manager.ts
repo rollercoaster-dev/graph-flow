@@ -5,20 +5,20 @@
  * Adapted from claude-knowledge/src/planning/stack.ts and store.ts.
  */
 
-import { randomUUID } from "crypto";
-import { PlanningStorage } from "./storage";
+import { randomUUID } from "node:crypto";
 import { clearStatusCache, ResolverFactory } from "./resolvers";
+import { PlanningStorage } from "./storage";
 import type {
+  CompletionStatus,
+  ExternalRef,
   Goal,
   Interrupt,
-  PlanningEntity,
-  PlanningStack,
-  PlanningRelationship,
   Plan,
-  PlanStep,
+  PlanningEntity,
+  PlanningRelationship,
+  PlanningStack,
   PlanSourceType,
-  ExternalRef,
-  CompletionStatus,
+  PlanStep,
 } from "./types";
 
 export class PlanningManager {
@@ -46,7 +46,8 @@ export class PlanningManager {
     const stack = this.storage.getStack();
     for (const item of stack) {
       const newStatus = item.status === "active" ? "paused" : item.status;
-      const newStackOrder = item.stackOrder !== null ? item.stackOrder + 1 : null;
+      const newStackOrder =
+        item.stackOrder !== null ? item.stackOrder + 1 : null;
       this.storage.setEntity({
         ...item,
         status: newStatus,
@@ -237,7 +238,7 @@ export class PlanningManager {
       .filter((e) => e.status === "completed")
       .sort(
         (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
       )
       .slice(0, limit);
   }
@@ -310,7 +311,7 @@ export class PlanningManager {
       wave: number;
       externalRef: ExternalRef;
       dependsOn?: string[];
-    }>
+    }>,
   ): Promise<PlanStep[]> {
     const now = new Date().toISOString();
     const createdSteps: PlanStep[] = [];
@@ -469,9 +470,7 @@ export class PlanningManager {
   }> {
     // Get plans to sync
     const plans = planId
-      ? [this.storage.getPlan(planId)].filter(
-          (p): p is Plan => p !== null
-        )
+      ? [this.storage.getPlan(planId)].filter((p): p is Plan => p !== null)
       : this.getAllPlans();
 
     // Clear cache up front so all fetches hit GitHub
@@ -487,7 +486,11 @@ export class PlanningManager {
         newStatus: CompletionStatus;
       }>,
       unchanged: 0,
-      errors: [] as Array<{ stepId: string; issue: number | null; error: string }>,
+      errors: [] as Array<{
+        stepId: string;
+        issue: number | null;
+        error: string;
+      }>,
     };
 
     for (const plan of plans) {

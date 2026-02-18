@@ -1,6 +1,6 @@
 {
   "name": "@graph-flow/mcp",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -12,8 +12,17 @@
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "model-context-protocol", "graph-flow", "claude-code"],
-  "files": ["src", "package.json", "README.md"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "graph-flow",
+    "claude-code"
+  ],
+  "files": [
+    "src",
+    "package.json",
+    "README.md"
+  ],
   "main": "./src/index.ts",
   "bin": {
     "graph-flow": "./src/index.ts"
@@ -28,6 +37,8 @@
     "@graph-flow/graph": "workspace:*",
     "@graph-flow/planning": "workspace:*",
     "@graph-flow/automation": "workspace:*",
+    "@graph-flow/docs": "workspace:*",
+    "@graph-flow/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.4"
   },
   "devDependencies": {

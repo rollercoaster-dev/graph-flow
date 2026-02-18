@@ -2,24 +2,23 @@
  * Planning MCP Tools
  *
  * MCP tool definitions for the planning stack system.
- * 10 tools: planning-goal, planning-interrupt, planning-done, planning-stack,
- * planning-plan, planning-steps, planning-planget, planning-progress,
- * planning-step-update, planning-sync
+ * 8 tools: p-goal, p-interrupt, p-done, p-stack, p-plan, p-steps, p-progress, p-sync
+ *
+ * Removed:
+ * - p-planget: merged into p-progress (which now returns plan + steps + metrics)
+ * - p-step-update: folded into p-sync as manualOverrides/clearOverrides params
  */
 
 import { PlanningManager } from "./manager";
-import { ResolverFactory } from "./resolvers";
 import { computePlanProgress } from "./progress";
+import { ResolverFactory } from "./resolvers";
 import { detectStaleItems } from "./stale";
 import type {
-  PlanningStack,
-  Plan,
-  PlanStep,
-  PlanProgress,
-  StaleItem,
-  PlanSourceType,
   ExternalRef,
+  Plan,
+  PlanSourceType,
   StackCompletionSummary,
+  StaleItem,
 } from "./types";
 
 export interface MCPTool {
@@ -145,7 +144,8 @@ export class PlanningMCPTools {
           properties: {
             includeStale: {
               type: "boolean",
-              description: "Include stale item detection (default: false for faster response)",
+              description:
+                "Include stale item detection (default: false for faster response)",
             },
           },
         },
@@ -194,7 +194,10 @@ export class PlanningMCPTools {
                 properties: {
                   title: { type: "string", description: "Step title" },
                   ordinal: { type: "number", description: "Execution order" },
-                  wave: { type: "number", description: "Parallelization group" },
+                  wave: {
+                    type: "number",
+                    description: "Parallelization group",
+                  },
                   externalRef: {
                     type: "object",
                     properties: {
@@ -229,25 +232,9 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "p-planget",
-        description: "Get a Plan and its steps. Requires either goalId or planId.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            goalId: {
-              type: "string",
-              description: "ID of the goal to get plan for",
-            },
-            planId: {
-              type: "string",
-              description: "ID of the plan (alternative to goalId)",
-            },
-          },
-        },
-      },
-      {
         name: "p-progress",
-        description: "Get progress metrics for a Plan. Requires either goalId or planId.",
+        description:
+          "Get a Plan with its steps and progress metrics. Returns plan, steps, and computed progress in one response. Requires either goalId or planId.",
         inputSchema: {
           type: "object",
           properties: {
@@ -263,34 +250,9 @@ export class PlanningMCPTools {
         },
       },
       {
-        name: "p-step-update",
-        description:
-          "Manually set step status, overriding external sources. Use to mark steps as done/in-progress/not-started or clear overrides.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            stepId: {
-              type: "string",
-              description: "The step ID to update",
-            },
-            status: {
-              type: "string",
-              enum: ["done", "in-progress", "not-started"],
-              description: "Status to set",
-            },
-            clearOverride: {
-              type: "boolean",
-              description:
-                "If true, remove manual override and revert to external source",
-            },
-          },
-          required: ["stepId"],
-        },
-      },
-      {
         name: "p-sync",
         description:
-          "Force-refresh all issue-type steps from GitHub. Clears cache and fetches fresh state.",
+          "Force-refresh all issue-type steps from GitHub. Optionally set manual status overrides or clear them.",
         inputSchema: {
           type: "object",
           properties: {
@@ -301,6 +263,32 @@ export class PlanningMCPTools {
             goalId: {
               type: "string",
               description: "Alternative to planId, sync plan for this goal",
+            },
+            manualOverrides: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  stepId: {
+                    type: "string",
+                    description: "The step ID to override",
+                  },
+                  status: {
+                    type: "string",
+                    enum: ["done", "in-progress", "not-started"],
+                    description: "Status to set",
+                  },
+                },
+                required: ["stepId", "status"],
+              },
+              description:
+                "Manually set step statuses, overriding external sources",
+            },
+            clearOverrides: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "Step IDs to clear manual overrides from (reverts to external source)",
             },
           },
         },
@@ -313,7 +301,7 @@ export class PlanningMCPTools {
    */
   async handleToolCall(
     name: string,
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
     this.ensureInitialized();
     switch (name) {
@@ -329,12 +317,8 @@ export class PlanningMCPTools {
         return this.handlePlan(args);
       case "p-steps":
         return this.handleSteps(args);
-      case "p-planget":
-        return this.handlePlanGet(args);
       case "p-progress":
         return this.handleProgress(args);
-      case "p-step-update":
-        return this.handleStepUpdate(args);
       case "p-sync":
         return this.handleSync(args);
       default:
@@ -342,7 +326,9 @@ export class PlanningMCPTools {
     }
   }
 
-  private async handleGoal(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleGoal(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { title, description, issueNumber, planStepId } = args as {
       title: string;
       description?: string;
@@ -370,7 +356,7 @@ export class PlanningMCPTools {
               },
             },
             null,
-            2
+            2,
           ),
         },
       ],
@@ -378,19 +364,18 @@ export class PlanningMCPTools {
   }
 
   private async handleInterrupt(
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
     const { title, reason } = args as {
       title: string;
       reason: string;
     };
 
-    const { interrupt, interruptedItem, stack } = await this.manager.pushInterrupt(
-      {
+    const { interrupt, interruptedItem, stack } =
+      await this.manager.pushInterrupt({
         title,
         reason,
-      }
-    );
+      });
 
     return {
       content: [
@@ -406,14 +391,16 @@ export class PlanningMCPTools {
               },
             },
             null,
-            2
+            2,
           ),
         },
       ],
     };
   }
 
-  private async handleDone(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleDone(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { summary: userSummary } = args as { summary?: string };
 
     const { completed, resumed, stack } = await this.manager.popStack();
@@ -430,9 +417,8 @@ export class PlanningMCPTools {
     }
 
     // Calculate duration
-    const durationMs =
-      new Date().getTime() - new Date(completed.createdAt).getTime();
-    const durationHours = Math.round(durationMs / (1000 * 60 * 60) * 10) / 10;
+    const durationMs = Date.now() - new Date(completed.createdAt).getTime();
+    const durationHours = Math.round((durationMs / (1000 * 60 * 60)) * 10) / 10;
 
     const completionSummary: StackCompletionSummary = {
       item: completed,
@@ -456,7 +442,7 @@ export class PlanningMCPTools {
               },
             },
             null,
-            2
+            2,
           ),
         },
       ],
@@ -464,7 +450,7 @@ export class PlanningMCPTools {
   }
 
   private async handleStack(
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
     const { includeStale = false } = args as { includeStale?: boolean };
 
@@ -489,14 +475,16 @@ export class PlanningMCPTools {
               staleItems: staleItems.length > 0 ? staleItems : undefined,
             },
             null,
-            2
+            2,
           ),
         },
       ],
     };
   }
 
-  private async handlePlan(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handlePlan(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { title, goalId, sourceType, sourceRef } = args as {
       title: string;
       goalId: string;
@@ -530,7 +518,7 @@ export class PlanningMCPTools {
                 existingPlan,
               },
               null,
-              2
+              2,
             ),
           },
         ],
@@ -555,7 +543,7 @@ export class PlanningMCPTools {
   }
 
   private async handleSteps(
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
     const { planId, steps: stepsInput } = args as {
       planId: string;
@@ -594,19 +582,23 @@ export class PlanningMCPTools {
               count: steps.length,
             },
             null,
-            2
+            2,
           ),
         },
       ],
     };
   }
 
-  private async handlePlanGet(
-    args: Record<string, unknown>
+  /**
+   * Merged handler: returns plan + steps + progress metrics in one response.
+   * Replaces both the old p-planget (plan + steps) and p-progress (metrics only).
+   */
+  private async handleProgress(
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
-    const { goalId, planId } = args as {
-      goalId?: string;
+    const { planId, goalId } = args as {
       planId?: string;
+      goalId?: string;
     };
 
     let plan: Plan | null = null;
@@ -629,6 +621,11 @@ export class PlanningMCPTools {
     }
 
     const steps = this.manager.getStepsByPlan(plan.id);
+    const progress = await computePlanProgress(
+      plan,
+      steps,
+      this.resolverFactory,
+    );
 
     return {
       content: [
@@ -639,147 +636,75 @@ export class PlanningMCPTools {
               plan,
               steps,
               stepCount: steps.length,
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    };
-  }
-
-  private async handleProgress(
-    args: Record<string, unknown>
-  ): Promise<MCPToolResult> {
-    const { planId, goalId } = args as {
-      planId?: string;
-      goalId?: string;
-    };
-
-    let plan: Plan | null = null;
-
-    if (planId) {
-      plan = this.manager.getPlan(planId);
-    } else if (goalId) {
-      plan = this.manager.getPlanByGoal(goalId);
-    }
-
-    if (!plan) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Plan not found. Provide either goalId or planId.",
-          },
-        ],
-      };
-    }
-
-    const steps = this.manager.getStepsByPlan(plan.id);
-    const progress = await computePlanProgress(plan, steps, this.resolverFactory);
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              plan,
               progress,
             },
             null,
-            2
+            2,
           ),
         },
       ],
     };
   }
 
-  private async handleStepUpdate(
-    args: Record<string, unknown>
-  ): Promise<MCPToolResult> {
-    const { stepId, status, clearOverride } = args as {
-      stepId: string;
-      status?: "done" | "in-progress" | "not-started";
-      clearOverride?: boolean;
-    };
-
-    // Get the step
-    const step = this.manager.getStep(stepId);
-    if (!step) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Step not found: ${stepId}`,
-          },
-        ],
-      };
-    }
-
-    // Clear override if requested
-    if (clearOverride) {
-      await this.manager.clearStepStatus(stepId);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                step,
-                message: "Manual override cleared. Step will use external source.",
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    // Set status
-    if (!status) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Either 'status' or 'clearOverride' must be provided.",
-          },
-        ],
-      };
-    }
-
-    await this.manager.setStepStatus(stepId, status);
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              step: {
-                id: step.id,
-                title: step.title,
-                status,
-                manualOverride: true,
-                updatedAt: new Date().toISOString(),
-              },
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    };
-  }
-
+  /**
+   * Enhanced sync handler: refreshes from GitHub and optionally applies/clears
+   * manual status overrides (previously handled by p-step-update).
+   */
   private async handleSync(
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
-    const { planId, goalId } = args as {
+    const { planId, goalId, manualOverrides, clearOverrides } = args as {
       planId?: string;
       goalId?: string;
+      manualOverrides?: Array<{
+        stepId: string;
+        status: "done" | "in-progress" | "not-started";
+      }>;
+      clearOverrides?: string[];
     };
+
+    // Apply manual overrides first (before sync)
+    const overrideResults: Array<{
+      stepId: string;
+      action: string;
+      result: string;
+    }> = [];
+
+    if (clearOverrides && clearOverrides.length > 0) {
+      for (const stepId of clearOverrides) {
+        const step = this.manager.getStep(stepId);
+        if (!step) {
+          overrideResults.push({
+            stepId,
+            action: "clear",
+            result: "step not found",
+          });
+          continue;
+        }
+        await this.manager.clearStepStatus(stepId);
+        overrideResults.push({ stepId, action: "clear", result: "ok" });
+      }
+    }
+
+    if (manualOverrides && manualOverrides.length > 0) {
+      for (const override of manualOverrides) {
+        const step = this.manager.getStep(override.stepId);
+        if (!step) {
+          overrideResults.push({
+            stepId: override.stepId,
+            action: "set",
+            result: "step not found",
+          });
+          continue;
+        }
+        await this.manager.setStepStatus(override.stepId, override.status);
+        overrideResults.push({
+          stepId: override.stepId,
+          action: `set:${override.status}`,
+          result: "ok",
+        });
+      }
+    }
 
     // If goalId provided, resolve to planId
     let targetPlanId = planId;
@@ -799,13 +724,21 @@ export class PlanningMCPTools {
     }
 
     // Sync from GitHub
-    const results = await this.manager.syncFromGitHub(targetPlanId);
+    const syncResults = await this.manager.syncFromGitHub(targetPlanId);
 
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify(results, null, 2),
+          text: JSON.stringify(
+            {
+              sync: syncResults,
+              overrides:
+                overrideResults.length > 0 ? overrideResults : undefined,
+            },
+            null,
+            2,
+          ),
         },
       ],
     };

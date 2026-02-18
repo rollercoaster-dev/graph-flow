@@ -1,6 +1,6 @@
 {
   "name": "@graph-flow/knowledge",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -12,15 +12,27 @@
   "engines": {
     "bun": ">=1.0"
   },
-  "keywords": ["mcp", "knowledge", "learning", "semantic-search", "tfidf", "embeddings"],
-  "files": ["src", "package.json", "README.md"],
+  "keywords": [
+    "mcp",
+    "knowledge",
+    "learning",
+    "semantic-search",
+    "tfidf",
+    "embeddings"
+  ],
+  "files": [
+    "src",
+    "package.json",
+    "README.md"
+  ],
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
     "./storage": "./src/storage.ts",
     "./search": "./src/search.ts",
     "./learning": "./src/learning.ts",
-    "./mcp-tools": "./src/mcp-tools.ts"
+    "./mcp-tools": "./src/mcp-tools.ts",
+    "./embeddings": "./src/embeddings/index.ts"
   },
   "scripts": {
     "test": "bun test"
