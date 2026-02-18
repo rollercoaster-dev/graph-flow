@@ -67,7 +67,7 @@ claude plugin install graph-flow@local --scope user
 claude plugin list | grep graph-flow
 ```
 
-## Available Skills (4)
+## Available Skills (5)
 
 After installation, these skills are available in all projects:
 
@@ -75,6 +75,7 @@ After installation, these skills are available in all projects:
 - `/implement` - Implementation phase with per-commit gates
 - `/review` - Coordinates review agents and auto-fix loop
 - `/finalize` - Creates PR, updates board, completes workflow
+- `/auto-issue` - Fully autonomous issue-to-PR workflow
 
 ## Available Commands (6)
 
@@ -152,6 +153,8 @@ Skills and commands are loaded when Claude Code starts. After installing or upda
 ### MCP Tools Not Available
 
 Run `/graph-flow:init` in the project, then restart Claude Code. This creates the `.mcp.json` that connects to the MCP server.
+
+For local CLI validation, run `graph-flow doctor` inside the project root.
 
 ### Symlink Issues
 
