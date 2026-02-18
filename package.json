@@ -20,6 +20,7 @@
     "test": "bun test",
     "lint": "biome check packages/",
     "lint:fix": "biome check --write packages/",
+    "validate:references": "bun run scripts/validate-references.ts",
     "migrate": "bun run scripts/migrate-to-v2.ts",
     "mcp": "bun run packages/mcp/src/index.ts"
   },

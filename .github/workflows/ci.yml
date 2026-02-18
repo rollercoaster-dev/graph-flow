@@ -29,6 +29,9 @@ jobs:
       - name: Lint (Biome)
         run: bun run lint
 
+      - name: Validate command/skill references
+        run: bun run validate:references
+
       - name: Type check
         run: bun tsc --noEmit
 
