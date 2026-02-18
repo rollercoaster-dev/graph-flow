@@ -364,30 +364,28 @@ export class CodeParser {
         });
 
       // JSX element usage (React components)
-      const jsxKinds = [
-        SyntaxKind.JsxOpeningElement,
-        SyntaxKind.JsxSelfClosingElement,
+      const jsxNodes = [
+        ...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+        ...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
       ];
-      for (const kind of jsxKinds) {
-        sourceFile.getDescendantsOfKind(kind).forEach((jsx) => {
-          const tagName = jsx.getTagNameNode().getText();
+      for (const jsx of jsxNodes) {
+        const tagName = jsx.getTagNameNode().getText();
 
-          // Skip intrinsic HTML/SVG elements (lowercase)
-          if (/^[a-z]/.test(tagName)) return;
+        // Skip intrinsic HTML/SVG elements (lowercase)
+        if (/^[a-z]/.test(tagName)) continue;
 
-          const enclosingName = findEnclosingEntityName(jsx);
-          if (enclosingName) {
-            relationships.push({
-              from: enclosingName,
-              to: tagName,
-              type: "calls",
-              location: {
-                file: filepath,
-                line: jsx.getStartLineNumber() + lineOffset,
-              },
-            });
-          }
-        });
+        const enclosingName = findEnclosingEntityName(jsx);
+        if (enclosingName) {
+          relationships.push({
+            from: enclosingName,
+            to: tagName,
+            type: "calls",
+            location: {
+              file: filepath,
+              line: jsx.getStartLineNumber() + lineOffset,
+            },
+          });
+        }
       }
     }
 

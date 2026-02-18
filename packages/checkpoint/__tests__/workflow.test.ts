@@ -112,7 +112,7 @@ describe("WorkflowManager", () => {
     await manager.update("test-123", { decisions: ["Decision 1"] });
 
     // Clear cache to force reconstruction
-    manager["cache"].clear();
+    manager.cache.clear();
 
     const workflow = await manager.get("test-123");
     expect(workflow?.phase).toBe("implement");
@@ -245,13 +245,13 @@ describe("WorkflowManager", () => {
     const plan = await manager.recover("test-recover");
 
     expect(plan).not.toBeNull();
-    expect(plan!.resumePhase).toBe("implement");
-    expect(plan!.pendingActions).toHaveLength(1);
-    expect(plan!.pendingActions[0].action).toBe("apply patch");
-    expect(plan!.lastCommit?.sha).toBe("def5678");
-    expect(plan!.summary).toContain("Recovery test");
-    expect(plan!.summary).toContain("Branch: fix/77-bug");
-    expect(plan!.summary).toContain("1 pending action(s)");
+    expect(plan?.resumePhase).toBe("implement");
+    expect(plan?.pendingActions).toHaveLength(1);
+    expect(plan?.pendingActions[0].action).toBe("apply patch");
+    expect(plan?.lastCommit?.sha).toBe("def5678");
+    expect(plan?.summary).toContain("Recovery test");
+    expect(plan?.summary).toContain("Branch: fix/77-bug");
+    expect(plan?.summary).toContain("1 pending action(s)");
   });
 
   test("should reconstruct new event types from disk", async () => {
@@ -277,7 +277,7 @@ describe("WorkflowManager", () => {
     await manager.update("test-reconstruct", { status: "failed" });
 
     // Clear cache to force reconstruction from events
-    manager["cache"].clear();
+    manager.cache.clear();
 
     const workflow = await manager.get("test-reconstruct");
     expect(workflow?.actions).toHaveLength(1);

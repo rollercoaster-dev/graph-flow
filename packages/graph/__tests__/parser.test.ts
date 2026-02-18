@@ -51,11 +51,11 @@ describe("CodeParser — React/JSX support", () => {
 
     const button = entities.find((e) => e.name === "Button");
     expect(button).toBeDefined();
-    expect(button!.type).toBe("component");
+    expect(button?.type).toBe("component");
 
     const helperEntity = entities.find((e) => e.name === "helper");
     expect(helperEntity).toBeDefined();
-    expect(helperEntity!.type).toBe("variable");
+    expect(helperEntity?.type).toBe("variable");
   });
 
   test("hook (const useX = () => ...) detected as 'hook' entity", async () => {
@@ -70,11 +70,11 @@ describe("CodeParser — React/JSX support", () => {
 
     const hook1 = entities.find((e) => e.name === "useTheme");
     expect(hook1).toBeDefined();
-    expect(hook1!.type).toBe("hook");
+    expect(hook1?.type).toBe("hook");
 
     const hook2 = entities.find((e) => e.name === "useAuth");
     expect(hook2).toBeDefined();
-    expect(hook2!.type).toBe("hook");
+    expect(hook2?.type).toBe("hook");
   });
 
   test("JSX component usage detected as 'calls' relationship", async () => {
@@ -169,7 +169,7 @@ describe("CodeParser — React/JSX support", () => {
 
     const card = entities.find((e) => e.name === "Card");
     expect(card).toBeDefined();
-    expect(card!.type).toBe("component");
+    expect(card?.type).toBe("component");
   });
 
   test("full React fixture — entities and relationships", async () => {
@@ -186,10 +186,10 @@ describe("CodeParser — React/JSX support", () => {
     const { entities, relationships } = await parser.parse(filepath);
 
     // Entities
-    expect(entities.find((e) => e.name === "Button")!.type).toBe("component");
-    expect(entities.find((e) => e.name === "App")!.type).toBe("component");
-    expect(entities.find((e) => e.name === "useTheme")!.type).toBe("hook");
-    expect(entities.find((e) => e.name === "Screen")!.type).toBe("function");
+    expect(entities.find((e) => e.name === "Button")?.type).toBe("component");
+    expect(entities.find((e) => e.name === "App")?.type).toBe("component");
+    expect(entities.find((e) => e.name === "useTheme")?.type).toBe("hook");
+    expect(entities.find((e) => e.name === "Screen")?.type).toBe("function");
 
     // Relationships — calls
     const calls = relationships.filter((r) => r.type === "calls");

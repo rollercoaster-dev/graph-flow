@@ -1,8 +1,4 @@
-import {
-  DocsIndexer,
-  type DocsIndexOptions,
-  type DocsIndexResult,
-} from "./docs-indexer.ts";
+import { DocsIndexer } from "./docs-indexer.ts";
 import {
   LearningManager,
   type LearningType,
@@ -213,7 +209,7 @@ export class KnowledgeMCPTools {
   private async handleStore(
     args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
-    const params = args as StoreLearningParams;
+    const params = args as unknown as StoreLearningParams;
     const learning = await this.manager.store(params);
 
     return {

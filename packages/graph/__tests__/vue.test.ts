@@ -187,11 +187,11 @@ describe("CodeParser with .vue files", () => {
 
     const fn = entities.find((e) => e.name === "greet");
     expect(fn).toBeDefined();
-    expect(fn!.type).toBe("function");
+    expect(fn?.type).toBe("function");
 
     const iface = entities.find((e) => e.name === "Props");
     expect(iface).toBeDefined();
-    expect(iface!.type).toBe("interface");
+    expect(iface?.type).toBe("interface");
   });
 
   test("parses .vue file with <script setup> — extracts variables and adds component entity", async () => {
@@ -200,11 +200,11 @@ describe("CodeParser with .vue files", () => {
 
     const comp = entities.find((e) => e.type === "component");
     expect(comp).toBeDefined();
-    expect(comp!.name).toBe("Counter");
+    expect(comp?.name).toBe("Counter");
 
     const countVar = entities.find((e) => e.name === "count");
     expect(countVar).toBeDefined();
-    expect(countVar!.type).toBe("variable");
+    expect(countVar?.type).toBe("variable");
   });
 
   test("line numbers are offset to match positions in the .vue file", async () => {
@@ -248,14 +248,14 @@ describe("CodeParser with .vue files", () => {
 
     const iface = entities.find((e) => e.name === "Config");
     expect(iface).toBeDefined();
-    expect(iface!.type).toBe("interface");
+    expect(iface?.type).toBe("interface");
 
     const variable = entities.find((e) => e.name === "enabled");
     expect(variable).toBeDefined();
 
     const comp = entities.find((e) => e.type === "component");
     expect(comp).toBeDefined();
-    expect(comp!.name).toBe("Both");
+    expect(comp?.name).toBe("Both");
   });
 
   test("cache round-trip works for .vue files", async () => {

@@ -110,7 +110,7 @@ function chunkSection(section: ParsedSection): ParsedSection[] {
       for (let i = currentChunk.length - 1; i >= 0; i--) {
         const candidate = currentChunk[i];
         if (overlapSize + candidate.length <= overlapChars) {
-          overlapContent = candidate + "\n" + overlapContent;
+          overlapContent = `${candidate}\n${overlapContent}`;
           overlapSize += candidate.length;
         } else {
           break;

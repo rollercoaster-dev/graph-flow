@@ -30,7 +30,7 @@ export class JSONLStorage {
    */
   async append(filename: string, record: JSONLRecord): Promise<void> {
     const filepath = join(this.baseDir, filename);
-    const line = JSON.stringify(record) + "\n";
+    const line = `${JSON.stringify(record)}\n`;
     await appendFile(filepath, line, "utf-8");
   }
 
@@ -55,7 +55,7 @@ export class JSONLStorage {
    */
   async write(filename: string, records: JSONLRecord[]): Promise<void> {
     const filepath = join(this.baseDir, filename);
-    const content = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
+    const content = `${records.map((r) => JSON.stringify(r)).join("\n")}\n`;
     await Bun.write(filepath, content, { createPath: true });
   }
 

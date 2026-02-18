@@ -78,7 +78,7 @@ describe("AutomationOrchestrator", () => {
 
       const plan = planning.getPlan(result.planId);
       expect(plan).not.toBeNull();
-      expect(plan!.sourceType).toBe("milestone");
+      expect(plan?.sourceType).toBe("milestone");
 
       const steps = planning.getStepsByPlan(result.planId);
       expect(steps).toHaveLength(2);
@@ -144,7 +144,7 @@ describe("AutomationOrchestrator", () => {
       expect(result.summary).toContain("Epic: Auth system");
 
       const plan = planning.getPlan(result.planId);
-      expect(plan!.sourceType).toBe("epic");
+      expect(plan?.sourceType).toBe("epic");
     });
 
     test("throws when epic not found", async () => {

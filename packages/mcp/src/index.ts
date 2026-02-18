@@ -140,41 +140,48 @@ export class GraphFlowServer {
     });
 
     // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
+    // TODO: MCPToolResult doesn't extend MCP SDK ServerResult — needs structural alignment
+    // biome-ignore lint/suspicious/noExplicitAny: structural mismatch with MCP SDK ServerResult
+    (this.server.setRequestHandler as any)(
+      CallToolRequestSchema,
+      async (request: {
+        params: { name: string; arguments?: Record<string, unknown> };
+      }) => {
+        const { name, arguments: args } = request.params;
 
-      try {
-        // Lazy init on first tool call
-        await this.ensureInitialized();
+        try {
+          // Lazy init on first tool call
+          await this.ensureInitialized();
 
-        // Route to appropriate subsystem
-        if (name.startsWith("c-")) {
-          return await this.checkpoint.handleToolCall(name, args || {});
-        } else if (name.startsWith("k-")) {
-          return await this.knowledge.handleToolCall(name, args || {});
-        } else if (name.startsWith("g-")) {
-          return await this.graph.handleToolCall(name, args || {});
-        } else if (name.startsWith("d-")) {
-          return await this.docs.handleToolCall(name, args || {});
-        } else if (name.startsWith("p-")) {
-          return await this.planning.handleToolCall(name, args || {});
-        } else if (name.startsWith("a-")) {
-          return await this.automation.handleToolCall(name, args || {});
-        } else {
-          throw new Error(`Unknown tool: ${name}`);
+          // Route to appropriate subsystem
+          if (name.startsWith("c-")) {
+            return await this.checkpoint.handleToolCall(name, args || {});
+          } else if (name.startsWith("k-")) {
+            return await this.knowledge.handleToolCall(name, args || {});
+          } else if (name.startsWith("g-")) {
+            return await this.graph.handleToolCall(name, args || {});
+          } else if (name.startsWith("d-")) {
+            return await this.docs.handleToolCall(name, args || {});
+          } else if (name.startsWith("p-")) {
+            return await this.planning.handleToolCall(name, args || {});
+          } else if (name.startsWith("a-")) {
+            return await this.automation.handleToolCall(name, args || {});
+          } else {
+            throw new Error(`Unknown tool: ${name}`);
+          }
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+            isError: true,
+          };
         }
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    });
+      },
+    );
 
     // List resources
     this.server.setRequestHandler(ListResourcesRequestSchema, async () => {

@@ -5,7 +5,6 @@
  * Uses in-memory cache for fast access with <100 items.
  */
 
-import { existsSync } from "node:fs";
 import { mkdir, rename } from "node:fs/promises";
 import { join } from "node:path";
 import type {
@@ -180,11 +179,11 @@ export class PlanningStorage {
     records: JSONLRecord[],
   ): Promise<void> {
     const filepath = join(this.baseDir, filename);
-    const tmpPath = filepath + ".tmp";
+    const tmpPath = `${filepath}.tmp`;
     const content =
       records.length === 0
         ? ""
-        : records.map((r) => JSON.stringify(r)).join("\n") + "\n";
+        : `${records.map((r) => JSON.stringify(r)).join("\n")}\n`;
     await Bun.write(tmpPath, content, { createPath: true });
     await rename(tmpPath, filepath);
   }
