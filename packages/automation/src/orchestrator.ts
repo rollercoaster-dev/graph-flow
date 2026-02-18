@@ -12,6 +12,11 @@
  */
 
 import type { PlanningManager } from "@graph-flow/planning/manager";
+import {
+  type BoardConfig,
+  type BoardStatus,
+  getBoardConfig,
+} from "./board-config";
 import * as ghDefault from "./github";
 import type {
   AutomationResult,
@@ -35,34 +40,6 @@ export interface GitHubClient {
     milestone?: number;
   }): { number: number; url: string } | null;
   createBranch(name: string): boolean;
-}
-
-/** Board status values matching the GitHub Project board. */
-type BoardStatus = "Backlog" | "Next" | "In Progress" | "Blocked" | "Done";
-
-/** Board configuration from env vars with fallback defaults. */
-interface BoardConfig {
-  projectId: string;
-  fieldId: string;
-  orgLogin: string;
-  projectNumber: number;
-  statusOptions: Record<BoardStatus, string>;
-}
-
-function getBoardConfig(): BoardConfig {
-  return {
-    projectId: process.env.BOARD_PROJECT_ID ?? "PVT_kwDOB1lz3c4BI2yZ",
-    fieldId: process.env.BOARD_FIELD_ID ?? "PVTSSF_lADOB1lz3c4BI2yZzg5MUx4",
-    orgLogin: process.env.BOARD_ORG_LOGIN ?? "rollercoaster-dev",
-    projectNumber: Number(process.env.BOARD_PROJECT_NUMBER ?? "11"),
-    statusOptions: {
-      Backlog: process.env.BOARD_OPT_BACKLOG ?? "47fc9ee4",
-      Next: process.env.BOARD_OPT_NEXT ?? "d818c31f",
-      "In Progress": process.env.BOARD_OPT_IN_PROGRESS ?? "3e320f16",
-      Blocked: process.env.BOARD_OPT_BLOCKED ?? "51c2af7b",
-      Done: process.env.BOARD_OPT_DONE ?? "98236657",
-    },
-  };
 }
 
 export class AutomationOrchestrator {
@@ -237,7 +214,18 @@ export class AutomationOrchestrator {
     issueNumber: number,
     status: BoardStatus,
   ): Promise<BoardUpdateResult> {
-    const config = getBoardConfig();
+    let config: BoardConfig;
+    try {
+      config = getBoardConfig();
+    } catch (error) {
+      return {
+        issueNumber,
+        itemId: "",
+        status,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
     const optionId = config.statusOptions[status];
 
     if (!optionId) {
@@ -312,36 +300,60 @@ export class AutomationOrchestrator {
           };
         }
 
-        // Fallback: query for existing item
-        const queryProc = Bun.spawn(
-          [
-            "gh",
-            "api",
-            "graphql",
-            "-f",
-            `query=query { organization(login: "${config.orgLogin}") { projectV2(number: ${config.projectNumber}) { items(first: 100) { nodes { id content { ... on Issue { number } } } } } } }`,
-          ],
-          { stdout: "pipe", stderr: "pipe" },
-        );
-        await queryProc.exited;
-        if (queryProc.exitCode !== 0) {
-          return {
-            issueNumber,
-            itemId: "",
-            status,
-            success: false,
-            error: "Failed to find project item",
-          };
+        // Fallback: page through existing project items to find the issue.
+        // We paginate because large boards can exceed 100 items.
+        let cursor: string | null = null;
+        let foundItemId: string | null = null;
+        let pagesScanned = 0;
+        const MAX_PAGES = 30; // safety guard: up to 3000 items
+
+        while (pagesScanned < MAX_PAGES) {
+          const afterClause = cursor ? `, after: "${cursor}"` : "";
+          const queryProc = Bun.spawn(
+            [
+              "gh",
+              "api",
+              "graphql",
+              "-f",
+              `query=query { organization(login: "${config.orgLogin}") { projectV2(number: ${config.projectNumber}) { items(first: 100${afterClause}) { nodes { id content { ... on Issue { number } } } pageInfo { hasNextPage endCursor } } } } }`,
+            ],
+            { stdout: "pipe", stderr: "pipe" },
+          );
+          await queryProc.exited;
+          if (queryProc.exitCode !== 0) {
+            return {
+              issueNumber,
+              itemId: "",
+              status,
+              success: false,
+              error: "Failed to find project item",
+            };
+          }
+
+          const queryStdout = await new Response(queryProc.stdout).text();
+          const queryData = JSON.parse(queryStdout);
+          const items = queryData?.data?.organization?.projectV2?.items;
+          const nodes = items?.nodes ?? [];
+          const item = nodes.find(
+            (n: { id?: string; content?: { number?: number } }) =>
+              n.content?.number === issueNumber,
+          );
+
+          if (item?.id) {
+            foundItemId = item.id;
+            break;
+          }
+
+          const pageInfo = items?.pageInfo;
+          if (!pageInfo?.hasNextPage || !pageInfo?.endCursor) {
+            break;
+          }
+
+          cursor = pageInfo.endCursor;
+          pagesScanned++;
         }
-        const queryStdout = await new Response(queryProc.stdout).text();
-        const queryData = JSON.parse(queryStdout);
-        const nodes =
-          queryData?.data?.organization?.projectV2?.items?.nodes ?? [];
-        const item = nodes.find(
-          (n: { content?: { number?: number } }) =>
-            n.content?.number === issueNumber,
-        );
-        if (!item) {
+
+        if (!foundItemId) {
           return {
             issueNumber,
             itemId: "",
@@ -350,7 +362,7 @@ export class AutomationOrchestrator {
             error: `Issue #${issueNumber} not found on project board`,
           };
         }
-        itemId = item.id;
+        itemId = foundItemId;
       }
 
       // Update status field

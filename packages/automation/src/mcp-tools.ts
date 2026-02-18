@@ -10,6 +10,7 @@
  */
 
 import type { PlanningManager } from "@graph-flow/planning/manager";
+import { validateBoardConfig } from "./board-config";
 import { AutomationOrchestrator } from "./orchestrator";
 
 export interface MCPTool {
@@ -31,13 +32,20 @@ export interface MCPToolResult {
 
 export class AutomationMCPTools {
   private orchestrator: AutomationOrchestrator;
+  private static boardConfigWarned = false;
 
   constructor(planning: PlanningManager) {
     this.orchestrator = new AutomationOrchestrator(planning);
   }
 
   async init(): Promise<void> {
-    // No async initialization needed; managers are already initialized
+    const board = validateBoardConfig();
+    if (!board.ok && !AutomationMCPTools.boardConfigWarned) {
+      AutomationMCPTools.boardConfigWarned = true;
+      console.error(
+        `[WARN] graph-flow board automation is not fully configured:\n${board.message}`,
+      );
+    }
   }
 
   getTools(): MCPTool[] {
