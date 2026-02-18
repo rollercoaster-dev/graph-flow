@@ -9,7 +9,7 @@
  */
 
 // Buffer import needed for ESLint - it's also global in Bun runtime
-import { Buffer } from "buffer";
+import { Buffer } from "node:buffer";
 
 export {
   cosineSimilarity,

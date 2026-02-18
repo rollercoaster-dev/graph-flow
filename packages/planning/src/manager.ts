@@ -5,7 +5,7 @@
  * Adapted from claude-knowledge/src/planning/stack.ts and store.ts.
  */
 
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { clearStatusCache, ResolverFactory } from "./resolvers";
 import { PlanningStorage } from "./storage";
 import type {

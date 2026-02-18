@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { formatInitResult, type InitOptions, runInit } from "../src/init.ts";
+import { formatInitResult, runInit } from "../src/init.ts";
 
 describe("runInit", () => {
   let projectDir: string;
@@ -67,7 +67,7 @@ describe("runInit", () => {
     });
 
     expect(result.codeIndexResult).toBeDefined();
-    expect(result.codeIndexResult!.totalFiles).toBeGreaterThanOrEqual(1);
+    expect(result.codeIndexResult?.totalFiles).toBeGreaterThanOrEqual(1);
   });
 
   test("skips code indexing when indexCode is false", async () => {
@@ -101,7 +101,7 @@ describe("runInit", () => {
     });
 
     expect(result.docsIndexResult).toBeDefined();
-    expect(result.docsIndexResult!.totalFiles).toBeGreaterThanOrEqual(1);
+    expect(result.docsIndexResult?.totalFiles).toBeGreaterThanOrEqual(1);
   });
 
   test("skips docs indexing when indexDocs is false", async () => {
@@ -132,7 +132,7 @@ describe("runInit", () => {
     });
 
     expect(result.codeIndexResult).toBeDefined();
-    expect(result.codeIndexResult!.totalFiles).toBe(1);
+    expect(result.codeIndexResult?.totalFiles).toBe(1);
   });
 
   test("uses custom docs patterns when provided", async () => {
@@ -151,7 +151,7 @@ describe("runInit", () => {
     });
 
     expect(result.docsIndexResult).toBeDefined();
-    expect(result.docsIndexResult!.totalFiles).toBe(1);
+    expect(result.docsIndexResult?.totalFiles).toBe(1);
   });
 
   test("auto-detects src directory for code patterns", async () => {
@@ -165,7 +165,7 @@ describe("runInit", () => {
     });
 
     expect(result.codeIndexResult).toBeDefined();
-    expect(result.codeIndexResult!.totalFiles).toBeGreaterThanOrEqual(1);
+    expect(result.codeIndexResult?.totalFiles).toBeGreaterThanOrEqual(1);
   });
 
   test("auto-detects docs directory for docs patterns", async () => {
@@ -182,7 +182,7 @@ describe("runInit", () => {
     });
 
     expect(result.docsIndexResult).toBeDefined();
-    expect(result.docsIndexResult!.totalFiles).toBeGreaterThanOrEqual(1);
+    expect(result.docsIndexResult?.totalFiles).toBeGreaterThanOrEqual(1);
   });
 
   test("handles empty project gracefully", async () => {

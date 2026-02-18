@@ -168,7 +168,7 @@ This section has enough content to pass the minimum length filter and should be 
       areaStrategy: "path",
     });
 
-    expect(result.learningsByArea["api"]).toBeGreaterThanOrEqual(1);
+    expect(result.learningsByArea.api).toBeGreaterThanOrEqual(1);
   });
 
   test("uses filename-based area strategy when specified", async () => {
@@ -183,7 +183,7 @@ This section has enough content to pass the minimum length filter and should be 
       areaStrategy: "filename",
     });
 
-    expect(result.learningsByArea["authentication"]).toBeGreaterThanOrEqual(1);
+    expect(result.learningsByArea.authentication).toBeGreaterThanOrEqual(1);
   });
 
   test("uses content-based area strategy when specified", async () => {
@@ -322,7 +322,7 @@ Second section content that is long enough.
     });
 
     expect(lastProgress).not.toBeNull();
-    expect(lastProgress!.sectionsExtracted).toBeGreaterThanOrEqual(2);
+    expect(lastProgress?.sectionsExtracted).toBeGreaterThanOrEqual(2);
   });
 
   test("empty pattern array returns zero counts", async () => {

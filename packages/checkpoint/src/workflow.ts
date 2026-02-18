@@ -349,7 +349,7 @@ export class WorkflowManager {
       resumePhase: workflow.phase,
       pendingActions,
       lastCommit,
-      summary: parts.join(". ") + ".",
+      summary: `${parts.join(". ")}.`,
     };
   }
 
@@ -371,39 +371,43 @@ export class WorkflowManager {
           commits: data.commits ?? [],
         };
       } else if (state) {
+        const current: WorkflowState = state;
         const update = event.data;
         state = {
-          ...state,
-          phase: update.phase ?? state.phase,
+          ...current,
+          phase: update.phase ?? current.phase,
           context: update.context
-            ? [...state.context, ...update.context]
-            : state.context,
+            ? [...current.context, ...update.context]
+            : current.context,
           decisions: update.decisions
-            ? [...state.decisions, ...update.decisions]
-            : state.decisions,
+            ? [...current.decisions, ...update.decisions]
+            : current.decisions,
           blockers: update.blockers
-            ? [...state.blockers, ...update.blockers]
-            : state.blockers,
-          status: update.status ?? state.status,
-          branch: update.branch ?? state.branch,
-          worktree: update.worktree ?? state.worktree,
-          taskId: update.taskId ?? state.taskId,
+            ? [...current.blockers, ...update.blockers]
+            : current.blockers,
+          status: update.status ?? current.status,
+          branch: update.branch ?? current.branch,
+          worktree: update.worktree ?? current.worktree,
+          taskId: update.taskId ?? current.taskId,
           updatedAt: event.timestamp,
         };
 
         // Handle action_logged events
         if (event.type === "action_logged" && update.logAction) {
-          state.actions = [...state.actions, update.logAction];
+          // biome-ignore lint/style/noNonNullAssertion: state is assigned above
+          state!.actions = [...state!.actions, update.logAction];
         }
 
         // Handle commit_logged events
         if (event.type === "commit_logged" && update.logCommit) {
-          state.commits = [...state.commits, update.logCommit];
+          // biome-ignore lint/style/noNonNullAssertion: state is assigned above
+          state!.commits = [...state!.commits, update.logCommit];
         }
 
         // Handle status_changed: increment retryCount on failure
         if (event.type === "status_changed" && update.status === "failed") {
-          state.retryCount = (state.retryCount ?? 0) + 1;
+          // biome-ignore lint/style/noNonNullAssertion: state is assigned above
+          state!.retryCount = (state!.retryCount ?? 0) + 1;
         }
       }
     }

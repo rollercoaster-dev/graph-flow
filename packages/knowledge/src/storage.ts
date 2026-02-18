@@ -45,7 +45,7 @@ export class LearningStorage {
     const area = this.normalizeArea(learning.area);
     const filename = `${area}.jsonl`;
     const filepath = join(this.baseDir, filename);
-    const line = JSON.stringify(learning) + "\n";
+    const line = `${JSON.stringify(learning)}\n`;
     await appendFile(filepath, line, "utf-8");
   }
 

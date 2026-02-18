@@ -264,7 +264,6 @@ export class DocsIndexer {
           case "content":
             area = areaFromContent(content);
             break;
-          case "path":
           default:
             area = areaFromPath(file);
             break;

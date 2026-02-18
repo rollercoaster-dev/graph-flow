@@ -8,13 +8,7 @@
 import { spawnSync } from "bun";
 import type { PlanningManager } from "./manager";
 import type { ResolverFactory } from "./resolvers";
-import type {
-  CompletionStatus,
-  Goal,
-  PlanningEntity,
-  PlanStep,
-  StaleItem,
-} from "./types";
+import type { CompletionStatus, Goal, StaleItem } from "./types";
 
 /** Cache for GitHub issue state checks (5-minute TTL) */
 const issueStateCache = new Map<
