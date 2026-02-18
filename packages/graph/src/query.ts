@@ -143,7 +143,10 @@ export class GraphQuery {
     ];
 
     while (queue.length > 0) {
-      const current = queue.shift()!;
+      const current = queue.shift();
+      if (!current) {
+        continue;
+      }
 
       if (visited.has(current.name) || current.distance > maxDepth) {
         continue;

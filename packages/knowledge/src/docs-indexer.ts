@@ -231,7 +231,6 @@ export class DocsIndexer {
       extractSections: shouldExtract = true,
       minSectionLength = 50,
       areaStrategy = "path",
-      defaultType = "entity",
       onProgress,
     } = options;
 
