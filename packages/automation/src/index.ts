@@ -1,4 +1,11 @@
 export {
+  type BoardConfig,
+  type BoardConfigValidation,
+  type BoardStatus,
+  getBoardConfig,
+  validateBoardConfig,
+} from "./board-config";
+export {
   clearGitHubCache,
   createBranch,
   createIssue,

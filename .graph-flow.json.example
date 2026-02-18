@@ -1,0 +1,15 @@
+{
+  "board": {
+    "projectId": "PVT_your_project_id",
+    "fieldId": "PVTSSF_your_status_field_id",
+    "orgLogin": "your-org",
+    "projectNumber": 1,
+    "statusOptions": {
+      "Backlog": "option_id_backlog",
+      "Next": "option_id_next",
+      "In Progress": "option_id_in_progress",
+      "Blocked": "option_id_blocked",
+      "Done": "option_id_done"
+    }
+  }
+}
