@@ -46,7 +46,7 @@ function hashContent(content: string): string {
  * Returns the unique set of identifier names found.
  */
 export function extractCodeRefs(content: string): string[] {
-  const pattern = /`([a-zA-Z_$][a-zA-Z0-9_$]*(?:\(\))?)`/g;
+  const pattern = /`([-a-zA-Z_.$/][a-zA-Z0-9_.$/:@-]*(?:\(\))?)`/g;
   const refs = new Set<string>();
   for (const match of content.matchAll(pattern)) {
     // Strip trailing () from function name mentions
@@ -142,7 +142,7 @@ export class DocsStore {
       errors: [],
     };
 
-    const files = await expandGlobs(patterns ?? ["**/*.md", "**/*.mdx"], cwd);
+    const files = await expandGlobs(patterns, cwd);
 
     for (const filePath of files) {
       try {

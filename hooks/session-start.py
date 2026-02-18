@@ -12,6 +12,7 @@ Output format matches the explanatory-output-style plugin's SessionStart mechani
 
 import json
 import os
+from typing import Optional
 
 CONTEXT = """graph-flow MCP tools are active. Prefer these over grep/glob/LSP for the use cases below.
 
@@ -33,7 +34,7 @@ k-index: Index a markdown file as session learnings.
 k-related: Find learnings related to a given learning by ID."""
 
 
-def find_mcp_config() -> str | None:
+def find_mcp_config() -> Optional[str]:
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
     mcp_path = os.path.join(project_dir, ".mcp.json")
     return mcp_path if os.path.isfile(mcp_path) else None
@@ -41,7 +42,7 @@ def find_mcp_config() -> str | None:
 
 def has_graph_flow_entry(mcp_path: str) -> bool:
     try:
-        with open(mcp_path) as f:
+        with open(mcp_path, encoding="utf-8") as f:
             config = json.load(f)
         return "graph-flow" in config.get("mcpServers", {})
     except (json.JSONDecodeError, OSError):

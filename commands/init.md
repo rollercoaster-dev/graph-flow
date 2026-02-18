@@ -59,7 +59,8 @@ Data:   <project-dir>/.claude/
 After restart, tools will be available:
 - c- (checkpoint): c-find, c-update, c-complete, c-recover
 - k- (knowledge): k-query, k-store, k-related, k-index
-- g- (graph): g-blast, g-index
+- g- (graph): g-calls, g-defs, g-blast, g-index
+- d- (docs): d-index, d-query, d-for-code
 - p- (planning): p-goal, p-interrupt, p-done, p-stack, p-plan, p-steps, p-progress, p-sync
 - a- (automation): a-import, a-create-issue, a-board-update
 ```

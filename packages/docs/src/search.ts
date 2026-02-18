@@ -50,12 +50,11 @@ export class DocsSearch {
     sections: DocSection[],
     existingIds: Set<string>,
   ): Promise<void> {
-    const embedder = await getDefaultEmbedder();
-
     for (const section of sections) {
       if (existingIds.has(section.id)) continue;
 
       try {
+        const embedder = await getDefaultEmbedder();
         const text = `${section.heading}\n\n${section.content}`;
         const embedding = await embedder.generate(text);
         await this.embeddingStorage.store(
@@ -75,7 +74,9 @@ export class DocsSearch {
   }
 
   /**
-   * Semantic search over all indexed doc sections.
+   * Search over all indexed doc sections.
+   * Attempts semantic search using vector embeddings. If the embedder is
+   * unavailable or fails, falls back to keyword matching (term overlap score).
    */
   async search(
     graph: DocsGraph,
@@ -84,18 +85,57 @@ export class DocsSearch {
   ): Promise<DocSearchResult[]> {
     const { limit = 10, threshold = 0.3 } = options;
 
-    const embedder = await getDefaultEmbedder();
-    const queryEmbedding = await embedder.generate(query);
+    try {
+      const embedder = await getDefaultEmbedder();
+      const queryEmbedding = await embedder.generate(query);
 
-    const allEmbeddings = await this.embeddingStorage.readAll(EMBEDDINGS_AREA);
+      const allEmbeddings =
+        await this.embeddingStorage.readAll(EMBEDDINGS_AREA);
+      const scored: DocSearchResult[] = [];
+
+      for (const [id, embedding] of allEmbeddings) {
+        const section = graph.sections[id];
+        if (!section) continue;
+
+        const similarity = cosineSimilarity(queryEmbedding, embedding);
+        if (similarity >= threshold) {
+          scored.push({ section, similarity });
+        }
+      }
+
+      scored.sort((a, b) => b.similarity - a.similarity);
+      return scored.slice(0, limit);
+    } catch (error) {
+      console.error(
+        `[docs/search] Semantic search failed, falling back to keyword search: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return this.keywordSearch(graph, query, limit);
+    }
+  }
+
+  /**
+   * Keyword fallback search: tokenizes the query and scores sections by
+   * matching term overlap ratio.
+   */
+  private keywordSearch(
+    graph: DocsGraph,
+    query: string,
+    limit: number,
+  ): DocSearchResult[] {
+    const queryTerms = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 1);
+    if (queryTerms.length === 0) return [];
+
     const scored: DocSearchResult[] = [];
-
-    for (const [id, embedding] of allEmbeddings) {
-      const section = graph.sections[id];
-      if (!section) continue;
-
-      const similarity = cosineSimilarity(queryEmbedding, embedding);
-      if (similarity >= threshold) {
+    for (const section of Object.values(graph.sections)) {
+      const text = `${section.heading} ${section.content}`.toLowerCase();
+      const matched = queryTerms.filter((t) => text.includes(t)).length;
+      if (matched > 0) {
+        const similarity = matched / queryTerms.length;
         scored.push({ section, similarity });
       }
     }

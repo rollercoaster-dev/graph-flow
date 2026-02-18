@@ -6,7 +6,7 @@ import { AutomationMCPTools } from "@graph-flow/automation";
 import { CheckpointMCPTools } from "@graph-flow/checkpoint";
 import { GraphMCPTools } from "@graph-flow/graph";
 import { KnowledgeMCPTools } from "@graph-flow/knowledge";
-import { PlanningMCPTools } from "@graph-flow/planning";
+import { type MCPToolResult, PlanningMCPTools } from "@graph-flow/planning";
 import { formatInitResult, type InitOptions, runInit } from "./init.ts";
 
 function resolveBaseDir(): string {
@@ -163,10 +163,7 @@ async function main(): Promise<void> {
   await graph.init();
   await planning.init();
 
-  const automation = new AutomationMCPTools(
-    planning.getManager(),
-    checkpoint.getManager(),
-  );
+  const automation = new AutomationMCPTools(planning.getManager());
   await automation.init();
 
   if (tool === "tools") {
@@ -194,7 +191,7 @@ async function main(): Promise<void> {
     }
   }
 
-  let result: Awaited<ReturnType<typeof checkpoint.handleToolCall>>;
+  let result: MCPToolResult;
   if (tool.startsWith("c-")) {
     result = await checkpoint.handleToolCall(tool, args);
   } else if (tool.startsWith("k-")) {

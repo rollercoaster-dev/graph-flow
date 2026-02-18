@@ -9,7 +9,6 @@
  * - Added a-board-update for GitHub Project board operations
  */
 
-import type { WorkflowManager } from "@graph-flow/checkpoint/workflow";
 import type { PlanningManager } from "@graph-flow/planning/manager";
 import { AutomationOrchestrator } from "./orchestrator";
 
@@ -33,8 +32,8 @@ export interface MCPToolResult {
 export class AutomationMCPTools {
   private orchestrator: AutomationOrchestrator;
 
-  constructor(planning: PlanningManager, workflows: WorkflowManager) {
-    this.orchestrator = new AutomationOrchestrator(planning, workflows);
+  constructor(planning: PlanningManager) {
+    this.orchestrator = new AutomationOrchestrator(planning);
   }
 
   async init(): Promise<void> {
@@ -141,7 +140,7 @@ export class AutomationMCPTools {
       type: "milestone" | "epic";
       number: number;
     };
-    const result = await this.orchestrator.import(type, num);
+    const result = await this.orchestrator.importSource(type, num);
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };

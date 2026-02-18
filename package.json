@@ -24,6 +24,7 @@
     "mcp": "bun run packages/mcp/src/index.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.3.15",
     "@types/bun": "^1.0.0",
     "typescript": "^5.0.0"
   },

@@ -102,10 +102,7 @@ export class GraphFlowServer {
       await this.graph.init();
       await this.docs.init();
       await this.planning.init();
-      this.automation = new AutomationMCPTools(
-        this.planning.getManager(),
-        this.checkpoint.getManager(),
-      );
+      this.automation = new AutomationMCPTools(this.planning.getManager());
       await this.automation.init();
       this.initialized = true;
     })();

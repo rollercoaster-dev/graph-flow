@@ -93,13 +93,14 @@ After installation, these skills are available in all projects:
 
 ## MCP Tools Setup
 
-After installing the plugin, run `/graph-flow:init` in each project to configure the MCP server. This creates a `.mcp.json` that connects to the 19 graph-flow MCP tools:
+After installing the plugin, run `/graph-flow:init` in each project to configure the MCP server. This creates a `.mcp.json` that connects to the 26 graph-flow MCP tools:
 
 | Subsystem  | Tools |
 |------------|-------|
 | Checkpoint | `c-find`, `c-update`, `c-complete`, `c-recover` |
 | Knowledge  | `k-query`, `k-store`, `k-related`, `k-index` |
-| Graph      | `g-blast`, `g-index` |
+| Graph      | `g-blast`, `g-index`, `g-calls`, `g-defs` |
+| Docs       | `d-index`, `d-query`, `d-for-code` |
 | Planning   | `p-goal`, `p-interrupt`, `p-done`, `p-stack`, `p-plan`, `p-steps`, `p-progress`, `p-sync` |
 | Automation | `a-import`, `a-create-issue`, `a-board-update` |
 

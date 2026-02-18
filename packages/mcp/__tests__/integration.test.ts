@@ -1,15 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
+import { AutomationMCPTools } from "@graph-flow/automation";
 import { CheckpointMCPTools } from "@graph-flow/checkpoint";
 import { DocsMCPTools } from "@graph-flow/docs";
 import { GraphMCPTools } from "@graph-flow/graph";
 import { KnowledgeMCPTools } from "@graph-flow/knowledge";
+import { PlanningMCPTools } from "@graph-flow/planning";
 
 const TEST_WORKFLOWS_DIR = "/tmp/graph-flow-test-mcp-workflows";
 const TEST_LEARNINGS_DIR = "/tmp/graph-flow-test-mcp-learnings";
 const TEST_EMBEDDINGS_DIR = "/tmp/graph-flow-test-mcp-embeddings";
 const TEST_GRAPHS_DIR = "/tmp/graph-flow-test-mcp-graphs";
 const TEST_DOCS_DIR = "/tmp/graph-flow-test-mcp-docs";
+const TEST_PLANNING_DIR = "/tmp/graph-flow-test-mcp-planning";
 
 describe("MCP Integration", () => {
   test("checkpoint tools initialize and respond", async () => {
@@ -79,24 +82,31 @@ describe("MCP Integration", () => {
     );
     const graph = new GraphMCPTools(TEST_GRAPHS_DIR);
     const docs = new DocsMCPTools(TEST_DOCS_DIR, TEST_EMBEDDINGS_DIR);
+    const planning = new PlanningMCPTools(TEST_PLANNING_DIR);
 
     await checkpoint.init();
     await knowledge.init();
     await graph.init();
     await docs.init();
+    await planning.init();
+
+    const automation = new AutomationMCPTools(planning.getManager());
+    await automation.init();
 
     const allTools = [
       ...checkpoint.getTools(),
       ...knowledge.getTools(),
       ...graph.getTools(),
       ...docs.getTools(),
+      ...planning.getTools(),
+      ...automation.getTools(),
     ];
 
     const names = allTools.map((t) => t.name);
     const uniqueNames = new Set(names);
 
     expect(names.length).toBe(uniqueNames.size);
-    expect(names.length).toBe(15); // 4 checkpoint + 4 knowledge + 4 graph + 3 docs
+    expect(names.length).toBe(26); // 4 checkpoint + 4 knowledge + 4 graph + 3 docs + 8 planning + 3 automation
 
     // Clean up
     await rm(TEST_WORKFLOWS_DIR, { recursive: true, force: true });
@@ -104,5 +114,6 @@ describe("MCP Integration", () => {
     await rm(TEST_EMBEDDINGS_DIR, { recursive: true, force: true });
     await rm(TEST_GRAPHS_DIR, { recursive: true, force: true });
     await rm(TEST_DOCS_DIR, { recursive: true, force: true });
+    await rm(TEST_PLANNING_DIR, { recursive: true, force: true });
   });
 });

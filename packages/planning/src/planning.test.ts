@@ -416,6 +416,7 @@ describe("PlanningMCPTools", () => {
     const progressData = JSON.parse(progressResult.content[0].text);
     expect(progressData.stepCount).toBe(2);
     expect(progressData.steps).toHaveLength(2);
+    expect(progressData.plan).toBeDefined();
     expect(progressData.progress.total).toBe(2);
     expect(progressData.progress.notStarted).toBe(2);
     expect(progressData.progress.percentage).toBe(0);

@@ -144,6 +144,9 @@ function chunkSection(section: ParsedSection): ParsedSection[] {
  *
  * Uses marked.lexer() to extract tokens, builds hierarchy with a stack,
  * then applies chunking to oversized sections.
+ *
+ * Note: Content appearing before the first heading is intentionally dropped.
+ * Only content under a heading is captured as a section.
  */
 export function parseMarkdown(markdown: string): ParsedSection[] {
   if (typeof markdown !== "string") {

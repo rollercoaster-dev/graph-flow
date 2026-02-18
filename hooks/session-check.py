@@ -8,10 +8,10 @@ Outputs context to help Claude know whether tools are available.
 
 import json
 import os
-import sys
+from typing import Optional
 
 
-def find_mcp_config() -> str | None:
+def find_mcp_config() -> Optional[str]:
     """Find .mcp.json in the current project directory."""
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
     mcp_path = os.path.join(project_dir, ".mcp.json")
@@ -23,7 +23,7 @@ def find_mcp_config() -> str | None:
 def has_graph_flow_entry(mcp_path: str) -> bool:
     """Check if .mcp.json has a graph-flow server entry."""
     try:
-        with open(mcp_path) as f:
+        with open(mcp_path, encoding="utf-8") as f:
             config = json.load(f)
         servers = config.get("mcpServers", {})
         return "graph-flow" in servers
@@ -38,7 +38,7 @@ def main() -> None:
         # Tools are configured — output a brief reference card
         print(
             "graph-flow MCP tools available: "
-            "c- (checkpoint), k- (knowledge), g- (graph), p- (planning), a- (automation). "
+            "c- (checkpoint), k- (knowledge), g- (graph), d- (docs), p- (planning), a- (automation). "
             "Use ToolSearch to discover specific tools."
         )
     else:

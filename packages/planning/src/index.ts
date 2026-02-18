@@ -14,4 +14,27 @@ export {
 } from "./resolvers";
 export { clearStaleCache, detectStaleItems } from "./stale";
 export { PlanningStorage, type StorageOptions } from "./storage";
-export * from "./types";
+export type {
+  CompletionStatus,
+  EnhancedGoalStatus,
+  ExternalRef,
+  ExternalRefType,
+  Goal,
+  Interrupt,
+  ManualStatus,
+  NextStep,
+  Plan,
+  PlanningEntity,
+  PlanningEntityBase,
+  PlanningEntityStatus,
+  PlanningEntityType,
+  PlanningRelationship,
+  PlanningRelationshipType,
+  PlanningStack,
+  PlanProgress,
+  PlanSourceType,
+  PlanStep,
+  ResolvedStatus,
+  StackCompletionSummary,
+  StaleItem,
+} from "./types";

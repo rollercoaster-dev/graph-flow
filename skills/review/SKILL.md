@@ -18,7 +18,7 @@ Coordinates code review and manages the auto-fix cycle.
 | `skip_agents`           | string[] | No       | Agents to skip (default: none)                    |
 | `max_retry`             | number   | No       | Max fix attempts per finding (default: 3)         |
 | `parallel`              | boolean  | No       | Run agents in parallel (default: true)            |
-| `include_ob_compliance` | boolean  | No       | Force OB compliance review if agent exists in project (default: auto-detect) |
+| `include_ob_compliance` | boolean  | No       | Control OB compliance review: `true` forces it (even when no badge files detected), `false` suppresses it (even when detected), omit to auto-detect based on changed files |
 
 ### Output
 
@@ -73,6 +73,14 @@ Additional review agents can be defined in the project's `.claude/agents/` direc
 ```bash
 git diff main --name-only
 ```
+
+**Check for project-specific agents:**
+
+```bash
+ls .claude/agents/ 2>/dev/null
+```
+
+If `openbadges-compliance-reviewer` exists in `.claude/agents/` and `include_ob_compliance` is not explicitly `false`, enable OB compliance review.
 
 **Detect if badge code (auto-enable OB compliance):**
 Check if any files match:

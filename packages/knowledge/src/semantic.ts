@@ -1,9 +1,9 @@
 import {
   bufferToFloatArray,
+  cosineSimilarity,
   floatArrayToBuffer,
   getDefaultEmbedder,
 } from "./embeddings";
-import { cosineSimilarity } from "./embeddings/similarity";
 import { EmbeddingStorage } from "./embeddings-storage.ts";
 import { type LearningRecord, LearningStorage } from "./storage.ts";
 
