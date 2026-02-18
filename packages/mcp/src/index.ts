@@ -10,6 +10,7 @@ import {
   KnowledgeMCPTools,
 } from "@graph-flow/knowledge";
 import { PlanningMCPTools } from "@graph-flow/planning";
+import { resolveDeprecatedToolCall } from "@graph-flow/shared";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -152,22 +153,41 @@ export class GraphFlowServer {
         try {
           // Lazy init on first tool call
           await this.ensureInitialized();
+          const resolved = resolveDeprecatedToolCall(name, args || {});
+          if (resolved.warning) {
+            console.error(`[DEPRECATED] ${resolved.warning}`);
+          }
 
           // Route to appropriate subsystem
-          if (name.startsWith("c-")) {
-            return await this.checkpoint.handleToolCall(name, args || {});
-          } else if (name.startsWith("k-")) {
-            return await this.knowledge.handleToolCall(name, args || {});
-          } else if (name.startsWith("g-")) {
-            return await this.graph.handleToolCall(name, args || {});
-          } else if (name.startsWith("d-")) {
-            return await this.docs.handleToolCall(name, args || {});
-          } else if (name.startsWith("p-")) {
-            return await this.planning.handleToolCall(name, args || {});
-          } else if (name.startsWith("a-")) {
-            return await this.automation.handleToolCall(name, args || {});
+          if (resolved.name.startsWith("c-")) {
+            return await this.checkpoint.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
+          } else if (resolved.name.startsWith("k-")) {
+            return await this.knowledge.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
+          } else if (resolved.name.startsWith("g-")) {
+            return await this.graph.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
+          } else if (resolved.name.startsWith("d-")) {
+            return await this.docs.handleToolCall(resolved.name, resolved.args);
+          } else if (resolved.name.startsWith("p-")) {
+            return await this.planning.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
+          } else if (resolved.name.startsWith("a-")) {
+            return await this.automation.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
           } else {
-            throw new Error(`Unknown tool: ${name}`);
+            throw new Error(`Unknown tool: ${resolved.name}`);
           }
         } catch (error) {
           return {

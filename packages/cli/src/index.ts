@@ -1,12 +1,15 @@
 #!/usr/bin/env bun
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { AutomationMCPTools } from "@graph-flow/automation";
 import { CheckpointMCPTools } from "@graph-flow/checkpoint";
+import { DocsMCPTools } from "@graph-flow/docs";
 import { GraphMCPTools } from "@graph-flow/graph";
 import { KnowledgeMCPTools } from "@graph-flow/knowledge";
 import { type MCPToolResult, PlanningMCPTools } from "@graph-flow/planning";
+import { resolveDeprecatedToolCall } from "@graph-flow/shared";
+import { formatDoctorResult, runDoctor } from "./doctor.ts";
 import { formatInitResult, type InitOptions, runInit } from "./init.ts";
 
 function resolveBaseDir(): string {
@@ -26,11 +29,13 @@ function printHelp(): void {
 
 Usage:
   graph-flow init [--skip-code] [--skip-docs] [--project <path>] [--background]
+  graph-flow doctor [--project <path>] [--doctor-json]
   graph-flow tools
   graph-flow <tool> [--json '{...}'] [--file path] [--pretty]
 
 Commands:
   init                Initialize graph-flow for a project
+  doctor              Validate local graph-flow/Codex setup
   tools               List available MCP tools
 
 Init options:
@@ -87,6 +92,7 @@ async function main(): Promise<void> {
       "skip-docs": { type: "boolean" },
       project: { type: "string" },
       background: { type: "boolean" },
+      "doctor-json": { type: "boolean" },
     },
     allowPositionals: true,
   });
@@ -121,7 +127,8 @@ async function main(): Promise<void> {
       const logFile = join(dataDir, "init.log");
 
       // Spawn background process using bun
-      const args = [process.argv[1], "init"];
+      const cliEntry = resolve(process.argv[1]);
+      const args = [cliEntry, "init"];
       if (values["skip-code"]) args.push("--skip-code");
       if (values["skip-docs"]) args.push("--skip-docs");
       if (values.project) args.push("--project", values.project);
@@ -146,21 +153,35 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Handle doctor command
+  if (tool === "doctor") {
+    const result = await runDoctor({ projectRoot: values.project });
+    if (values["doctor-json"]) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(formatDoctorResult(result));
+    }
+    process.exit(result.ok ? 0 : 1);
+  }
+
   const baseDir = resolveBaseDir();
   const workflowsDir = join(baseDir, "workflows");
   const learningsDir = join(baseDir, "learnings");
   const embeddingsDir = join(baseDir, "embeddings");
   const graphsDir = join(baseDir, "graphs");
+  const docsDir = join(baseDir, "docs");
   const planningDir = join(baseDir, "planning");
 
   const checkpoint = new CheckpointMCPTools(workflowsDir);
   const knowledge = new KnowledgeMCPTools(learningsDir, embeddingsDir);
   const graph = new GraphMCPTools(graphsDir);
+  const docs = new DocsMCPTools(docsDir, embeddingsDir);
   const planning = new PlanningMCPTools(planningDir);
 
   await checkpoint.init();
   await knowledge.init();
   await graph.init();
+  await docs.init();
   await planning.init();
 
   const automation = new AutomationMCPTools(planning.getManager());
@@ -171,6 +192,7 @@ async function main(): Promise<void> {
       ...checkpoint.getTools(),
       ...knowledge.getTools(),
       ...graph.getTools(),
+      ...docs.getTools(),
       ...planning.getTools(),
       ...automation.getTools(),
     ];
@@ -191,19 +213,26 @@ async function main(): Promise<void> {
     }
   }
 
+  const resolved = resolveDeprecatedToolCall(tool, args);
+  if (resolved.warning) {
+    console.error(`[DEPRECATED] ${resolved.warning}`);
+  }
+
   let result: MCPToolResult;
-  if (tool.startsWith("c-")) {
-    result = await checkpoint.handleToolCall(tool, args);
-  } else if (tool.startsWith("k-")) {
-    result = await knowledge.handleToolCall(tool, args);
-  } else if (tool.startsWith("g-")) {
-    result = await graph.handleToolCall(tool, args);
-  } else if (tool.startsWith("p-")) {
-    result = await planning.handleToolCall(tool, args);
-  } else if (tool.startsWith("a-")) {
-    result = await automation.handleToolCall(tool, args);
+  if (resolved.name.startsWith("c-")) {
+    result = await checkpoint.handleToolCall(resolved.name, resolved.args);
+  } else if (resolved.name.startsWith("k-")) {
+    result = await knowledge.handleToolCall(resolved.name, resolved.args);
+  } else if (resolved.name.startsWith("g-")) {
+    result = await graph.handleToolCall(resolved.name, resolved.args);
+  } else if (resolved.name.startsWith("d-")) {
+    result = await docs.handleToolCall(resolved.name, resolved.args);
+  } else if (resolved.name.startsWith("p-")) {
+    result = await planning.handleToolCall(resolved.name, resolved.args);
+  } else if (resolved.name.startsWith("a-")) {
+    result = await automation.handleToolCall(resolved.name, resolved.args);
   } else {
-    throw new Error(`Unknown tool: ${tool}`);
+    throw new Error(`Unknown tool: ${resolved.name}`);
   }
 
   const text = result?.content?.[0]?.text ?? "";
