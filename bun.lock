@@ -12,7 +12,7 @@
     },
     "packages/automation": {
       "name": "@graph-flow/automation",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "dependencies": {
         "@graph-flow/checkpoint": "workspace:*",
         "@graph-flow/planning": "workspace:*",
@@ -23,23 +23,25 @@
     },
     "packages/checkpoint": {
       "name": "@graph-flow/checkpoint",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "devDependencies": {
         "@types/bun": "^1.0.0",
       },
     },
     "packages/cli": {
       "name": "@graph-flow/cli",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "bin": {
         "graph-flow": "src/index.ts",
       },
       "dependencies": {
         "@graph-flow/automation": "workspace:*",
         "@graph-flow/checkpoint": "workspace:*",
+        "@graph-flow/docs": "workspace:*",
         "@graph-flow/graph": "workspace:*",
         "@graph-flow/knowledge": "workspace:*",
         "@graph-flow/planning": "workspace:*",
+        "@graph-flow/shared": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.0.0",
@@ -59,7 +61,7 @@
     },
     "packages/graph": {
       "name": "@graph-flow/graph",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "dependencies": {
         "@graph-flow/shared": "workspace:*",
         "@vue/compiler-sfc": "^3.5.0",
@@ -71,7 +73,7 @@
     },
     "packages/knowledge": {
       "name": "@graph-flow/knowledge",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "dependencies": {
         "@graph-flow/shared": "workspace:*",
       },
@@ -81,7 +83,7 @@
     },
     "packages/mcp": {
       "name": "@graph-flow/mcp",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "bin": {
         "graph-flow": "./src/index.ts",
       },
@@ -92,6 +94,7 @@
         "@graph-flow/graph": "workspace:*",
         "@graph-flow/knowledge": "workspace:*",
         "@graph-flow/planning": "workspace:*",
+        "@graph-flow/shared": "workspace:*",
         "@modelcontextprotocol/sdk": "^1.0.4",
       },
       "devDependencies": {
@@ -100,14 +103,14 @@
     },
     "packages/planning": {
       "name": "@graph-flow/planning",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "devDependencies": {
         "@types/bun": "^1.0.0",
       },
     },
     "packages/shared": {
       "name": "@graph-flow/shared",
-      "version": "1.0.0",
+      "version": "3.0.0",
       "devDependencies": {
         "@types/bun": "^1.0.0",
       },
