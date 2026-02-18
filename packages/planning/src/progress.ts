@@ -59,7 +59,9 @@ export async function computePlanProgress(
     .filter((s) => statusMap.get(s.id) !== "done")
     .map((s) => s.wave);
   const currentWave =
-    nonDoneWaves.length > 0 ? Math.min(...nonDoneWaves) : null;
+    nonDoneWaves.length > 0
+      ? nonDoneWaves.reduce((a, b) => (a < b ? a : b))
+      : null;
 
   // Build blocked set and next steps in one pass
   const blockedStepIds = new Set<string>();

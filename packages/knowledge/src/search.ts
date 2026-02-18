@@ -31,7 +31,7 @@ export class LearningSearch {
     // Score each learning
     const scores: TFIDFScore[] = learnings.map((learning) => ({
       learning,
-      score: this.calculateScore(queryTerms, learning, learnings.length),
+      score: this.calculateScore(queryTerms, learning),
     }));
 
     // Sort by score and return top results
@@ -69,7 +69,6 @@ export class LearningSearch {
   private calculateScore(
     queryTerms: string[],
     learning: LearningRecord,
-    totalDocs: number,
   ): number {
     const docTerms = this.tokenize(learning.content);
     const termFrequency = new Map<string, number>();

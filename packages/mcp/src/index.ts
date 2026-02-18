@@ -175,7 +175,6 @@ export class GraphFlowServer {
       await this.planning.init();
       this.automation = new AutomationMCPTools(
         this.planning.getManager(),
-        this.checkpoint.getManager(),
         this.githubRepo,
       );
       await this.automation.init();

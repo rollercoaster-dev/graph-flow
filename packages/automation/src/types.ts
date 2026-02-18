@@ -44,10 +44,12 @@ export interface IssueCreationResult {
   stepId?: string;
 }
 
-export interface BoardUpdateResult {
-  issueNumber: number;
-  itemId: string;
-  status: string;
-  success: boolean;
-  error?: string;
-}
+export type BoardUpdateResult =
+  | { issueNumber: number; itemId: string; status: string; success: true }
+  | {
+      issueNumber: number;
+      itemId: string;
+      status: string;
+      success: false;
+      error: string;
+    };

@@ -101,12 +101,22 @@ g-index {
 | `k-related` | Find related learnings | `k-related { id: "uuid" }` |
 | `k-index` | Rebuild search index | `k-index {}` |
 
-### Graph Tools (2)
+### Graph Tools (4)
 
 | Tool | Purpose | Example |
 |------|---------|---------|
+| `g-calls` | Find all callers of a function | `g-calls { name: "myFunction" }` |
+| `g-defs` | List exports/definitions in a file | `g-defs { file: "src/foo.ts" }` |
 | `g-blast` | Transitive impact analysis | `g-blast { name: "updateUser", files: ["src/**/*.ts"] }` |
 | `g-index` | Populate code analysis cache | `g-index { files: ["src/**/*.ts"] }` |
+
+### Docs Tools (3)
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `d-index` | Index markdown docs into graph | `d-index {}` |
+| `d-query` | Semantic search over doc sections | `d-query { query: "how does auth work" }` |
+| `d-for-code` | Find docs that reference a code entity | `d-for-code { name: "handleLogin" }` |
 
 ### Planning Tools (8)
 
@@ -220,7 +230,6 @@ rm -rf <project-root>/.claude/graphs/*.json
 v3.0 renames tools to use short prefixes. Old tool names (`checkpoint-find`, `knowledge-query`, `graph-calls`, etc.) are no longer available. Update any scripts or CLAUDE.md references to use the new names (`c-find`, `k-query`, `g-blast`, etc.).
 
 Removed tools:
-- `g-calls` and `g-defs` — use LSP `findReferences` and `goToDefinition` instead
 - `p-planget` — merged into `p-progress`
 - `p-step-update` — folded into `p-sync` as `manualOverrides` parameter
 - `a-from-milestone` and `a-from-epic` — merged into `a-import`

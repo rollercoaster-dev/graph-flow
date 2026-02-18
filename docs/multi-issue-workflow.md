@@ -101,6 +101,7 @@ gh pr checks <pr-number> --watch
 If CI fails:
 
 1. Send the teammate a message to fix:
+
    ```text
    SendMessage({
      type: "message",
@@ -109,6 +110,7 @@ If CI fails:
      summary: "CI fix request for PR #<N>"
    })
    ```
+
 2. Re-wait for CI (max 2 attempts)
 3. If still failing after 2 attempts → mark as failed, notify user
 
@@ -133,6 +135,7 @@ Claude triages comments:
 
 - **Nitpick / style** → skip (note in Telegram message)
 - **Real issue / bug** → send teammate a message to fix:
+
   ```text
   SendMessage({
     type: "message",
@@ -141,6 +144,7 @@ Claude triages comments:
     summary: "Review fix request for PR #<N>"
   })
   ```
+
 - After fix: re-wait for CI
 
 ### Step 4: Telegram Notification (Per-PR)
@@ -282,7 +286,7 @@ git rev-list --count origin/main..origin/feat/issue-<N> 2>/dev/null
 
 ## State Management
 
-State tracked in two systems:
+State tracked in three systems:
 
 1. **Checkpoint DB** (`.claude/execution-state.db`) — source of truth for workflow status, actions, PR numbers
 2. **Native tasks** — UI-only progress visualization with wave-based `blockedBy` dependencies

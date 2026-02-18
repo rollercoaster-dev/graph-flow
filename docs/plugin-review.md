@@ -1,5 +1,7 @@
 # graph-flow Plugin & MCP Review
 
+> **Note:** This review was written against v2.1.0 and is superseded by v3.0.0. Kept for historical reference.
+
 > Review conducted 2026-02-17 by Claude (Opus 4.6) against graph-flow v2.1.0.
 > Tested from within the graph-flow repo itself.
 
@@ -31,9 +33,9 @@ The interrupt/resume stack concept is novel. Claude Code's native Task system is
 
 The one graph tool that can't be replicated with existing tools. LSP gives direct references, but transitive impact analysis ("what's affected 3 levels deep") requires manually chaining find-references calls today.
 
-### Start Issue (`a-start-issue`)
+### Issue Import (`a-import` + `p-goal` + `c-update`)
 
-A single call that creates branch + goal + checkpoint + fetches issue replaces 4-5 manual steps. Genuine workflow acceleration.
+Importing a milestone or epic with `a-import` and setting up a goal with `p-goal` + `c-update` replaces 4-5 manual steps. Genuine workflow acceleration. (Note: `a-start-issue` was removed in v3.0.0; the setup skill handles this directly.)
 
 ---
 

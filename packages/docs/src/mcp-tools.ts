@@ -170,6 +170,17 @@ export class DocsMCPTools {
       threshold?: number;
     };
 
+    if (typeof query !== "string" || query.trim().length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ error: "query must be a non-empty string" }),
+          },
+        ],
+      };
+    }
+
     const graph = await this.store.load();
     const results = await this.search.search(graph, query, {
       limit,

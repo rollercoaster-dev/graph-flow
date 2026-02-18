@@ -149,7 +149,7 @@ Extract PR number and URL from output.
 
 Use the `a-board-update` MCP tool:
 
-```
+```text
 a-board-update({ issueNumber: <issue_number>, status: "Blocked" })
 ```
 

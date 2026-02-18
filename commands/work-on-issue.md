@@ -212,7 +212,7 @@ The issue-researcher will:
 
 ## Phase 3: Implement
 
-```
+```text
 Skill(implement):
   Input:  { issue_number: <N>, plan_path: <from Phase 2> }
   Output: { commits, files_changed }

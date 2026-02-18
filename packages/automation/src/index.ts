@@ -15,9 +15,9 @@ export {
 export { AutomationOrchestrator, type GitHubClient } from "./orchestrator";
 export type {
   AutomationResult,
+  BoardUpdateResult,
   GitHubIssue,
   GitHubMilestone,
   GitHubSubIssue,
   IssueCreationResult,
-  WorkStartResult,
 } from "./types";

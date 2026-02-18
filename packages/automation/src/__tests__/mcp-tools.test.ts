@@ -1,33 +1,24 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
-import { CheckpointMCPTools } from "@graph-flow/checkpoint";
 import { PlanningMCPTools } from "@graph-flow/planning";
 import { AutomationMCPTools } from "../mcp-tools";
 
 const TEST_PLANNING_DIR = "/tmp/graph-flow-test-automation-mcp-planning";
-const TEST_WORKFLOWS_DIR = "/tmp/graph-flow-test-automation-mcp-workflows";
 
 describe("AutomationMCPTools", () => {
   let planning: PlanningMCPTools;
-  let checkpoint: CheckpointMCPTools;
   let automation: AutomationMCPTools;
 
   beforeEach(async () => {
     planning = new PlanningMCPTools(TEST_PLANNING_DIR);
-    checkpoint = new CheckpointMCPTools(TEST_WORKFLOWS_DIR);
     await planning.init();
-    await checkpoint.init();
 
-    automation = new AutomationMCPTools(
-      planning.getManager(),
-      checkpoint.getManager(),
-    );
+    automation = new AutomationMCPTools(planning.getManager());
     await automation.init();
   });
 
   afterEach(async () => {
     await rm(TEST_PLANNING_DIR, { recursive: true, force: true });
-    await rm(TEST_WORKFLOWS_DIR, { recursive: true, force: true });
   });
 
   test("provides 3 tools", () => {
@@ -64,9 +55,8 @@ describe("AutomationMCPTools", () => {
   test("tool names are unique and don't clash with other subsystems", () => {
     const automationNames = automation.getTools().map((t) => t.name);
     const planningNames = planning.getTools().map((t) => t.name);
-    const checkpointNames = checkpoint.getTools().map((t) => t.name);
 
-    const allNames = [...automationNames, ...planningNames, ...checkpointNames];
+    const allNames = [...automationNames, ...planningNames];
     const uniqueNames = new Set(allNames);
 
     expect(allNames.length).toBe(uniqueNames.size);
