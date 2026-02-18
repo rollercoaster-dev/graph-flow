@@ -364,8 +364,10 @@ export async function getDefaultEmbedder(
     }
   }
 
-  // At this point defaultEmbedder is guaranteed to be set
-  return defaultEmbedder!;
+  if (!defaultEmbedder) {
+    throw new Error("Failed to initialize embedding provider");
+  }
+  return defaultEmbedder;
 }
 
 /**

@@ -115,8 +115,13 @@ describe("extractVueScripts", () => {
     const blocks = extractVueScripts(BOTH_SCRIPTS);
     expect(blocks).toHaveLength(2);
 
-    const regular = blocks.find((b) => !b.setup)!;
-    const setup = blocks.find((b) => b.setup)!;
+    const regular = blocks.find((b) => !b.setup);
+    const setup = blocks.find((b) => b.setup);
+    expect(regular).toBeDefined();
+    expect(setup).toBeDefined();
+    if (!regular || !setup) {
+      throw new Error("Expected both regular and setup script blocks");
+    }
 
     expect(regular.content).toContain("Config");
     expect(setup.content).toContain("ref(true)");
@@ -212,11 +217,19 @@ describe("CodeParser with .vue files", () => {
     const { entities } = await parser.parse(filepath);
 
     // In SCRIPT_TS: <script> is line 5, greet function is on line 12
-    const fn = entities.find((e) => e.name === "greet")!;
+    const fn = entities.find((e) => e.name === "greet");
+    expect(fn).toBeDefined();
+    if (!fn) {
+      throw new Error("Expected greet function to be parsed");
+    }
     expect(fn.location.line).toBe(12);
 
     // Props interface is on line 8
-    const iface = entities.find((e) => e.name === "Props")!;
+    const iface = entities.find((e) => e.name === "Props");
+    expect(iface).toBeDefined();
+    if (!iface) {
+      throw new Error("Expected Props interface to be parsed");
+    }
     expect(iface.location.line).toBe(8);
   });
 

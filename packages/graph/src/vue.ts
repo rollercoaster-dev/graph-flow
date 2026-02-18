@@ -271,26 +271,62 @@ function toPascalCase(tag: string): string {
     .join("");
 }
 
+interface TemplateBranchNode {
+  children?: ReadonlyArray<unknown>;
+}
+
+interface TemplateNode {
+  type: number;
+  tag?: string;
+  tagType?: number;
+  children?: ReadonlyArray<unknown>;
+  branches?: TemplateBranchNode[];
+}
+
+function toTemplateNode(node: unknown): TemplateNode | null {
+  if (
+    typeof node === "object" &&
+    node !== null &&
+    "type" in node &&
+    typeof (node as { type: unknown }).type === "number"
+  ) {
+    return node as TemplateNode;
+  }
+  return null;
+}
+
 /**
  * Walk the template AST and collect custom component tag names.
  */
-function walkTemplate(nodes: any[], components: Set<string>): void {
-  for (const node of nodes) {
+function walkTemplate(
+  nodes: ReadonlyArray<unknown>,
+  components: Set<string>,
+): void {
+  for (const rawNode of nodes) {
+    const node = toTemplateNode(rawNode);
+    if (!node) {
+      continue;
+    }
+
     if (node.type === NODE_ELEMENT) {
       if (
-        node.tagType === ELEMENT_COMPONENT ||
-        (!isIntrinsicElement(node.tag) && node.tagType === ELEMENT_ELEMENT)
+        (typeof node.tag === "string" && node.tagType === ELEMENT_COMPONENT) ||
+        (typeof node.tag === "string" &&
+          !isIntrinsicElement(node.tag) &&
+          node.tagType === ELEMENT_ELEMENT)
       ) {
         components.add(toPascalCase(node.tag));
       }
-      if (node.children) {
+      if (Array.isArray(node.children)) {
         walkTemplate(node.children, components);
       }
     } else if (node.type === NODE_IF && node.branches) {
       for (const branch of node.branches) {
-        walkTemplate(branch.children, components);
+        if (Array.isArray(branch.children)) {
+          walkTemplate(branch.children, components);
+        }
       }
-    } else if (node.type === NODE_FOR && node.children) {
+    } else if (node.type === NODE_FOR && Array.isArray(node.children)) {
       walkTemplate(node.children, components);
     }
   }
