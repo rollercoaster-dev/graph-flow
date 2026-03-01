@@ -57,7 +57,7 @@ export function resolveGitHubRepo(): string | null {
   const gfDir = process.env.GRAPH_FLOW_DIR?.trim();
   if (gfDir) {
     // Strip /.claude suffix if present (GRAPH_FLOW_DIR points to .claude subdir)
-    const dir = gfDir.endsWith("/.claude") ? gfDir.slice(0, -7) : gfDir;
+    const dir = gfDir.endsWith("/.claude") ? gfDir.slice(0, -8) : gfDir;
     const repo = repoFromDir(dir);
     if (repo) return repo;
   }
