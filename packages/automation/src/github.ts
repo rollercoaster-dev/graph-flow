@@ -38,8 +38,10 @@ export function clearGitHubCache(): void {
  */
 function ghJson<T>(args: string[], repo?: string): T | null {
   try {
-    const finalArgs = repo ? ["--repo", repo, ...args] : args;
-    const result = spawnSync(["gh", ...finalArgs]);
+    const isApi = args[0] === "api";
+    const finalArgs = repo && !isApi ? ["--repo", repo, ...args] : args;
+    const env = repo && isApi ? { ...process.env, GH_REPO: repo } : undefined;
+    const result = spawnSync(["gh", ...finalArgs], env ? { env } : undefined);
     if (result.success) {
       return JSON.parse(result.stdout.toString()) as T;
     }
@@ -70,10 +72,17 @@ function ghRaw(args: string[], repo?: string): string | null {
 }
 
 /**
+ * Scope a cache key by repo to avoid cross-repo collisions.
+ */
+function scopedCacheKey(key: string, repo?: string): string {
+  return repo ? `${repo}:${key}` : key;
+}
+
+/**
  * Fetch a milestone by number.
  */
 export function fetchMilestone(num: number, repo?: string): GitHubMilestone | null {
-  const cacheKey = `milestone:${num}`;
+  const cacheKey = scopedCacheKey(`milestone:${num}`, repo);
   const cached = getCached<GitHubMilestone>(cacheKey);
   if (cached) return cached;
 
@@ -107,7 +116,7 @@ export function fetchMilestone(num: number, repo?: string): GitHubMilestone | nu
  * Fetch issues belonging to a milestone.
  */
 export function fetchMilestoneIssues(milestoneNum: number, repo?: string): GitHubIssue[] {
-  const cacheKey = `milestone-issues:${milestoneNum}`;
+  const cacheKey = scopedCacheKey(`milestone-issues:${milestoneNum}`, repo);
   const cached = getCached<GitHubIssue[]>(cacheKey);
   if (cached) return cached;
 
@@ -155,7 +164,7 @@ export function fetchMilestoneIssues(milestoneNum: number, repo?: string): GitHu
  * Tries GraphQL sub-issues API first, falls back to parsing task list references.
  */
 export function fetchEpicSubIssues(epicNum: number, repo?: string): GitHubSubIssue[] {
-  const cacheKey = `epic-sub-issues:${epicNum}`;
+  const cacheKey = scopedCacheKey(`epic-sub-issues:${epicNum}`, repo);
   const cached = getCached<GitHubSubIssue[]>(cacheKey);
   if (cached) return cached;
 
@@ -230,7 +239,7 @@ function parseTaskListIssueRefs(body: string): GitHubSubIssue[] {
  * Fetch a single issue by number.
  */
 export function fetchIssue(num: number, repo?: string): GitHubIssue | null {
-  const cacheKey = `issue:${num}`;
+  const cacheKey = scopedCacheKey(`issue:${num}`, repo);
   const cached = getCached<GitHubIssue>(cacheKey);
   if (cached) return cached;
 

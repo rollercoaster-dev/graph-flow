@@ -87,18 +87,15 @@ interface GitHubIssueState {
  */
 function checkIssueState(issueNumber: number, githubRepo?: string): GitHubIssueState | null {
   try {
-    const args = [
-      "gh",
+    const baseArgs = [
       "issue",
       "view",
       String(issueNumber),
       "--json",
       "state,linkedBranches",
     ];
-    if (githubRepo) {
-      args.splice(1, 0, "--repo", githubRepo);
-    }
-    const result = spawnSync(args);
+    const args = githubRepo ? ["--repo", githubRepo, ...baseArgs] : baseArgs;
+    const result = spawnSync(["gh", ...args]);
 
     if (result.success) {
       const data = JSON.parse(result.stdout.toString()) as {
@@ -110,8 +107,7 @@ function checkIssueState(issueNumber: number, githubRepo?: string): GitHubIssueS
       let linkedPRNumber: number | undefined;
       if (data.linkedBranches && data.linkedBranches.length > 0) {
         const branchName = data.linkedBranches[0].name;
-        const prArgs = [
-          "gh",
+        const basePrArgs = [
           "pr",
           "list",
           "--head",
@@ -121,10 +117,8 @@ function checkIssueState(issueNumber: number, githubRepo?: string): GitHubIssueS
           "--limit",
           "1",
         ];
-        if (githubRepo) {
-          prArgs.splice(1, 0, "--repo", githubRepo);
-        }
-        const prResult = spawnSync(prArgs);
+        const prArgs = githubRepo ? ["--repo", githubRepo, ...basePrArgs] : basePrArgs;
+        const prResult = spawnSync(["gh", ...prArgs]);
 
         if (prResult.success) {
           const prData = JSON.parse(prResult.stdout.toString()) as Array<{

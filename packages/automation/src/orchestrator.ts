@@ -41,9 +41,9 @@ export class AutomationOrchestrator {
   constructor(
     private planning: PlanningManager,
     private workflows: WorkflowManager,
-    gh?: GitHubClient,
-    githubRepo?: string,
+    opts?: { gh?: GitHubClient; githubRepo?: string },
   ) {
+    const { gh, githubRepo } = opts ?? {};
     this.gh = gh ?? ghDefault;
     this.githubRepo = githubRepo;
   }

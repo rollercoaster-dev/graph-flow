@@ -24,7 +24,8 @@ const pkg = pkgModule.default ?? pkgModule;
  * Handles both HTTPS and SSH formats.
  */
 function parseGitHubRepo(remoteUrl: string): string | null {
-  const match = remoteUrl.match(/github\.com[/:]([^/]+\/[^/]+?)(\.git)?$/);
+  const normalized = remoteUrl.replace(/\/+$/, "");
+  const match = normalized.match(/[/:]([^/]+\/[^/]+?)(?:\.git)?$/);
   return match ? match[1] : null;
 }
 

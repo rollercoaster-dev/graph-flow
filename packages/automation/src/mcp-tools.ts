@@ -30,7 +30,7 @@ export class AutomationMCPTools {
   private orchestrator: AutomationOrchestrator;
 
   constructor(planning: PlanningManager, workflows: WorkflowManager, githubRepo?: string) {
-    this.orchestrator = new AutomationOrchestrator(planning, workflows, undefined, githubRepo);
+    this.orchestrator = new AutomationOrchestrator(planning, workflows, { githubRepo });
   }
 
   async init(): Promise<void> {
