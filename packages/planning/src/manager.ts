@@ -24,14 +24,16 @@ import type {
 export class PlanningManager {
   private storage: PlanningStorage;
   private resolverFactory!: ResolverFactory;
+  private githubRepo?: string;
 
-  constructor(storageDir: string) {
+  constructor(storageDir: string, githubRepo?: string) {
     this.storage = new PlanningStorage({ baseDir: storageDir });
+    this.githubRepo = githubRepo;
   }
 
   async init(): Promise<void> {
     await this.storage.init();
-    this.resolverFactory = new ResolverFactory(this.storage);
+    this.resolverFactory = new ResolverFactory(this.storage, this.githubRepo);
   }
 
   // ============================================================================

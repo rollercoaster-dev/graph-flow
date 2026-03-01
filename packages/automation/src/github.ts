@@ -36,9 +36,12 @@ export function clearGitHubCache(): void {
 /**
  * Run a `gh` CLI command and return parsed JSON output.
  */
-function ghJson<T>(args: string[]): T | null {
+function ghJson<T>(args: string[], repo?: string): T | null {
   try {
-    const result = spawnSync(["gh", ...args]);
+    const isApi = args[0] === "api";
+    const finalArgs = repo && !isApi ? ["--repo", repo, ...args] : args;
+    const env = repo && isApi ? { ...process.env, GH_REPO: repo } : undefined;
+    const result = spawnSync(["gh", ...finalArgs], env ? { env } : undefined);
     if (result.success) {
       return JSON.parse(result.stdout.toString()) as T;
     }
@@ -55,9 +58,10 @@ function ghJson<T>(args: string[]): T | null {
 /**
  * Run a `gh` CLI command and return raw stdout.
  */
-function ghRaw(args: string[]): string | null {
+function ghRaw(args: string[], repo?: string): string | null {
   try {
-    const result = spawnSync(["gh", ...args]);
+    const finalArgs = repo ? ["--repo", repo, ...args] : args;
+    const result = spawnSync(["gh", ...finalArgs]);
     if (result.success) {
       return result.stdout.toString().trim();
     }
@@ -68,10 +72,17 @@ function ghRaw(args: string[]): string | null {
 }
 
 /**
+ * Scope a cache key by repo to avoid cross-repo collisions.
+ */
+function scopedCacheKey(key: string, repo?: string): string {
+  return repo ? `${repo}:${key}` : key;
+}
+
+/**
  * Fetch a milestone by number.
  */
-export function fetchMilestone(num: number): GitHubMilestone | null {
-  const cacheKey = `milestone:${num}`;
+export function fetchMilestone(num: number, repo?: string): GitHubMilestone | null {
+  const cacheKey = scopedCacheKey(`milestone:${num}`, repo);
   const cached = getCached<GitHubMilestone>(cacheKey);
   if (cached) return cached;
 
@@ -83,7 +94,7 @@ export function fetchMilestone(num: number): GitHubMilestone | null {
     openIssues: number;
     closedIssues: number;
     url: string;
-  }>(["api", `repos/{owner}/{repo}/milestones/${num}`]);
+  }>(["api", `repos/{owner}/{repo}/milestones/${num}`], repo);
 
   if (!data) return null;
 
@@ -104,8 +115,8 @@ export function fetchMilestone(num: number): GitHubMilestone | null {
 /**
  * Fetch issues belonging to a milestone.
  */
-export function fetchMilestoneIssues(milestoneNum: number): GitHubIssue[] {
-  const cacheKey = `milestone-issues:${milestoneNum}`;
+export function fetchMilestoneIssues(milestoneNum: number, repo?: string): GitHubIssue[] {
+  const cacheKey = scopedCacheKey(`milestone-issues:${milestoneNum}`, repo);
   const cached = getCached<GitHubIssue[]>(cacheKey);
   if (cached) return cached;
 
@@ -130,7 +141,7 @@ export function fetchMilestoneIssues(milestoneNum: number): GitHubIssue[] {
     "number,title,body,state,labels,url,milestone",
     "--limit",
     "100",
-  ]);
+  ], repo);
 
   if (!data) return [];
 
@@ -152,8 +163,8 @@ export function fetchMilestoneIssues(milestoneNum: number): GitHubIssue[] {
  * Fetch sub-issues from an epic issue.
  * Tries GraphQL sub-issues API first, falls back to parsing task list references.
  */
-export function fetchEpicSubIssues(epicNum: number): GitHubSubIssue[] {
-  const cacheKey = `epic-sub-issues:${epicNum}`;
+export function fetchEpicSubIssues(epicNum: number, repo?: string): GitHubSubIssue[] {
+  const cacheKey = scopedCacheKey(`epic-sub-issues:${epicNum}`, repo);
   const cached = getCached<GitHubSubIssue[]>(cacheKey);
   if (cached) return cached;
 
@@ -177,7 +188,7 @@ export function fetchEpicSubIssues(epicNum: number): GitHubSubIssue[] {
     "graphql",
     "-f",
     `query=query { repository(owner: "{owner}", name: "{repo}") { issue(number: ${epicNum}) { subIssues(first: 100) { nodes { number title state } } } } }`,
-  ]);
+  ], repo);
 
   const nodes =
     graphqlResult?.data?.repository?.issue?.subIssues?.nodes;
@@ -192,7 +203,7 @@ export function fetchEpicSubIssues(epicNum: number): GitHubSubIssue[] {
   }
 
   // Fallback: parse task list references from epic body
-  const epic = fetchIssue(epicNum);
+  const epic = fetchIssue(epicNum, repo);
   if (!epic) return [];
 
   const subIssues = parseTaskListIssueRefs(epic.body);
@@ -227,8 +238,8 @@ function parseTaskListIssueRefs(body: string): GitHubSubIssue[] {
 /**
  * Fetch a single issue by number.
  */
-export function fetchIssue(num: number): GitHubIssue | null {
-  const cacheKey = `issue:${num}`;
+export function fetchIssue(num: number, repo?: string): GitHubIssue | null {
+  const cacheKey = scopedCacheKey(`issue:${num}`, repo);
   const cached = getCached<GitHubIssue>(cacheKey);
   if (cached) return cached;
 
@@ -246,7 +257,7 @@ export function fetchIssue(num: number): GitHubIssue | null {
     String(num),
     "--json",
     "number,title,body,state,labels,url,milestone",
-  ]);
+  ], repo);
 
   if (!data) return null;
 
@@ -272,6 +283,7 @@ export function createIssue(opts: {
   body?: string;
   labels?: string[];
   milestone?: number;
+  repo?: string;
 }): { number: number; url: string } | null {
   const args = ["issue", "create", "--title", opts.title];
 
@@ -285,7 +297,7 @@ export function createIssue(opts: {
     args.push("--milestone", String(opts.milestone));
   }
 
-  const url = ghRaw(args);
+  const url = ghRaw(args, opts.repo);
   if (!url) return null;
 
   // gh issue create outputs the issue URL; extract number from it

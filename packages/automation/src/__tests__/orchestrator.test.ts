@@ -68,7 +68,7 @@ describe("AutomationOrchestrator", () => {
         ],
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
       const result = await orchestrator.fromMilestone(1);
 
       expect(result.goalId).toStartWith("goal-");
@@ -94,7 +94,7 @@ describe("AutomationOrchestrator", () => {
 
     test("throws when milestone not found", async () => {
       const gh = mockGitHub({ fetchMilestone: () => null });
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
 
       await expect(orchestrator.fromMilestone(999)).rejects.toThrow(
         "Milestone 999 not found"
@@ -115,7 +115,7 @@ describe("AutomationOrchestrator", () => {
         fetchMilestoneIssues: () => [],
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
       const result = await orchestrator.fromMilestone(2);
 
       expect(result.stepIds).toHaveLength(0);
@@ -140,7 +140,7 @@ describe("AutomationOrchestrator", () => {
         ],
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
       const result = await orchestrator.fromEpic(5);
 
       expect(result.goalId).toStartWith("goal-");
@@ -155,7 +155,7 @@ describe("AutomationOrchestrator", () => {
 
     test("throws when epic not found", async () => {
       const gh = mockGitHub({ fetchIssue: () => null });
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
 
       await expect(orchestrator.fromEpic(999)).rejects.toThrow(
         "Epic issue #999 not found"
@@ -172,7 +172,7 @@ describe("AutomationOrchestrator", () => {
         }),
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
 
       // Set up a plan to link to
       const { goal } = await planning.pushGoal({ title: "Test goal" });
@@ -207,7 +207,7 @@ describe("AutomationOrchestrator", () => {
         }),
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
       const result = await orchestrator.createIssue({
         title: "Standalone issue",
       });
@@ -218,7 +218,7 @@ describe("AutomationOrchestrator", () => {
 
     test("throws when gh create fails", async () => {
       const gh = mockGitHub({ createIssue: () => null });
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
 
       await expect(
         orchestrator.createIssue({ title: "Failing issue" })
@@ -240,7 +240,7 @@ describe("AutomationOrchestrator", () => {
         createBranch: () => true,
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
       const result = await orchestrator.startIssue(15);
 
       expect(result.branch).toBe("issue-15-fix-login-bug");
@@ -289,7 +289,7 @@ describe("AutomationOrchestrator", () => {
         },
       ]);
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
       const result = await orchestrator.startIssue(20);
 
       expect(result.planStepId).toBe(steps[0].id);
@@ -297,7 +297,7 @@ describe("AutomationOrchestrator", () => {
 
     test("throws when issue not found", async () => {
       const gh = mockGitHub({ fetchIssue: () => null });
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
 
       await expect(orchestrator.startIssue(999)).rejects.toThrow(
         "Issue #999 not found"
@@ -317,7 +317,7 @@ describe("AutomationOrchestrator", () => {
         createBranch: () => false,
       });
 
-      const orchestrator = new AutomationOrchestrator(planning, workflows, gh);
+      const orchestrator = new AutomationOrchestrator(planning, workflows, { gh });
 
       await expect(orchestrator.startIssue(30)).rejects.toThrow(
         "Failed to create branch"

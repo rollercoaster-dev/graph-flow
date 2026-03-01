@@ -46,14 +46,16 @@ export class PlanningMCPTools {
   private manager: PlanningManager;
   private resolverFactory!: ResolverFactory;
   private initialized = false;
+  private githubRepo?: string;
 
-  constructor(storageDir: string) {
-    this.manager = new PlanningManager(storageDir);
+  constructor(storageDir: string, githubRepo?: string) {
+    this.manager = new PlanningManager(storageDir, githubRepo);
+    this.githubRepo = githubRepo;
   }
 
   async init(): Promise<void> {
     await this.manager.init();
-    this.resolverFactory = new ResolverFactory(this.manager.getStorage());
+    this.resolverFactory = new ResolverFactory(this.manager.getStorage(), this.githubRepo);
     this.initialized = true;
   }
 
