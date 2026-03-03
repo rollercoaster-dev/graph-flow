@@ -85,7 +85,10 @@ interface GitHubIssueState {
 /**
  * Check GitHub issue state via `gh` CLI.
  */
-function checkIssueState(issueNumber: number, githubRepo?: string): GitHubIssueState | null {
+function checkIssueState(
+  issueNumber: number,
+  githubRepo?: string,
+): GitHubIssueState | null {
   try {
     const baseArgs = [
       "issue",
@@ -117,7 +120,9 @@ function checkIssueState(issueNumber: number, githubRepo?: string): GitHubIssueS
           "--limit",
           "1",
         ];
-        const prArgs = githubRepo ? ["--repo", githubRepo, ...basePrArgs] : basePrArgs;
+        const prArgs = githubRepo
+          ? ["--repo", githubRepo, ...basePrArgs]
+          : basePrArgs;
         const prResult = spawnSync(["gh", ...prArgs]);
 
         if (prResult.success) {

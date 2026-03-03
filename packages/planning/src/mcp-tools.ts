@@ -54,7 +54,10 @@ export class PlanningMCPTools {
 
   async init(): Promise<void> {
     await this.manager.init();
-    this.resolverFactory = new ResolverFactory(this.manager.getStorage(), this.githubRepo);
+    this.resolverFactory = new ResolverFactory(
+      this.manager.getStorage(),
+      this.githubRepo,
+    );
     this.initialized = true;
   }
 

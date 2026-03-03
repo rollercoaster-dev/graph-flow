@@ -114,14 +114,17 @@ export class GraphFlowServer {
 
   constructor(options: { baseDir?: string; githubRepo?: string | null } = {}) {
     const baseDir = options.baseDir ?? resolveBaseDir();
-    const githubRepo = options.githubRepo !== undefined
-      ? (options.githubRepo ?? undefined)
-      : (resolveGitHubRepo() ?? undefined);
+    const githubRepo =
+      options.githubRepo !== undefined
+        ? (options.githubRepo ?? undefined)
+        : (resolveGitHubRepo() ?? undefined);
 
     if (githubRepo) {
       console.error(`graph-flow: using GitHub repo ${githubRepo}`);
     } else {
-      console.error("graph-flow: no GitHub repo detected, gh CLI calls may fail in plugin context");
+      console.error(
+        "graph-flow: no GitHub repo detected, gh CLI calls may fail in plugin context",
+      );
     }
 
     const workflowsDir = join(baseDir, "workflows");

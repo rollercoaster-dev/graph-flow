@@ -94,7 +94,10 @@ function scopedCacheKey(key: string, repo?: string): string {
 /**
  * Fetch a milestone by number.
  */
-export function fetchMilestone(num: number, repo?: string): GitHubMilestone | null {
+export function fetchMilestone(
+  num: number,
+  repo?: string,
+): GitHubMilestone | null {
   const cacheKey = scopedCacheKey(`milestone:${num}`, repo);
   const cached = getCached<GitHubMilestone>(cacheKey);
   if (cached) return cached;
@@ -128,7 +131,10 @@ export function fetchMilestone(num: number, repo?: string): GitHubMilestone | nu
 /**
  * Fetch issues belonging to a milestone.
  */
-export function fetchMilestoneIssues(milestoneNum: number, repo?: string): GitHubIssue[] {
+export function fetchMilestoneIssues(
+  milestoneNum: number,
+  repo?: string,
+): GitHubIssue[] {
   const cacheKey = scopedCacheKey(`milestone-issues:${milestoneNum}`, repo);
   const cached = getCached<GitHubIssue[]>(cacheKey);
   if (cached) return cached;
@@ -143,18 +149,21 @@ export function fetchMilestoneIssues(milestoneNum: number, repo?: string): GitHu
       url: string;
       milestone?: { number: number; title: string };
     }>
-  >([
-    "issue",
-    "list",
-    "--milestone",
-    String(milestoneNum),
-    "--state",
-    "all",
-    "--json",
-    "number,title,body,state,labels,url,milestone",
-    "--limit",
-    "100",
-  ], repo);
+  >(
+    [
+      "issue",
+      "list",
+      "--milestone",
+      String(milestoneNum),
+      "--state",
+      "all",
+      "--json",
+      "number,title,body,state,labels,url,milestone",
+      "--limit",
+      "100",
+    ],
+    repo,
+  );
 
   if (!data) return [];
 
@@ -176,7 +185,10 @@ export function fetchMilestoneIssues(milestoneNum: number, repo?: string): GitHu
  * Fetch sub-issues from an epic issue.
  * Tries GraphQL sub-issues API first, falls back to parsing task list references.
  */
-export function fetchEpicSubIssues(epicNum: number, repo?: string): GitHubSubIssue[] {
+export function fetchEpicSubIssues(
+  epicNum: number,
+  repo?: string,
+): GitHubSubIssue[] {
   const cacheKey = scopedCacheKey(`epic-sub-issues:${epicNum}`, repo);
   const cached = getCached<GitHubSubIssue[]>(cacheKey);
   if (cached) return cached;
@@ -196,12 +208,15 @@ export function fetchEpicSubIssues(epicNum: number, repo?: string): GitHubSubIss
         };
       };
     };
-  }>([
-    "api",
-    "graphql",
-    "-f",
-    `query=query { repository(owner: "{owner}", name: "{repo}") { issue(number: ${epicNum}) { subIssues(first: 100) { nodes { number title state } } } } }`,
-  ], repo);
+  }>(
+    [
+      "api",
+      "graphql",
+      "-f",
+      `query=query { repository(owner: "{owner}", name: "{repo}") { issue(number: ${epicNum}) { subIssues(first: 100) { nodes { number title state } } } } }`,
+    ],
+    repo,
+  );
 
   const nodes = graphqlResult?.data?.repository?.issue?.subIssues?.nodes;
   if (nodes && nodes.length > 0) {
@@ -257,13 +272,16 @@ export function fetchIssue(num: number, repo?: string): GitHubIssue | null {
     labels: Array<{ name: string }>;
     url: string;
     milestone?: { number: number; title: string };
-  }>([
-    "issue",
-    "view",
-    String(num),
-    "--json",
-    "number,title,body,state,labels,url,milestone",
-  ], repo);
+  }>(
+    [
+      "issue",
+      "view",
+      String(num),
+      "--json",
+      "number,title,body,state,labels,url,milestone",
+    ],
+    repo,
+  );
 
   if (!data) return null;
 
