@@ -81,14 +81,23 @@ export class GraphCache {
       return null;
     }
 
-    const cached = (await Bun.file(cachePath).json()) as CachedGraphData;
+    try {
+      const cached = (await Bun.file(cachePath).json()) as CachedGraphData;
 
-    // Validate hash matches
-    if (cached.fileHash !== hash) {
+      // Validate hash matches
+      if (cached.fileHash !== hash) {
+        return null;
+      }
+
+      return cached;
+    } catch (error) {
+      console.warn(
+        `[graph/cache] Corrupted cache file "${cachePath}", ignoring: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
       return null;
     }
-
-    return cached;
   }
 
   /**

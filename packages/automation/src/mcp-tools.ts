@@ -2,11 +2,6 @@
  * Automation MCP Tools
  *
  * 3 tools: a-import, a-create-issue, a-board-update
- *
- * Changes in v3:
- * - Merged a-from-milestone/a-from-epic into a-import { type, number }
- * - Removed a-start-issue (setup skill handles this via p-goal + c-update)
- * - Added a-board-update for GitHub Project board operations
  */
 
 import type { PlanningManager } from "@graph-flow/planning/manager";

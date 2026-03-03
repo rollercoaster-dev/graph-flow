@@ -54,7 +54,7 @@ export class DocsMCPTools {
               type: "array",
               items: { type: "string" },
               description:
-                "Glob patterns for markdown files (e.g., ['docs/**/*.md', 'README.md']). Omit to auto-detect all *.md files.",
+                "Glob patterns for markdown files (e.g., ['docs/**/*.md', 'README.md']). Omit to auto-detect all *.md and *.mdx files.",
             },
             cwd: {
               type: "string",

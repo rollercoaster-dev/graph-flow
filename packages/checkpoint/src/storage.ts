@@ -46,8 +46,24 @@ export class JSONLStorage {
 
     const content = await Bun.file(filepath).text();
     const lines = content.trim().split("\n").filter(Boolean);
+    const results: T[] = [];
+    let corrupted = 0;
 
-    return lines.map((line) => JSON.parse(line) as T);
+    for (const line of lines) {
+      try {
+        results.push(JSON.parse(line) as T);
+      } catch {
+        corrupted++;
+      }
+    }
+
+    if (corrupted > 0) {
+      console.warn(
+        `[checkpoint-storage] ${filename}: skipped ${corrupted} corrupted line(s) of ${lines.length} total`,
+      );
+    }
+
+    return results;
   }
 
   /**

@@ -163,8 +163,18 @@ export async function runDoctor(
         });
       }
     }
-  } catch {
-    // Handled below
+  } catch (error) {
+    // File exists but couldn't be read or parsed
+    const { existsSync } = await import("node:fs");
+    if (existsSync(mcpPath)) {
+      mcpFound = true;
+      checks.push({
+        id: "mcp-parse",
+        status: "fail",
+        summary: ".mcp.json exists but could not be read or parsed",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   if (!mcpFound) {

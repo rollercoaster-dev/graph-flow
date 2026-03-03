@@ -10,7 +10,7 @@
  * A parsed section from a markdown document.
  */
 export interface DocSection {
-  /** SHA-256 hash of filePath + anchor — globally unique */
+  /** Truncated SHA-256 (first 16 hex chars) of filePath + anchor */
   id: string;
   /** Relative file path to the markdown source */
   filePath: string;
@@ -50,7 +50,7 @@ export interface DocsGraph {
  * Options for indexing a set of markdown files.
  */
 export interface DocsIndexOptions {
-  /** Glob patterns for markdown files, e.g. ['docs/**\/*.md', 'README.md']. Omit to auto-detect. */
+  /** Glob patterns for markdown files. Defaults to all .md and .mdx files when omitted. */
   patterns?: string[];
   /** Working directory for glob expansion (default: cwd) */
   cwd?: string;
@@ -77,6 +77,8 @@ export interface DocsIndexResult {
 export interface DocSearchResult {
   section: DocSection;
   similarity: number;
+  /** Indicates the search method used: "semantic" (vector embeddings) or "keyword" (term overlap fallback) */
+  searchMode?: "semantic" | "keyword";
 }
 
 /**

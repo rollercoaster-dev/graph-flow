@@ -71,8 +71,19 @@ export function resolveDeprecatedToolCall(
   }
 
   if (name === "a-from-milestone") {
-    const number =
-      getNumberArg(args, ["number", "milestone", "milestoneNumber"]) ?? 0;
+    const number = getNumberArg(args, [
+      "number",
+      "milestone",
+      "milestoneNumber",
+    ]);
+    if (number === undefined) {
+      return {
+        name: "a-import",
+        args: { type: "milestone" },
+        warning:
+          "Tool 'a-from-milestone' is deprecated; use 'a-import'. Missing required argument: number.",
+      };
+    }
     return {
       name: "a-import",
       args: { type: "milestone", number },
@@ -81,7 +92,15 @@ export function resolveDeprecatedToolCall(
   }
 
   if (name === "a-from-epic") {
-    const number = getNumberArg(args, ["number", "epic", "epicNumber"]) ?? 0;
+    const number = getNumberArg(args, ["number", "epic", "epicNumber"]);
+    if (number === undefined) {
+      return {
+        name: "a-import",
+        args: { type: "epic" },
+        warning:
+          "Tool 'a-from-epic' is deprecated; use 'a-import'. Missing required argument: number.",
+      };
+    }
     return {
       name: "a-import",
       args: { type: "epic", number },
@@ -105,7 +124,7 @@ export function resolveDeprecatedToolCall(
       name: "p-goal",
       args: { title, description, issueNumber },
       warning:
-        "Tool 'a-start-issue' is deprecated; use 'p-goal' and 'c-update' directly.",
+        "Tool 'a-start-issue' is deprecated. Only creates a goal — branch creation and checkpointing are no longer included. Use 'p-goal' and 'c-update' directly.",
     };
   }
 

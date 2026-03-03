@@ -1,8 +1,6 @@
 /**
  * Markdown Parser with Hierarchical Section Extraction and Hybrid Chunking
  *
- * Ported from claude-knowledge/src/docs/parser.ts.
- *
  * Strategy:
  * - Hierarchical: preserves heading parent/child relationships
  * - Hybrid chunking: respects section boundaries but splits oversized sections

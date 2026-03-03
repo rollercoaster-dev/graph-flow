@@ -397,7 +397,7 @@ export class GraphFlowServer {
 // Start server when executed directly
 if (import.meta.main) {
   const server = new GraphFlowServer({ baseDir: resolveBaseDir() });
-  // No init() call - initialization is now lazy on first tool use
+  // No init() call - initialization is lazy, triggered on first MCP request (list or call)
   await server.run();
 
   // Graceful shutdown

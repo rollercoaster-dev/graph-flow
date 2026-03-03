@@ -99,7 +99,7 @@ export class DocsSearch {
 
         const similarity = cosineSimilarity(queryEmbedding, embedding);
         if (similarity >= threshold) {
-          scored.push({ section, similarity });
+          scored.push({ section, similarity, searchMode: "semantic" });
         }
       }
 
@@ -136,7 +136,7 @@ export class DocsSearch {
       const matched = queryTerms.filter((t) => text.includes(t)).length;
       if (matched > 0) {
         const similarity = matched / queryTerms.length;
-        scored.push({ section, similarity });
+        scored.push({ section, similarity, searchMode: "keyword" });
       }
     }
 

@@ -394,20 +394,17 @@ export class WorkflowManager {
 
         // Handle action_logged events
         if (event.type === "action_logged" && update.logAction) {
-          // biome-ignore lint/style/noNonNullAssertion: state is assigned above
-          state!.actions = [...state!.actions, update.logAction];
+          state.actions = [...state.actions, update.logAction];
         }
 
         // Handle commit_logged events
         if (event.type === "commit_logged" && update.logCommit) {
-          // biome-ignore lint/style/noNonNullAssertion: state is assigned above
-          state!.commits = [...state!.commits, update.logCommit];
+          state.commits = [...state.commits, update.logCommit];
         }
 
         // Handle status_changed: increment retryCount on failure
         if (event.type === "status_changed" && update.status === "failed") {
-          // biome-ignore lint/style/noNonNullAssertion: state is assigned above
-          state!.retryCount = (state!.retryCount ?? 0) + 1;
+          state.retryCount = (state.retryCount ?? 0) + 1;
         }
       }
     }

@@ -34,9 +34,12 @@ export class SemanticSearch {
   }
 
   /**
-   * Generate and store embedding for a learning
+   * Generate and store embedding for a learning.
+   * Returns a warning string if embedding failed (learning is still stored without it).
    */
-  async generateAndStoreEmbedding(learning: LearningRecord): Promise<void> {
+  async generateAndStoreEmbedding(
+    learning: LearningRecord,
+  ): Promise<string | undefined> {
     try {
       const embedder = await getDefaultEmbedder();
       const embedding = await embedder.generate(learning.content);
@@ -48,12 +51,13 @@ export class SemanticSearch {
           embedding,
         );
       }
+      return undefined;
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
       console.error(
-        `Failed to generate embedding for learning ${learning.id}:`,
-        error,
+        `[knowledge/semantic] Failed to generate embedding for learning ${learning.id}: ${msg}`,
       );
-      // Non-blocking - learning still stored without embedding
+      return `Stored without embedding — semantic search will not find this learning. ${msg}`;
     }
   }
 

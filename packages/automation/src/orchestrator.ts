@@ -1,14 +1,9 @@
 /**
  * Automation Orchestrator
  *
- * Coordinates GitHub operations with planning stack and checkpoints.
- * Accepts shared PlanningManager + WorkflowManager instances to
- * maintain in-memory cache coherence with MCP tools.
- *
- * Changes in v3:
- * - Merged fromMilestone/fromEpic into importSource(type, number)
- * - Removed startIssue (setup skill handles this directly via p-goal + c-update)
- * - Added boardUpdate for GitHub Project board operations
+ * Coordinates GitHub operations with the planning stack.
+ * Accepts a shared PlanningManager instance (and optional GitHubClient for testability)
+ * to maintain in-memory cache coherence with MCP tools.
  */
 
 import type { PlanningManager } from "@graph-flow/planning/manager";
@@ -292,7 +287,17 @@ export class AutomationOrchestrator {
       let itemId: string;
       if (addProc.exitCode === 0) {
         const addData = JSON.parse(addStdout);
-        itemId = addData?.data?.addProjectV2ItemById?.item?.id;
+        const parsedItemId = addData?.data?.addProjectV2ItemById?.item?.id;
+        if (!parsedItemId) {
+          return {
+            issueNumber,
+            itemId: "",
+            status,
+            success: false,
+            error: `Failed to extract item ID from board response: ${addStdout.slice(0, 200)}`,
+          };
+        }
+        itemId = parsedItemId;
       } else {
         // Inspect stderr: auth/network failures are terminal; "already exists" → fallback query
         if (/401|403|unauthorized|forbidden|credentials/i.test(addStderr)) {
@@ -313,17 +318,24 @@ export class AutomationOrchestrator {
         const MAX_PAGES = 30; // safety guard: up to 3000 items
 
         while (pagesScanned < MAX_PAGES) {
-          const afterClause = cursor ? `, after: "${cursor}"` : "";
-          const queryProc = Bun.spawn(
-            [
-              "gh",
-              "api",
-              "graphql",
-              "-f",
-              `query=query { organization(login: "${config.orgLogin}") { projectV2(number: ${config.projectNumber}) { items(first: 100${afterClause}) { nodes { id content { ... on Issue { number } } } pageInfo { hasNextPage endCursor } } } } }`,
-            ],
-            { stdout: "pipe", stderr: "pipe" },
-          );
+          const queryArgs = [
+            "gh",
+            "api",
+            "graphql",
+            "-f",
+            `query=query($login: String!, $projectNumber: Int!, $after: String) { organization(login: $login) { projectV2(number: $projectNumber) { items(first: 100, after: $after) { nodes { id content { ... on Issue { number } } } pageInfo { hasNextPage endCursor } } } } }`,
+            "-f",
+            `login=${config.orgLogin}`,
+            "-F",
+            `projectNumber=${config.projectNumber}`,
+          ];
+          if (cursor) {
+            queryArgs.push("-f", `after=${cursor}`);
+          }
+          const queryProc = Bun.spawn(queryArgs, {
+            stdout: "pipe",
+            stderr: "pipe",
+          });
           await queryProc.exited;
           if (queryProc.exitCode !== 0) {
             return {

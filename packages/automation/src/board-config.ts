@@ -53,13 +53,18 @@ function loadProjectConfig(projectRoot: string): ProjectConfigFile {
     return {};
   }
 
-  try {
-    const text = readFileSync(path, "utf-8");
-    return text.trim().length > 0
-      ? (JSON.parse(text) as ProjectConfigFile)
-      : {};
-  } catch {
+  const text = readFileSync(path, "utf-8");
+  if (text.trim().length === 0) {
     return {};
+  }
+
+  try {
+    return JSON.parse(text) as ProjectConfigFile;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to parse ${path}: ${msg}. Fix the JSON syntax or delete the file to use env vars instead.`,
+    );
   }
 }
 

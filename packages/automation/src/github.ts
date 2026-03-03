@@ -33,38 +33,61 @@ export function clearGitHubCache(): void {
  * Run a `gh` CLI command and return parsed JSON output.
  */
 function ghJson<T>(args: string[], repo?: string): T | null {
+  let result: ReturnType<typeof spawnSync>;
   try {
     const isApi = args[0] === "api";
     const finalArgs = repo && !isApi ? ["--repo", repo, ...args] : args;
     const env = repo && isApi ? { ...process.env, GH_REPO: repo } : undefined;
-    const result = spawnSync(["gh", ...finalArgs], env ? { env } : undefined);
-    if (result.success) {
-      return JSON.parse(result.stdout.toString()) as T;
-    }
-    const stderr = result.stderr.toString().trim();
-    if (stderr) {
-      console.error(`gh ${args[0]} failed: ${stderr}`);
-    }
-  } catch {
-    // gh not available or JSON parse failure
+    result = spawnSync(["gh", ...finalArgs], env ? { env } : undefined);
+  } catch (error) {
+    console.error(
+      `[automation/github] gh CLI not available: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
   }
-  return null;
+
+  if (!result.success) {
+    const stderr = result.stderr?.toString().trim() ?? "";
+    if (stderr) {
+      console.error(`[automation/github] gh ${args[0]} failed: ${stderr}`);
+    }
+    return null;
+  }
+
+  try {
+    return JSON.parse((result.stdout ?? "").toString()) as T;
+  } catch (error) {
+    console.error(
+      `[automation/github] Failed to parse gh ${args[0]} JSON output: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
+  }
 }
 
 /**
  * Run a `gh` CLI command and return raw stdout.
  */
 function ghRaw(args: string[], repo?: string): string | null {
+  let result: ReturnType<typeof spawnSync>;
   try {
     const finalArgs = repo ? ["--repo", repo, ...args] : args;
-    const result = spawnSync(["gh", ...finalArgs]);
-    if (result.success) {
-      return result.stdout.toString().trim();
-    }
-  } catch {
-    // gh not available
+    result = spawnSync(["gh", ...finalArgs]);
+  } catch (error) {
+    console.error(
+      `[automation/github] gh CLI not available: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
   }
-  return null;
+
+  if (!result.success) {
+    const stderr = result.stderr?.toString().trim() ?? "";
+    if (stderr) {
+      console.error(`[automation/github] gh ${args[0]} failed: ${stderr}`);
+    }
+    return null;
+  }
+
+  return (result.stdout ?? "").toString().trim();
 }
 
 /**

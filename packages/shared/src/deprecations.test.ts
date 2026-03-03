@@ -37,6 +37,29 @@ describe("resolveDeprecatedToolCall", () => {
     expect(result.args).toEqual({ type: "milestone", number: 42 });
   });
 
+  it("maps a-from-epic to a-import", () => {
+    const result = resolveDeprecatedToolCall("a-from-epic", {
+      epicNumber: 7,
+    });
+    expect(result.name).toBe("a-import");
+    expect(result.args).toEqual({ type: "epic", number: 7 });
+    expect(result.warning).toContain("deprecated");
+  });
+
+  it("warns when a-from-milestone called without number", () => {
+    const result = resolveDeprecatedToolCall("a-from-milestone", {});
+    expect(result.name).toBe("a-import");
+    expect(result.args).toEqual({ type: "milestone" });
+    expect(result.warning).toContain("Missing required argument");
+  });
+
+  it("warns when a-from-epic called without number", () => {
+    const result = resolveDeprecatedToolCall("a-from-epic", {});
+    expect(result.name).toBe("a-import");
+    expect(result.args).toEqual({ type: "epic" });
+    expect(result.warning).toContain("Missing required argument");
+  });
+
   it("maps a-start-issue to p-goal", () => {
     const result = resolveDeprecatedToolCall("a-start-issue", {
       issueNumber: 123,
