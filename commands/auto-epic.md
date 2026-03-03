@@ -58,7 +58,7 @@ The only exception is calling the `telegram` skill via the Skill tool (lightweig
 
 **When using `--parallel N` (N > 1), workers MUST operate in separate git worktrees.** Without worktree isolation, concurrent workers conflict on git state — one does `git checkout main` while another is mid-implementation.
 
-- **Parallel mode (`--parallel N > 1`):** Lead creates worktrees in Phase 1 (Step 4) using `./scripts/worktree-manager.sh create <issue-number>`. Each task's metadata includes `worktreePath`. Workers `cd` to their worktree before running the auto-issue skill.
+- **Parallel mode (`--parallel N > 1`):** Use `isolation: "worktree"` on each Task call. Claude Code handles worktree creation, isolation, and cleanup automatically.
 - **Sequential mode (`--parallel 1`):** No worktrees needed — single worker uses the main checkout.
 
 ---
@@ -227,21 +227,7 @@ Detect circular dependencies — if found, report and exit.
    Worker failed     → checkpoint_update(issue: N, status: "failed", error: <msg>)
    ```
 
-4. **If parallel mode (`--parallel N > 1`)**, create worktrees for all open issues and add paths to task metadata:
-
-   ```bash
-   # Create worktrees for all open issues
-   for each open issue N:
-     ./scripts/worktree-manager.sh create <N>
-   ```
-
-   Then update each task with the worktree path:
-
-   ```text
-   For each task:
-     worktreePath = ~/Code/worktrees/graph-flow-issue-<N>
-     TaskUpdate(taskId, { metadata: { worktreePath: worktreePath } })
-   ```
+4. **If parallel mode (`--parallel N > 1`)**: No manual worktree setup needed. Workers are spawned with `isolation: "worktree"` on the Task call (see Phase 2 in [docs/multi-issue-workflow.md](../docs/multi-issue-workflow.md)). Claude Code creates and cleans up worktrees automatically.
 
 5. Display wave plan:
 

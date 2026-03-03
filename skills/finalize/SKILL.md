@@ -94,6 +94,25 @@ bun run build
 
 **If validation fails but `force` is true:** Note in PR body, continue.
 
+### Step 2.5: Commit Visual Evidence (if present)
+
+Check if visual screenshots exist:
+
+```bash
+ls .claude/screenshots/issue-<issue_number>/ 2>/dev/null
+```
+
+If the directory has files:
+
+```bash
+git add .claude/screenshots/issue-<issue_number>/
+if ! git diff --cached --quiet; then
+  git commit -m "docs: add visual evidence for #<issue_number>"
+fi
+```
+
+The `git diff --cached --quiet` guard prevents a commit failure if no files were actually staged (e.g., all files are `.gitignore`d or unchanged). This creates a separate commit for screenshot artifacts, keeping them distinct from implementation commits.
+
 ### Step 3: Push Branch
 
 ```bash
@@ -133,6 +152,32 @@ gh pr create --title "<type>(<scope>): <description> (#<issue_number>)" --body "
 - [ ] Build succeeds
 
 <any unresolved findings if force=true>
+
+<if .claude/screenshots/issue-<N>/ has files, build visual evidence section dynamically:>
+
+## Visual Evidence
+
+<Discover files in .claude/screenshots/issue-<N>/ and build sections from what exists:>
+
+<For each design-*.png found, sorted by name:>
+### Design Reference
+![<filename>](.claude/screenshots/issue-<N>/<filename>)
+
+<For each before-*.png found, sorted by viewport width:>
+### Before
+![before-<width>](.claude/screenshots/issue-<N>/before-<width>.png)
+
+<For each after-*.png found, sorted by viewport width:>
+### After
+![after-<width>](.claude/screenshots/issue-<N>/after-<width>.png)
+
+<If comparison.md exists, inline its contents:>
+### Design Comparison
+<contents of .claude/screenshots/issue-<N>/comparison.md>
+
+<Only include sections where matching files were found. Skip sections with no files to avoid broken image links.>
+
+<end of visual evidence section>
 
 ---
 
