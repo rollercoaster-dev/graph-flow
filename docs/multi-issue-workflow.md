@@ -51,9 +51,6 @@ gh pr list --search "head:feat/issue-<N>" --state open --json number,url,statusC
 # Check for existing branch with commits
 git fetch origin
 git rev-list --count origin/main..origin/feat/issue-<N> 2>/dev/null
-
-# Check for existing worktree (Claude Code manages worktrees automatically via isolation: "worktree")
-# No manual worktree check needed — branch existence is sufficient
 ```
 
 Route each issue based on what exists:
@@ -259,9 +256,6 @@ gh pr list --search "head:feat/issue-<N>" --state all --json number,state,mergeC
 # Is there a branch with commits?
 git fetch origin
 git rev-list --count origin/main..origin/feat/issue-<N> 2>/dev/null
-
-# Worktree existence is managed by Claude Code (isolation: "worktree")
-# No manual check needed — branch existence above is sufficient
 ```
 
 ### Step 3: Route Each Issue

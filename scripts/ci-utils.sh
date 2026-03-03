@@ -72,10 +72,12 @@ validate_issue_number() {
 #------------------------------------------------------------------------------
 # Commands
 
-# cmd_rebase rebases the branch for the specified issue onto origin/main.
-# Accepts either a worktree path or finds the branch by issue number convention.
+# cmd_rebase rebases the current branch onto origin/main.
+# Assumes the correct branch is already checked out (e.g., inside an isolation worktree).
 # On conflict it aborts the rebase and returns a non-zero status.
 cmd_rebase() {
+  check_commands git
+
   local issue_number="${1:-}"
 
   if ! validate_issue_number "$issue_number"; then
@@ -83,20 +85,20 @@ cmd_rebase() {
     exit 1
   fi
 
-  local branch_name="feat/issue-${issue_number}"
-
-  log_info "Rebasing branch $branch_name on origin/main..."
+  log_info "Rebasing current branch on origin/main (issue #$issue_number)..."
 
   # Fetch latest
-  git -C "$REPO_ROOT" fetch origin main --quiet
+  git fetch origin main --quiet
 
   # Attempt rebase
-  if git -C "$REPO_ROOT" rebase origin/main --quiet; then
+  if git rebase origin/main --quiet; then
     log_success "Rebase successful for issue #$issue_number"
     return 0
   else
     log_error "Rebase failed - conflicts detected"
-    git -C "$REPO_ROOT" rebase --abort
+    if ! git rebase --abort; then
+      log_error "CRITICAL: rebase --abort also failed. Run 'git rebase --abort' or 'git rebase --quit' manually."
+    fi
     return 1
   fi
 }
@@ -130,13 +132,32 @@ cmd_ci_status() {
 
     while [[ $elapsed -lt $CI_POLL_TIMEOUT ]]; do
       local status
-      status=$(gh pr checks "$pr_number" --json name,state,conclusion 2>/dev/null || echo "[]")
+      if ! status=$(gh pr checks "$pr_number" --json name,state,conclusion 2>&1); then
+        log_error "Failed to query CI status: $status"
+        return 1
+      fi
 
-      local pending in_progress completed failed
+      if ! echo "$status" | jq empty 2>/dev/null; then
+        log_error "Received invalid JSON from gh pr checks: $status"
+        return 1
+      fi
+
+      local total pending in_progress completed failed
+      total=$(echo "$status" | jq 'length')
       pending=$(echo "$status" | jq '[.[] | select(.state == "PENDING")] | length')
       in_progress=$(echo "$status" | jq '[.[] | select(.state == "IN_PROGRESS")] | length')
       completed=$(echo "$status" | jq '[.[] | select(.state == "COMPLETED")] | length')
       failed=$(echo "$status" | jq '[.[] | select(.conclusion == "FAILURE")] | length')
+
+      # Guard: 0 total checks means checks haven't registered yet — keep waiting
+      if [[ "$total" -eq 0 ]]; then
+        printf "\r  Waiting... %ds elapsed, no checks registered yet" "$elapsed"
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+        interval=$((interval * 2))
+        if [[ $interval -gt $max_interval ]]; then interval=$max_interval; fi
+        continue
+      fi
 
       if [[ "$pending" -eq 0 ]] && [[ "$in_progress" -eq 0 ]]; then
         # All checks complete
@@ -169,7 +190,15 @@ cmd_ci_status() {
   else
     # Non-blocking status check
     local status
-    status=$(gh pr checks "$pr_number" --json name,state,conclusion 2>/dev/null || echo "[]")
+    if ! status=$(gh pr checks "$pr_number" --json name,state,conclusion 2>&1); then
+      log_error "Failed to query CI status: $status"
+      return 1
+    fi
+
+    if ! echo "$status" | jq empty 2>/dev/null; then
+      log_error "Received invalid JSON from gh pr checks: $status"
+      return 1
+    fi
 
     local total pending in_progress completed passed failed
     total=$(echo "$status" | jq 'length')
@@ -212,12 +241,16 @@ cmd_integration_test() {
   local original_branch
   original_branch=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || echo "")
 
+  if [[ -z "$original_branch" ]]; then
+    log_warn "Could not determine current branch (detached HEAD?). You will be left on main after tests."
+  fi
+
   # Ensure we're on main with latest
   git -C "$REPO_ROOT" fetch origin main --quiet
-  git -C "$REPO_ROOT" checkout main --quiet 2>/dev/null || {
-    log_error "Cannot checkout main - you may have uncommitted changes"
+  if ! git -C "$REPO_ROOT" checkout main --quiet; then
+    log_error "Cannot checkout main. Check git error above — may be uncommitted changes, corrupted index, or missing ref."
     exit 1
-  }
+  fi
   git -C "$REPO_ROOT" pull origin main --quiet
 
   local results=()
