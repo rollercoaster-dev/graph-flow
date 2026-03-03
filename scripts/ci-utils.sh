@@ -69,6 +69,39 @@ validate_issue_number() {
   fi
 }
 
+# fetch_pr_checks queries gh for CI check status and parses counts in a single jq call.
+# Sets global variables: _checks_raw, _checks_total, _checks_pending, _checks_in_progress,
+# _checks_completed, _checks_passed, _checks_failed.
+# Returns non-zero on gh or jq failure.
+fetch_pr_checks() {
+  local pr_number=$1
+
+  if ! _checks_raw=$(gh pr checks "$pr_number" --json name,state,conclusion 2>&1); then
+    log_error "Failed to query CI status: $_checks_raw"
+    return 1
+  fi
+
+  local parsed
+  if ! parsed=$(echo "$_checks_raw" | jq '{
+    total: length,
+    pending: [.[] | select(.state == "PENDING")] | length,
+    in_progress: [.[] | select(.state == "IN_PROGRESS")] | length,
+    completed: [.[] | select(.state == "COMPLETED")] | length,
+    passed: [.[] | select(.conclusion == "SUCCESS")] | length,
+    failed: [.[] | select(.conclusion == "FAILURE")] | length
+  }' 2>&1); then
+    log_error "Received invalid JSON from gh pr checks: $_checks_raw"
+    return 1
+  fi
+
+  _checks_total=$(echo "$parsed" | jq '.total')
+  _checks_pending=$(echo "$parsed" | jq '.pending')
+  _checks_in_progress=$(echo "$parsed" | jq '.in_progress')
+  _checks_completed=$(echo "$parsed" | jq '.completed')
+  _checks_passed=$(echo "$parsed" | jq '.passed')
+  _checks_failed=$(echo "$parsed" | jq '.failed')
+}
+
 #------------------------------------------------------------------------------
 # Commands
 
@@ -131,26 +164,12 @@ cmd_ci_status() {
     local max_interval=120  # Max 2 minutes between polls
 
     while [[ $elapsed -lt $CI_POLL_TIMEOUT ]]; do
-      local status
-      if ! status=$(gh pr checks "$pr_number" --json name,state,conclusion 2>&1); then
-        log_error "Failed to query CI status: $status"
+      if ! fetch_pr_checks "$pr_number"; then
         return 1
       fi
-
-      if ! echo "$status" | jq empty 2>/dev/null; then
-        log_error "Received invalid JSON from gh pr checks: $status"
-        return 1
-      fi
-
-      local total pending in_progress completed failed
-      total=$(echo "$status" | jq 'length')
-      pending=$(echo "$status" | jq '[.[] | select(.state == "PENDING")] | length')
-      in_progress=$(echo "$status" | jq '[.[] | select(.state == "IN_PROGRESS")] | length')
-      completed=$(echo "$status" | jq '[.[] | select(.state == "COMPLETED")] | length')
-      failed=$(echo "$status" | jq '[.[] | select(.conclusion == "FAILURE")] | length')
 
       # Guard: 0 total checks means checks haven't registered yet — keep waiting
-      if [[ "$total" -eq 0 ]]; then
+      if [[ "$_checks_total" -eq 0 ]]; then
         printf "\r  Waiting... %ds elapsed, no checks registered yet" "$elapsed"
         sleep "$interval"
         elapsed=$((elapsed + interval))
@@ -159,20 +178,20 @@ cmd_ci_status() {
         continue
       fi
 
-      if [[ "$pending" -eq 0 ]] && [[ "$in_progress" -eq 0 ]]; then
+      if [[ "$_checks_pending" -eq 0 ]] && [[ "$_checks_in_progress" -eq 0 ]]; then
         # All checks complete
-        if [[ "$failed" -gt 0 ]]; then
-          log_error "CI failed: $failed check(s) failed"
-          echo "$status" | jq -r '.[] | select(.conclusion == "FAILURE") | "  - \(.name): \(.conclusion)"'
+        if [[ "$_checks_failed" -gt 0 ]]; then
+          log_error "CI failed: $_checks_failed check(s) failed"
+          echo "$_checks_raw" | jq -r '.[] | select(.conclusion == "FAILURE") | "  - \(.name): \(.conclusion)"'
           return 1
         else
-          log_success "All CI checks passed ($completed checks)"
+          log_success "All CI checks passed ($_checks_completed checks)"
           return 0
         fi
       fi
 
       printf "\r  Waiting... %ds elapsed, %d pending, %d in progress, %d complete" \
-        "$elapsed" "$pending" "$in_progress" "$completed"
+        "$elapsed" "$_checks_pending" "$_checks_in_progress" "$_checks_completed"
 
       sleep "$interval"
       elapsed=$((elapsed + interval))
@@ -189,44 +208,29 @@ cmd_ci_status() {
     return 1
   else
     # Non-blocking status check
-    local status
-    if ! status=$(gh pr checks "$pr_number" --json name,state,conclusion 2>&1); then
-      log_error "Failed to query CI status: $status"
+    if ! fetch_pr_checks "$pr_number"; then
       return 1
     fi
-
-    if ! echo "$status" | jq empty 2>/dev/null; then
-      log_error "Received invalid JSON from gh pr checks: $status"
-      return 1
-    fi
-
-    local total pending in_progress completed passed failed
-    total=$(echo "$status" | jq 'length')
-    pending=$(echo "$status" | jq '[.[] | select(.state == "PENDING")] | length')
-    in_progress=$(echo "$status" | jq '[.[] | select(.state == "IN_PROGRESS")] | length')
-    completed=$(echo "$status" | jq '[.[] | select(.state == "COMPLETED")] | length')
-    passed=$(echo "$status" | jq '[.[] | select(.conclusion == "SUCCESS")] | length')
-    failed=$(echo "$status" | jq '[.[] | select(.conclusion == "FAILURE")] | length')
 
     # Human-readable summary to stderr
     echo "" >&2
     echo "CI Status for PR #$pr_number:" >&2
-    printf "  %-15s %d\n" "Total checks:" "$total" >&2
-    printf "  %-15s %d\n" "Pending:" "$pending" >&2
-    printf "  %-15s %d\n" "In progress:" "$in_progress" >&2
-    printf "  %-15s %d\n" "Completed:" "$completed" >&2
-    printf "  %-15s %d\n" "Passed:" "$passed" >&2
-    printf "  %-15s %d\n" "Failed:" "$failed" >&2
+    printf "  %-15s %d\n" "Total checks:" "$_checks_total" >&2
+    printf "  %-15s %d\n" "Pending:" "$_checks_pending" >&2
+    printf "  %-15s %d\n" "In progress:" "$_checks_in_progress" >&2
+    printf "  %-15s %d\n" "Completed:" "$_checks_completed" >&2
+    printf "  %-15s %d\n" "Passed:" "$_checks_passed" >&2
+    printf "  %-15s %d\n" "Failed:" "$_checks_failed" >&2
     echo "" >&2
 
     # JSON to stdout for scripting
     jq -n \
-      --argjson total "$total" \
-      --argjson pending "$pending" \
-      --argjson in_progress "$in_progress" \
-      --argjson completed "$completed" \
-      --argjson passed "$passed" \
-      --argjson failed "$failed" \
+      --argjson total "$_checks_total" \
+      --argjson pending "$_checks_pending" \
+      --argjson in_progress "$_checks_in_progress" \
+      --argjson completed "$_checks_completed" \
+      --argjson passed "$_checks_passed" \
+      --argjson failed "$_checks_failed" \
       '{total: $total, pending: $pending, in_progress: $in_progress, completed: $completed, passed: $passed, failed: $failed}'
   fi
 }
