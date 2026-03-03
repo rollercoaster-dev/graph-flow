@@ -1,5 +1,5 @@
-import { mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { bufferToFloatArray, floatArrayToBuffer } from "./embeddings";
 
@@ -16,10 +16,11 @@ export class EmbeddingStorage {
 
   private normalizeArea(area: string): string {
     const trimmed = area.trim();
-    const isSafe = trimmed.length > 0
-      && !trimmed.includes("..")
-      && !trimmed.includes("/")
-      && !trimmed.includes("\\");
+    const isSafe =
+      trimmed.length > 0 &&
+      !trimmed.includes("..") &&
+      !trimmed.includes("/") &&
+      !trimmed.includes("\\");
     if (!isSafe) {
       throw new Error(`Invalid area: ${area}`);
     }
@@ -34,7 +35,11 @@ export class EmbeddingStorage {
    * Store embedding for a learning
    * Format: [id_length(4 bytes)][id][embedding_length(4 bytes)][embedding]
    */
-  async store(area: string, learningId: string, embedding: Float32Array): Promise<void> {
+  async store(
+    area: string,
+    learningId: string,
+    embedding: Float32Array,
+  ): Promise<void> {
     const safeArea = this.normalizeArea(area);
     const filepath = join(this.baseDir, `${safeArea}.bin`);
 
@@ -51,7 +56,9 @@ export class EmbeddingStorage {
     ]);
 
     // Append to file
-    const existing = existsSync(filepath) ? await Bun.file(filepath).arrayBuffer() : new ArrayBuffer(0);
+    const existing = existsSync(filepath)
+      ? await Bun.file(filepath).arrayBuffer()
+      : new ArrayBuffer(0);
     await Bun.write(filepath, Buffer.concat([Buffer.from(existing), record]));
   }
 

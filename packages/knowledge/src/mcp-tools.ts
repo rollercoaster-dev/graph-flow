@@ -1,5 +1,10 @@
-import { LearningManager, type StoreLearningParams, type QueryParams, type LearningType } from "./learning.ts";
-import { DocsIndexer, type DocsIndexOptions, type DocsIndexResult } from "./docs-indexer.ts";
+import { DocsIndexer } from "./docs-indexer.ts";
+import {
+  LearningManager,
+  type LearningType,
+  type QueryParams,
+  type StoreLearningParams,
+} from "./learning.ts";
 
 export interface MCPTool {
   name: string;
@@ -42,7 +47,8 @@ export class KnowledgeMCPTools {
     return [
       {
         name: "k-query",
-        description: "Search learnings by text, area, or type. Supports both keyword (fast) and semantic (quality) search.",
+        description:
+          "Search learnings by text, area, or type. Supports both keyword (fast) and semantic (quality) search.",
         inputSchema: {
           type: "object",
           properties: {
@@ -65,7 +71,8 @@ export class KnowledgeMCPTools {
             },
             semantic: {
               type: "boolean",
-              description: "Use semantic search with embeddings (default: false, uses TF-IDF)",
+              description:
+                "Use semantic search with embeddings (default: false, uses TF-IDF)",
             },
           },
         },
@@ -117,36 +124,43 @@ export class KnowledgeMCPTools {
       },
       {
         name: "k-index",
-        description: "Index markdown documentation files as learnings with embeddings. Extracts sections from markdown and stores them with automatic area detection.",
+        description:
+          "Index markdown documentation files as learnings with embeddings. Extracts sections from markdown and stores them with automatic area detection.",
         inputSchema: {
           type: "object",
           properties: {
             patterns: {
               type: "array",
               items: { type: "string" },
-              description: "Glob patterns for markdown files (e.g., ['docs/**/*.md', 'README.md'])",
+              description:
+                "Glob patterns for markdown files (e.g., ['docs/**/*.md', 'README.md'])",
             },
             cwd: {
               type: "string",
-              description: "Working directory for glob patterns (defaults to current directory)",
+              description:
+                "Working directory for glob patterns (defaults to current directory)",
             },
             extractSections: {
               type: "boolean",
-              description: "Extract sections by headings (default: true). If false, indexes entire file as one learning.",
+              description:
+                "Extract sections by headings (default: true). If false, indexes entire file as one learning.",
             },
             minSectionLength: {
               type: "number",
-              description: "Minimum section content length to index (default: 50)",
+              description:
+                "Minimum section content length to index (default: 50)",
             },
             areaStrategy: {
               type: "string",
               enum: ["path", "filename", "content"],
-              description: "Strategy for determining learning area: 'path' (from directory), 'filename', or 'content' (from first heading)",
+              description:
+                "Strategy for determining learning area: 'path' (from directory), 'filename', or 'content' (from first heading)",
             },
             defaultType: {
               type: "string",
               enum: ["entity", "relationship", "pattern", "decision"],
-              description: "Default learning type when auto-detection doesn't match (default: 'entity')",
+              description:
+                "Default learning type when auto-detection doesn't match (default: 'entity')",
             },
           },
           required: ["patterns"],
@@ -158,7 +172,10 @@ export class KnowledgeMCPTools {
   /**
    * Handle MCP tool call
    */
-  async handleToolCall(name: string, args: Record<string, unknown>): Promise<MCPToolResult> {
+  async handleToolCall(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     switch (name) {
       case "k-query":
         return this.handleQuery(args);
@@ -173,43 +190,57 @@ export class KnowledgeMCPTools {
     }
   }
 
-  private async handleQuery(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleQuery(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const params = args as QueryParams;
     const learnings = await this.manager.query(params);
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(learnings, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(learnings, null, 2),
+        },
+      ],
     };
   }
 
-  private async handleStore(args: Record<string, unknown>): Promise<MCPToolResult> {
-    const params = args as StoreLearningParams;
+  private async handleStore(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
+    const params = args as unknown as StoreLearningParams;
     const learning = await this.manager.store(params);
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(learning, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(learning, null, 2),
+        },
+      ],
     };
   }
 
-  private async handleRelated(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleRelated(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { id, limit = 5 } = args as { id: string; limit?: number };
     const related = await this.manager.getRelated(id, limit);
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(related, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(related, null, 2),
+        },
+      ],
     };
   }
 
-  private async handleIndex(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleIndex(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const options = args as {
       patterns: string[];
       cwd?: string;
@@ -222,20 +253,28 @@ export class KnowledgeMCPTools {
     // Validate patterns is present and non-empty
     if (!Array.isArray(options.patterns) || options.patterns.length === 0) {
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: "patterns must be a non-empty array of glob patterns" }, null, 2),
-        }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              { error: "patterns must be a non-empty array of glob patterns" },
+              null,
+              2,
+            ),
+          },
+        ],
       };
     }
 
     const result = await this.indexer.index(options);
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(result, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(result, null, 2),
+        },
+      ],
     };
   }
 }

@@ -22,10 +22,14 @@
 import type { EmbeddingProvider } from "./index";
 
 const logger = {
-  info: (msg: string, meta?: unknown) => console.error(`[INFO] ${msg}`, meta || ""),
-  warn: (msg: string, meta?: unknown) => console.error(`[WARN] ${msg}`, meta || ""),
-  error: (msg: string, meta?: unknown) => console.error(`[ERROR] ${msg}`, meta || ""),
-  debug: (msg: string, meta?: unknown) => console.error(`[DEBUG] ${msg}`, meta || ""),
+  info: (msg: string, meta?: unknown) =>
+    console.error(`[INFO] ${msg}`, meta || ""),
+  warn: (msg: string, meta?: unknown) =>
+    console.error(`[WARN] ${msg}`, meta || ""),
+  error: (msg: string, meta?: unknown) =>
+    console.error(`[ERROR] ${msg}`, meta || ""),
+  debug: (msg: string, meta?: unknown) =>
+    console.error(`[DEBUG] ${msg}`, meta || ""),
 };
 
 /**

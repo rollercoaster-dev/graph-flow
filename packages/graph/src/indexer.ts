@@ -1,6 +1,6 @@
-import { CodeParser } from "./parser.ts";
-import { GraphCache } from "./cache.ts";
 import { expandGlobs } from "@graph-flow/shared";
+import { GraphCache } from "./cache.ts";
+import { CodeParser } from "./parser.ts";
 
 export interface IndexOptions {
   patterns: string[];
@@ -33,10 +33,8 @@ export interface IndexResult {
 export class CodeIndexer {
   private parser: CodeParser;
   private cache: GraphCache;
-  private cacheDir: string;
 
   constructor(cacheDir: string) {
-    this.cacheDir = cacheDir;
     this.parser = new CodeParser(cacheDir);
     this.cache = new GraphCache(cacheDir);
   }
@@ -80,7 +78,7 @@ export class CodeIndexer {
         const cachedData = await this.cache.read(file, content);
         cached = cachedData !== null;
 
-        if (cached) {
+        if (cached && cachedData !== null) {
           result.cachedFiles++;
           result.totalEntities += cachedData.entities.length;
           result.totalRelationships += cachedData.relationships.length;

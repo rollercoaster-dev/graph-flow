@@ -1,0 +1,48 @@
+{
+  "name": "@graph-flow/docs",
+  "version": "3.0.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rollercoaster-dev/graph-flow.git",
+    "directory": "packages/docs"
+  },
+  "author": "rollercoaster.dev",
+  "engines": {
+    "bun": ">=1.0"
+  },
+  "keywords": [
+    "mcp",
+    "docs",
+    "documentation",
+    "graph",
+    "semantic-search",
+    "markdown"
+  ],
+  "files": [
+    "src",
+    "package.json",
+    "README.md"
+  ],
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./parser": "./src/parser.ts",
+    "./store": "./src/store.ts",
+    "./search": "./src/search.ts",
+    "./mcp-tools": "./src/mcp-tools.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@graph-flow/knowledge": "workspace:*",
+    "@graph-flow/shared": "workspace:*",
+    "marked": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.0.0"
+  },
+  "description": "Hierarchical markdown docs graph with code-doc linking and semantic search"
+}

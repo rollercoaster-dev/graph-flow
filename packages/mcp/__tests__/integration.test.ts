@@ -1,13 +1,18 @@
-import { describe, test, expect } from "bun:test";
-import { CheckpointMCPTools } from "@graph-flow/checkpoint";
-import { KnowledgeMCPTools } from "@graph-flow/knowledge";
-import { GraphMCPTools } from "@graph-flow/graph";
+import { describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
+import { AutomationMCPTools } from "@graph-flow/automation";
+import { CheckpointMCPTools } from "@graph-flow/checkpoint";
+import { DocsMCPTools } from "@graph-flow/docs";
+import { GraphMCPTools } from "@graph-flow/graph";
+import { KnowledgeMCPTools } from "@graph-flow/knowledge";
+import { PlanningMCPTools } from "@graph-flow/planning";
 
 const TEST_WORKFLOWS_DIR = "/tmp/graph-flow-test-mcp-workflows";
 const TEST_LEARNINGS_DIR = "/tmp/graph-flow-test-mcp-learnings";
 const TEST_EMBEDDINGS_DIR = "/tmp/graph-flow-test-mcp-embeddings";
 const TEST_GRAPHS_DIR = "/tmp/graph-flow-test-mcp-graphs";
+const TEST_DOCS_DIR = "/tmp/graph-flow-test-mcp-docs";
+const TEST_PLANNING_DIR = "/tmp/graph-flow-test-mcp-planning";
 
 describe("MCP Integration", () => {
   test("checkpoint tools initialize and respond", async () => {
@@ -16,21 +21,24 @@ describe("MCP Integration", () => {
 
     const tools = checkpoint.getTools();
     expect(tools.length).toBe(4);
-    expect(tools.map(t => t.name)).toContain("checkpoint-find");
-    expect(tools.map(t => t.name)).toContain("checkpoint-recover");
+    expect(tools.map((t) => t.name)).toContain("c-find");
+    expect(tools.map((t) => t.name)).toContain("c-recover");
 
     // Clean up
     await rm(TEST_WORKFLOWS_DIR, { recursive: true, force: true });
   });
 
   test("knowledge tools initialize and respond", async () => {
-    const knowledge = new KnowledgeMCPTools(TEST_LEARNINGS_DIR, TEST_EMBEDDINGS_DIR);
+    const knowledge = new KnowledgeMCPTools(
+      TEST_LEARNINGS_DIR,
+      TEST_EMBEDDINGS_DIR,
+    );
     await knowledge.init();
 
     const tools = knowledge.getTools();
     expect(tools.length).toBe(4);
-    expect(tools.map(t => t.name)).toContain("knowledge-query");
-    expect(tools.map(t => t.name)).toContain("knowledge-index");
+    expect(tools.map((t) => t.name)).toContain("k-query");
+    expect(tools.map((t) => t.name)).toContain("k-index");
 
     // Clean up
     await rm(TEST_LEARNINGS_DIR, { recursive: true, force: true });
@@ -43,38 +51,69 @@ describe("MCP Integration", () => {
 
     const tools = graph.getTools();
     expect(tools.length).toBe(4);
-    expect(tools.map(t => t.name)).toContain("graph-calls");
-    expect(tools.map(t => t.name)).toContain("graph-index");
+    expect(tools.map((t) => t.name)).toContain("g-calls");
+    expect(tools.map((t) => t.name)).toContain("g-blast");
+    expect(tools.map((t) => t.name)).toContain("g-defs");
+    expect(tools.map((t) => t.name)).toContain("g-index");
 
     // Clean up
     await rm(TEST_GRAPHS_DIR, { recursive: true, force: true });
   });
 
+  test("docs tools initialize and respond", async () => {
+    const docs = new DocsMCPTools(TEST_DOCS_DIR, TEST_EMBEDDINGS_DIR);
+    await docs.init();
+
+    const tools = docs.getTools();
+    expect(tools.length).toBe(3);
+    expect(tools.map((t) => t.name)).toContain("d-index");
+    expect(tools.map((t) => t.name)).toContain("d-query");
+    expect(tools.map((t) => t.name)).toContain("d-for-code");
+
+    // Clean up
+    await rm(TEST_DOCS_DIR, { recursive: true, force: true });
+  });
+
   test("all tools have unique names", async () => {
     const checkpoint = new CheckpointMCPTools(TEST_WORKFLOWS_DIR);
-    const knowledge = new KnowledgeMCPTools(TEST_LEARNINGS_DIR, TEST_EMBEDDINGS_DIR);
+    const knowledge = new KnowledgeMCPTools(
+      TEST_LEARNINGS_DIR,
+      TEST_EMBEDDINGS_DIR,
+    );
     const graph = new GraphMCPTools(TEST_GRAPHS_DIR);
+    const docs = new DocsMCPTools(TEST_DOCS_DIR, TEST_EMBEDDINGS_DIR);
+    const planning = new PlanningMCPTools(TEST_PLANNING_DIR);
 
     await checkpoint.init();
     await knowledge.init();
     await graph.init();
+    await docs.init();
+    await planning.init();
+
+    const automation = new AutomationMCPTools(planning.getManager());
+    await automation.init();
 
     const allTools = [
       ...checkpoint.getTools(),
       ...knowledge.getTools(),
       ...graph.getTools(),
+      ...docs.getTools(),
+      ...planning.getTools(),
+      ...automation.getTools(),
     ];
 
-    const names = allTools.map(t => t.name);
+    const names = allTools.map((t) => t.name);
     const uniqueNames = new Set(names);
 
     expect(names.length).toBe(uniqueNames.size);
-    expect(names.length).toBe(12); // 4 checkpoint + 4 knowledge + 4 graph
+    expect(names.length).toBe(26); // 4 checkpoint + 4 knowledge + 4 graph + 3 docs + 8 planning + 3 automation
 
     // Clean up
     await rm(TEST_WORKFLOWS_DIR, { recursive: true, force: true });
     await rm(TEST_LEARNINGS_DIR, { recursive: true, force: true });
     await rm(TEST_EMBEDDINGS_DIR, { recursive: true, force: true });
     await rm(TEST_GRAPHS_DIR, { recursive: true, force: true });
+    await rm(TEST_DOCS_DIR, { recursive: true, force: true });
+    await rm(TEST_PLANNING_DIR, { recursive: true, force: true });
   });
 });

@@ -1,5 +1,5 @@
-import { mkdir, readdir, unlink, appendFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { appendFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 
 export interface StorageOptions {
@@ -30,7 +30,7 @@ export class JSONLStorage {
    */
   async append(filename: string, record: JSONLRecord): Promise<void> {
     const filepath = join(this.baseDir, filename);
-    const line = JSON.stringify(record) + "\n";
+    const line = `${JSON.stringify(record)}\n`;
     await appendFile(filepath, line, "utf-8");
   }
 
@@ -46,8 +46,24 @@ export class JSONLStorage {
 
     const content = await Bun.file(filepath).text();
     const lines = content.trim().split("\n").filter(Boolean);
+    const results: T[] = [];
+    let corrupted = 0;
 
-    return lines.map(line => JSON.parse(line) as T);
+    for (const line of lines) {
+      try {
+        results.push(JSON.parse(line) as T);
+      } catch {
+        corrupted++;
+      }
+    }
+
+    if (corrupted > 0) {
+      console.warn(
+        `[checkpoint-storage] ${filename}: skipped ${corrupted} corrupted line(s) of ${lines.length} total`,
+      );
+    }
+
+    return results;
   }
 
   /**
@@ -55,7 +71,7 @@ export class JSONLStorage {
    */
   async write(filename: string, records: JSONLRecord[]): Promise<void> {
     const filepath = join(this.baseDir, filename);
-    const content = records.map(r => JSON.stringify(r)).join("\n") + "\n";
+    const content = `${records.map((r) => JSON.stringify(r)).join("\n")}\n`;
     await Bun.write(filepath, content, { createPath: true });
   }
 
@@ -77,7 +93,7 @@ export class JSONLStorage {
       return [];
     }
     const files = await readdir(this.baseDir);
-    return files.filter(f => f.endsWith(".jsonl"));
+    return files.filter((f) => f.endsWith(".jsonl"));
   }
 
   /**

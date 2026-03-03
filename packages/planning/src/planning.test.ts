@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
+import { join } from "node:path";
 import { PlanningManager } from "./manager";
 import { PlanningMCPTools } from "./mcp-tools";
 
@@ -319,9 +319,9 @@ describe("PlanningMCPTools", () => {
     await rm(TEST_DIR, { recursive: true, force: true });
   });
 
-  test("getTools returns all 10 planning tools", () => {
+  test("getTools returns all 8 planning tools", () => {
     const toolList = tools.getTools();
-    expect(toolList.length).toBe(10);
+    expect(toolList.length).toBe(8);
 
     const names = toolList.map((t) => t.name);
     expect(names).toContain("p-goal");
@@ -330,9 +330,7 @@ describe("PlanningMCPTools", () => {
     expect(names).toContain("p-stack");
     expect(names).toContain("p-plan");
     expect(names).toContain("p-steps");
-    expect(names).toContain("p-planget");
     expect(names).toContain("p-progress");
-    expect(names).toContain("p-step-update");
     expect(names).toContain("p-sync");
   });
 
@@ -411,21 +409,16 @@ describe("PlanningMCPTools", () => {
       ],
     });
 
-    // Get plan
-    const plangetResult = await tools.handleToolCall("p-planget", {
+    // Get plan + steps + progress (merged into p-progress)
+    const progressResult = await tools.handleToolCall("p-progress", {
       goalId,
     });
-    const plangetData = JSON.parse(plangetResult.content[0].text);
-    expect(plangetData.stepCount).toBe(2);
-
-    // Get progress
-    const progressResult = await tools.handleToolCall("p-progress", {
-      planId,
-    });
     const progressData = JSON.parse(progressResult.content[0].text);
+    expect(progressData.stepCount).toBe(2);
+    expect(progressData.steps).toHaveLength(2);
+    expect(progressData.plan).toBeDefined();
     expect(progressData.progress.total).toBe(2);
     expect(progressData.progress.notStarted).toBe(2);
     expect(progressData.progress.percentage).toBe(0);
   });
 });
-

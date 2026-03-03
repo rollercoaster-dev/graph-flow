@@ -6,15 +6,9 @@
  */
 
 import { spawnSync } from "bun";
-import type {
-  Goal,
-  PlanningEntity,
-  PlanStep,
-  StaleItem,
-  CompletionStatus,
-} from "./types";
 import type { PlanningManager } from "./manager";
 import type { ResolverFactory } from "./resolvers";
+import type { CompletionStatus, Goal, StaleItem } from "./types";
 
 /** Cache for GitHub issue state checks (5-minute TTL) */
 const issueStateCache = new Map<
@@ -29,7 +23,7 @@ const STALE_INACTIVITY_DAYS = 7; // Days of inactivity before flagging as stale
  * Check if a GitHub issue is closed (with caching).
  */
 function checkIssueClosed(
-  issueNumber: number
+  issueNumber: number,
 ): { closed: boolean; closedAt: string | null } | null {
   // Check cache first
   const cached = issueStateCache.get(issueNumber);
@@ -98,7 +92,7 @@ function formatRelativeTime(isoDate: string): string {
  */
 export async function detectStaleItems(
   manager: PlanningManager,
-  resolverFactory: ResolverFactory
+  resolverFactory: ResolverFactory,
 ): Promise<StaleItem[]> {
   const stack = manager.peekStack();
   const staleItems: StaleItem[] = [];
@@ -138,7 +132,10 @@ export async function detectStaleItems(
         } catch (error) {
           // Resolver failed - skip this goal but log for diagnostics
           // Using console.debug to avoid noise in normal operation
-          console.debug?.(`[stale] Failed to resolve step ${goal.planStepId}:`, error);
+          console.debug?.(
+            `[stale] Failed to resolve step ${goal.planStepId}:`,
+            error,
+          );
         }
       }
 

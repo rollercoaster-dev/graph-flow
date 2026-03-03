@@ -1,7 +1,7 @@
-import { LearningStorage, type LearningRecord } from "./storage.ts";
+import { getErrorMessage } from "@graph-flow/shared";
+import { cosineSimilarity, getDefaultEmbedder } from "./embeddings";
 import { EmbeddingStorage } from "./embeddings-storage.ts";
-import { getDefaultEmbedder, floatArrayToBuffer, bufferToFloatArray } from "./embeddings";
-import { cosineSimilarity } from "./embeddings/similarity";
+import { type LearningRecord, LearningStorage } from "./storage.ts";
 
 export interface SemanticSearchOptions {
   /** Maximum number of results to return (default: 10) */
@@ -35,19 +35,30 @@ export class SemanticSearch {
   }
 
   /**
-   * Generate and store embedding for a learning
+   * Generate and store embedding for a learning.
+   * Returns a warning string if embedding failed (learning is still stored without it).
    */
-  async generateAndStoreEmbedding(learning: LearningRecord): Promise<void> {
+  async generateAndStoreEmbedding(
+    learning: LearningRecord,
+  ): Promise<string | undefined> {
     try {
       const embedder = await getDefaultEmbedder();
       const embedding = await embedder.generate(learning.content);
 
       if (embedding) {
-        await this.embeddingStorage.store(learning.area, learning.id, embedding);
+        await this.embeddingStorage.store(
+          learning.area,
+          learning.id,
+          embedding,
+        );
       }
+      return undefined;
     } catch (error) {
-      console.error(`Failed to generate embedding for learning ${learning.id}:`, error);
-      // Non-blocking - learning still stored without embedding
+      const msg = getErrorMessage(error);
+      console.error(
+        `[knowledge/semantic] Failed to generate embedding for learning ${learning.id}: ${msg}`,
+      );
+      return `Stored without embedding — semantic search will not find this learning. ${msg}`;
     }
   }
 
@@ -56,7 +67,7 @@ export class SemanticSearch {
    */
   async search(
     queryText: string,
-    options: SemanticSearchOptions = {}
+    options: SemanticSearchOptions = {},
   ): Promise<SemanticSearchResult[]> {
     const { limit = 10, threshold = 0.3, area } = options;
 
@@ -110,13 +121,13 @@ export class SemanticSearch {
    */
   async findSimilar(
     learningId: string,
-    options: Omit<SemanticSearchOptions, "area"> = {}
+    options: Omit<SemanticSearchOptions, "area"> = {},
   ): Promise<SemanticSearchResult[]> {
     const { limit = 5, threshold = 0.3 } = options;
 
     // Find the target learning
     const allLearnings = await this.learningStorage.readAll();
-    const targetLearning = allLearnings.find(l => l.id === learningId);
+    const targetLearning = allLearnings.find((l) => l.id === learningId);
 
     if (!targetLearning) {
       return [];

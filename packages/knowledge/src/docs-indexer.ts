@@ -1,7 +1,7 @@
-import { basename, dirname } from "node:path";
 import { createHash } from "node:crypto";
-import { LearningManager, type LearningType } from "./learning.ts";
+import { basename, dirname } from "node:path";
 import { expandGlobs } from "@graph-flow/shared";
+import { LearningManager, type LearningType } from "./learning.ts";
 
 export interface DocsIndexOptions {
   patterns: string[];
@@ -125,7 +125,10 @@ function areaFromPath(filepath: string): string {
 function areaFromFilename(filepath: string): string {
   const name = basename(filepath, ".md");
   // Normalize: lowercase, replace non-alphanumeric with hyphens
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 /**
@@ -136,11 +139,17 @@ function areaFromContent(content: string): string {
   for (const line of lines) {
     const headingMatch = line.match(/^#{1,6}\s+(.+)$/);
     if (headingMatch) {
-      return headingMatch[1].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      return headingMatch[1]
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
     }
     const trimmed = line.trim();
     if (trimmed && trimmed.length > 0 && trimmed.length < 50) {
-      return trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      return trimmed
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
     }
   }
   return "docs";
@@ -222,7 +231,6 @@ export class DocsIndexer {
       extractSections: shouldExtract = true,
       minSectionLength = 50,
       areaStrategy = "path",
-      defaultType = "entity",
       onProgress,
     } = options;
 
@@ -255,7 +263,6 @@ export class DocsIndexer {
           case "content":
             area = areaFromContent(content);
             break;
-          case "path":
           default:
             area = areaFromPath(file);
             break;
@@ -296,7 +303,8 @@ export class DocsIndexer {
             });
 
             result.totalLearnings++;
-            result.learningsByArea[area] = (result.learningsByArea[area] || 0) + 1;
+            result.learningsByArea[area] =
+              (result.learningsByArea[area] || 0) + 1;
           }
         } else {
           // Index entire file as one learning
@@ -322,7 +330,8 @@ export class DocsIndexer {
             });
 
             result.totalLearnings++;
-            result.learningsByArea[area] = (result.learningsByArea[area] || 0) + 1;
+            result.learningsByArea[area] =
+              (result.learningsByArea[area] || 0) + 1;
           }
         }
       } catch (error) {

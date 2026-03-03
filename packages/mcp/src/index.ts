@@ -1,20 +1,25 @@
 #!/usr/bin/env bun
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { AutomationMCPTools } from "@graph-flow/automation";
+import { CheckpointMCPTools } from "@graph-flow/checkpoint";
+import { DocsMCPTools } from "@graph-flow/docs";
+import { GraphMCPTools } from "@graph-flow/graph";
+import {
+  getCurrentProviderType,
+  KnowledgeMCPTools,
+} from "@graph-flow/knowledge";
+import { PlanningMCPTools } from "@graph-flow/planning";
+import { resolveDeprecatedToolCall } from "@graph-flow/shared";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
-  ListToolsRequestSchema,
   ListResourcesRequestSchema,
+  ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { CheckpointMCPTools } from "@graph-flow/checkpoint";
-import { KnowledgeMCPTools, getCurrentProviderType } from "@graph-flow/knowledge";
-import { GraphMCPTools } from "@graph-flow/graph";
-import { PlanningMCPTools } from "@graph-flow/planning";
-import { AutomationMCPTools } from "@graph-flow/automation";
 import { spawnSync } from "bun";
-import { homedir } from "node:os";
-import { join } from "node:path";
 
 const pkgModule = await import("../package.json");
 const pkg = pkgModule.default ?? pkgModule;
@@ -89,7 +94,7 @@ function resolveBaseDir(): string {
   }
   console.error(
     "warning: CLAUDE_PROJECT_DIR not set, using ~/.claude (data will be shared across all projects). " +
-      "Set CLAUDE_PROJECT_DIR in your .mcp.json env or run 'graph-flow init' in your project."
+      "Set CLAUDE_PROJECT_DIR in your .mcp.json env or run 'graph-flow init' in your project.",
   );
   return join(homedir(), ".claude");
 }
@@ -102,26 +107,31 @@ export class GraphFlowServer {
   private checkpoint: CheckpointMCPTools;
   private knowledge: KnowledgeMCPTools;
   private graph: GraphMCPTools;
+  private docs: DocsMCPTools;
   private planning: PlanningMCPTools;
   private automation!: AutomationMCPTools;
   private githubRepo?: string;
 
   constructor(options: { baseDir?: string; githubRepo?: string | null } = {}) {
     const baseDir = options.baseDir ?? resolveBaseDir();
-    const githubRepo = options.githubRepo !== undefined
-      ? (options.githubRepo ?? undefined)
-      : (resolveGitHubRepo() ?? undefined);
+    const githubRepo =
+      options.githubRepo !== undefined
+        ? (options.githubRepo ?? undefined)
+        : (resolveGitHubRepo() ?? undefined);
 
     if (githubRepo) {
       console.error(`graph-flow: using GitHub repo ${githubRepo}`);
     } else {
-      console.error("graph-flow: no GitHub repo detected, gh CLI calls may fail in plugin context");
+      console.error(
+        "graph-flow: no GitHub repo detected, gh CLI calls may fail in plugin context",
+      );
     }
 
     const workflowsDir = join(baseDir, "workflows");
     const learningsDir = join(baseDir, "learnings");
     const embeddingsDir = join(baseDir, "embeddings");
     const graphsDir = join(baseDir, "graphs");
+    const docsDir = join(baseDir, "docs");
     const planningDir = join(baseDir, "planning");
 
     this.server = new Server(
@@ -134,12 +144,13 @@ export class GraphFlowServer {
           tools: {},
           resources: {},
         },
-      }
+      },
     );
 
     this.checkpoint = new CheckpointMCPTools(workflowsDir);
     this.knowledge = new KnowledgeMCPTools(learningsDir, embeddingsDir);
     this.graph = new GraphMCPTools(graphsDir);
+    this.docs = new DocsMCPTools(docsDir, embeddingsDir);
     this.planning = new PlanningMCPTools(planningDir, githubRepo);
     this.githubRepo = githubRepo;
 
@@ -164,11 +175,11 @@ export class GraphFlowServer {
       await this.checkpoint.init();
       await this.knowledge.init();
       await this.graph.init();
+      await this.docs.init();
       await this.planning.init();
       this.automation = new AutomationMCPTools(
         this.planning.getManager(),
-        this.checkpoint.getManager(),
-        this.githubRepo
+        this.githubRepo,
       );
       await this.automation.init();
       this.initialized = true;
@@ -190,48 +201,84 @@ export class GraphFlowServer {
       const checkpointTools = this.checkpoint.getTools();
       const knowledgeTools = this.knowledge.getTools();
       const graphTools = this.graph.getTools();
+      const docsTools = this.docs.getTools();
       const planningTools = this.planning.getTools();
       const automationTools = this.automation.getTools();
 
       return {
-        tools: [...checkpointTools, ...knowledgeTools, ...graphTools, ...planningTools, ...automationTools],
+        tools: [
+          ...checkpointTools,
+          ...knowledgeTools,
+          ...graphTools,
+          ...docsTools,
+          ...planningTools,
+          ...automationTools,
+        ],
       };
     });
 
     // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
+    // TODO: MCPToolResult doesn't extend MCP SDK ServerResult — needs structural alignment
+    // biome-ignore lint/suspicious/noExplicitAny: structural mismatch with MCP SDK ServerResult
+    (this.server.setRequestHandler as any)(
+      CallToolRequestSchema,
+      async (request: {
+        params: { name: string; arguments?: Record<string, unknown> };
+      }) => {
+        const { name, arguments: args } = request.params;
 
-      try {
-        // Lazy init on first tool call
-        await this.ensureInitialized();
+        try {
+          // Lazy init on first tool call
+          await this.ensureInitialized();
+          const resolved = resolveDeprecatedToolCall(name, args || {});
+          if (resolved.warning) {
+            console.error(`[DEPRECATED] ${resolved.warning}`);
+          }
 
-        // Route to appropriate subsystem
-        if (name.startsWith("c-")) {
-          return await this.checkpoint.handleToolCall(name, args || {});
-        } else if (name.startsWith("k-")) {
-          return await this.knowledge.handleToolCall(name, args || {});
-        } else if (name.startsWith("g-")) {
-          return await this.graph.handleToolCall(name, args || {});
-        } else if (name.startsWith("p-")) {
-          return await this.planning.handleToolCall(name, args || {});
-        } else if (name.startsWith("a-")) {
-          return await this.automation.handleToolCall(name, args || {});
-        } else {
-          throw new Error(`Unknown tool: ${name}`);
+          // Route to appropriate subsystem
+          if (resolved.name.startsWith("c-")) {
+            return await this.checkpoint.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
+          } else if (resolved.name.startsWith("k-")) {
+            return await this.knowledge.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
+          } else if (resolved.name.startsWith("g-")) {
+            return await this.graph.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
+          } else if (resolved.name.startsWith("d-")) {
+            return await this.docs.handleToolCall(resolved.name, resolved.args);
+          } else if (resolved.name.startsWith("p-")) {
+            return await this.planning.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
+          } else if (resolved.name.startsWith("a-")) {
+            return await this.automation.handleToolCall(
+              resolved.name,
+              resolved.args,
+            );
+          } else {
+            throw new Error(`Unknown tool: ${resolved.name}`);
+          }
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+            isError: true,
+          };
         }
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    });
+      },
+    );
 
     // List resources
     this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
@@ -239,13 +286,23 @@ export class GraphFlowServer {
     });
 
     // Read resources
-    this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-      const { uri } = request.params;
-      return this.readResourceImpl(uri);
-    });
+    this.server.setRequestHandler(
+      ReadResourceRequestSchema,
+      async (request) => {
+        const { uri } = request.params;
+        return this.readResourceImpl(uri);
+      },
+    );
   }
 
-  private listResourcesImpl(): { resources: Array<{ uri: string; name: string; mimeType: string; description: string }> } {
+  private listResourcesImpl(): {
+    resources: Array<{
+      uri: string;
+      name: string;
+      mimeType: string;
+      description: string;
+    }>;
+  } {
     return {
       resources: [
         {
@@ -264,15 +321,15 @@ export class GraphFlowServer {
     };
   }
 
-  private async readResourceImpl(
-    uri: string
-  ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+  private async readResourceImpl(uri: string): Promise<{
+    contents: Array<{ uri: string; mimeType: string; text: string }>;
+  }> {
     // Lazy init on resource read
     await this.ensureInitialized();
 
     if (uri.startsWith("checkpoint://")) {
       // Return list of active workflows
-      const result = await this.checkpoint.handleToolCall("checkpoint-find", {});
+      const result = await this.checkpoint.handleToolCall("c-find", {});
       return {
         contents: [
           {
@@ -294,7 +351,7 @@ export class GraphFlowServer {
       } else {
         throw new Error(`Unknown knowledge resource: ${uri}`);
       }
-      const result = await this.knowledge.handleToolCall("knowledge-query", args);
+      const result = await this.knowledge.handleToolCall("k-query", args);
       return {
         contents: [
           {
@@ -309,13 +366,20 @@ export class GraphFlowServer {
     }
   }
 
-  listResourcesForTests(): { resources: Array<{ uri: string; name: string; mimeType: string; description: string }> } {
+  listResourcesForTests(): {
+    resources: Array<{
+      uri: string;
+      name: string;
+      mimeType: string;
+      description: string;
+    }>;
+  } {
     return this.listResourcesImpl();
   }
 
-  async readResourceForTests(
-    uri: string
-  ): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> }> {
+  async readResourceForTests(uri: string): Promise<{
+    contents: Array<{ uri: string; mimeType: string; text: string }>;
+  }> {
     return this.readResourceImpl(uri);
   }
 
@@ -323,7 +387,9 @@ export class GraphFlowServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     const provider = getCurrentProviderType() ?? "tfidf";
-    console.error(`graph-flow MCP server running on stdio (embeddings: ${provider})`);
+    console.error(
+      `graph-flow MCP server running on stdio (embeddings: ${provider})`,
+    );
   }
 
   async close(): Promise<void> {
@@ -334,7 +400,7 @@ export class GraphFlowServer {
 // Start server when executed directly
 if (import.meta.main) {
   const server = new GraphFlowServer({ baseDir: resolveBaseDir() });
-  // No init() call - initialization is now lazy on first tool use
+  // No init() call - initialization is lazy, triggered on first MCP request (list or call)
   await server.run();
 
   // Graceful shutdown

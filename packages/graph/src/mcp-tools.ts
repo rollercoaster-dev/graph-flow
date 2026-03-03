@@ -1,5 +1,5 @@
-import { GraphQuery } from "./query.ts";
 import { CodeIndexer } from "./indexer.ts";
+import { GraphQuery } from "./query.ts";
 
 export interface MCPTool {
   name: string;
@@ -53,15 +53,22 @@ export class GraphMCPTools {
             files: {
               type: "array",
               items: { type: "string" },
-              description: "Files to search (glob patterns supported)",
+              description:
+                "Glob patterns to search (e.g. ['src/**/*.ts']). Omit to auto-detect source files.",
+            },
+            cwd: {
+              type: "string",
+              description:
+                "Working directory for file resolution (default: CLAUDE_PROJECT_DIR)",
             },
           },
-          required: ["name", "files"],
+          required: ["name"],
         },
       },
       {
         name: "g-blast",
-        description: "Calculate blast radius - what entities are impacted by changes",
+        description:
+          "Calculate blast radius - what entities are impacted by changes",
         inputSchema: {
           type: "object",
           properties: {
@@ -72,14 +79,20 @@ export class GraphMCPTools {
             files: {
               type: "array",
               items: { type: "string" },
-              description: "Files to search",
+              description:
+                "Glob patterns to search (e.g. ['src/**/*.ts']). Omit to auto-detect source files.",
             },
             maxDepth: {
               type: "number",
               description: "Maximum depth to traverse (default: 3)",
             },
+            cwd: {
+              type: "string",
+              description:
+                "Working directory for file resolution (default: CLAUDE_PROJECT_DIR)",
+            },
           },
-          required: ["name", "files"],
+          required: ["name"],
         },
       },
       {
@@ -105,7 +118,8 @@ export class GraphMCPTools {
             patterns: {
               type: "array",
               items: { type: "string" },
-              description: "Glob patterns for files to index (e.g., ['src/**/*.ts'])",
+              description:
+                "Glob patterns for files to index (e.g., ['src/**/*.ts'])",
             },
             cwd: {
               type: "string",
@@ -121,7 +135,10 @@ export class GraphMCPTools {
   /**
    * Handle MCP tool call
    */
-  async handleToolCall(name: string, args: Record<string, unknown>): Promise<MCPToolResult> {
+  async handleToolCall(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     switch (name) {
       case "g-calls":
         return this.handleWhatCalls(args);
@@ -136,23 +153,31 @@ export class GraphMCPTools {
     }
   }
 
-  private async handleWhatCalls(args: Record<string, unknown>): Promise<MCPToolResult> {
-    const { name, files } = args as { name: string; files: string[] };
-    const result = await this.query.whatCalls(name, files);
+  private async handleWhatCalls(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
+    const { name, files, cwd } = args as {
+      name: string;
+      files?: string[];
+      cwd?: string;
+    };
+    const result = await this.query.whatCalls(name, files, cwd);
 
     if (!result) {
       return {
-        content: [{
-          type: "text",
-          text: `Entity "${name}" not found`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Entity "${name}" not found`,
+          },
+        ],
       };
     }
 
     const summary = {
       entity: result.entity,
       callerCount: result.callers.length,
-      callers: result.callers.map(c => ({
+      callers: result.callers.map((c) => ({
         name: c.caller.name,
         type: c.caller.type,
         location: c.caller.location,
@@ -160,35 +185,47 @@ export class GraphMCPTools {
     };
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(summary, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(summary, null, 2),
+        },
+      ],
     };
   }
 
-  private async handleBlastRadius(args: Record<string, unknown>): Promise<MCPToolResult> {
-    const { name, files, maxDepth = 3 } = args as {
+  private async handleBlastRadius(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
+    const {
+      name,
+      files,
+      maxDepth = 3,
+      cwd,
+    } = args as {
       name: string;
-      files: string[];
+      files?: string[];
       maxDepth?: number;
+      cwd?: string;
     };
 
-    const result = await this.query.blastRadius(name, files, maxDepth);
+    const result = await this.query.blastRadius(name, files, maxDepth, cwd);
 
     if (!result) {
       return {
-        content: [{
-          type: "text",
-          text: `Entity "${name}" not found`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Entity "${name}" not found`,
+          },
+        ],
       };
     }
 
     const summary = {
       entity: result.entity,
       impactCount: result.impactedEntities.length,
-      impactedEntities: result.impactedEntities.map(i => ({
+      impactedEntities: result.impactedEntities.map((i) => ({
         name: i.entity.name,
         type: i.entity.type,
         distance: i.distance,
@@ -198,21 +235,25 @@ export class GraphMCPTools {
     };
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(summary, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(summary, null, 2),
+        },
+      ],
     };
   }
 
-  private async handleDefinitions(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleDefinitions(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { file } = args as { file: string };
     const definitions = await this.query.getDefinitions(file);
 
     const summary = {
       file,
       count: definitions.length,
-      definitions: definitions.map(d => ({
+      definitions: definitions.map((d) => ({
         name: d.name,
         type: d.type,
         line: d.location.line,
@@ -220,14 +261,18 @@ export class GraphMCPTools {
     };
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(summary, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(summary, null, 2),
+        },
+      ],
     };
   }
 
-  private async handleIndex(args: Record<string, unknown>): Promise<MCPToolResult> {
+  private async handleIndex(
+    args: Record<string, unknown>,
+  ): Promise<MCPToolResult> {
     const { patterns, cwd } = args as { patterns: string[]; cwd?: string };
 
     const result = await this.indexer.index({ patterns, cwd });
@@ -244,10 +289,12 @@ export class GraphMCPTools {
     };
 
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(summary, null, 2),
-      }],
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(summary, null, 2),
+        },
+      ],
     };
   }
 }
