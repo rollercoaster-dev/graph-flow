@@ -38,7 +38,6 @@
   },
   "dependencies": {
     "@graph-flow/planning": "workspace:*",
-    "@graph-flow/checkpoint": "workspace:*",
     "@graph-flow/shared": "workspace:*"
   },
   "devDependencies": {

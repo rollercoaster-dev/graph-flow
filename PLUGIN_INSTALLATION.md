@@ -71,11 +71,11 @@ claude plugin list | grep graph-flow
 
 After installation, these skills are available in all projects:
 
-- `/setup` - Prepares environment for issue work (branch, board, checkpoint)
-- `/implement` - Implementation phase with per-commit gates
-- `/review` - Coordinates review agents and auto-fix loop
-- `/finalize` - Creates PR, updates board, completes workflow
-- `/auto-issue` - Fully autonomous issue-to-PR workflow
+- `setup` - Prepares environment for issue work (branch, board, checkpoint)
+- `implement` - Implementation phase with per-commit gates
+- `review` - Coordinates review agents and auto-fix loop
+- `finalize` - Creates PR, updates board, completes workflow
+- `auto-issue` - Fully autonomous issue-to-PR workflow
 
 ## Available Commands (6)
 

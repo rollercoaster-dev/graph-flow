@@ -53,7 +53,18 @@ export class DocsSearch {
     const newSections = sections.filter((s) => !existingIds.has(s.id));
     if (newSections.length === 0) return;
 
-    const embedder = await getDefaultEmbedder();
+    let embedder: Awaited<ReturnType<typeof getDefaultEmbedder>>;
+    try {
+      embedder = await getDefaultEmbedder();
+    } catch (error) {
+      console.error(
+        `[docs/search] Embedding provider not available, skipping embeddings: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return;
+    }
+
     for (const section of newSections) {
       try {
         const text = `${section.heading}\n\n${section.content}`;

@@ -112,7 +112,7 @@ describe("WorkflowManager", () => {
     await manager.update("test-123", { decisions: ["Decision 1"] });
 
     // Clear cache to force reconstruction
-    manager.cache.clear();
+    manager["cache"].clear();
 
     const workflow = await manager.get("test-123");
     expect(workflow?.phase).toBe("implement");
@@ -277,7 +277,7 @@ describe("WorkflowManager", () => {
     await manager.update("test-reconstruct", { status: "failed" });
 
     // Clear cache to force reconstruction from events
-    manager.cache.clear();
+    manager["cache"].clear();
 
     const workflow = await manager.get("test-reconstruct");
     expect(workflow?.actions).toHaveLength(1);

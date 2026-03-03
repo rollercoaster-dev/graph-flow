@@ -26,7 +26,7 @@ function toLineNumber(text: string, index: number): number {
 }
 
 async function main(): Promise<void> {
-  const roots = ["commands", "docs"];
+  const roots = ["commands", "docs", "skills"];
   const files = (await Promise.all(roots.map((r) => collectMarkdownFiles(r)))).flat();
 
   const errors: string[] = [];
