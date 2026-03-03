@@ -94,6 +94,23 @@ bun run build
 
 **If validation fails but `force` is true:** Note in PR body, continue.
 
+### Step 2.5: Commit Visual Evidence (if present)
+
+Check if visual screenshots exist:
+
+```bash
+ls .claude/screenshots/issue-<issue_number>/ 2>/dev/null
+```
+
+If the directory has files:
+
+```bash
+git add .claude/screenshots/issue-<issue_number>/
+git commit -m "docs: add visual evidence for #<issue_number>"
+```
+
+This creates a separate commit for screenshot artifacts, keeping them distinct from implementation commits.
+
 ### Step 3: Push Branch
 
 ```bash
@@ -133,6 +150,24 @@ gh pr create --title "<type>(<scope>): <description> (#<issue_number>)" --body "
 - [ ] Build succeeds
 
 <any unresolved findings if force=true>
+
+<if .claude/screenshots/issue-<N>/ has files, include:>
+
+## Visual Evidence
+
+### Design Reference
+![design](.claude/screenshots/issue-<N>/design-overview.png)
+
+### Before
+![before](.claude/screenshots/issue-<N>/before-1280.png)
+
+### After
+![after](.claude/screenshots/issue-<N>/after-1280.png)
+
+### Design Comparison
+<contents of .claude/screenshots/issue-<N>/comparison.md, if it exists>
+
+<end of visual evidence section>
 
 ---
 

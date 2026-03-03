@@ -47,16 +47,22 @@ WRONG understanding:
 /auto-issue 123 --dry-run          # Research only, show plan
 /auto-issue 123 --force-pr         # Create PR even with issues
 /auto-issue 123 --skip-review      # Skip review phase
+/auto-issue 123 --visual           # Force visual workflow
+/auto-issue 123 --no-visual        # Suppress visual workflow
+/auto-issue 123 --visual --figma-url https://figma.com/design/...
 ```
 
 ## Workflow
 
 ```text
-Phase 1: Setup     → Skill(setup)
-Phase 2: Research  → Task(issue-researcher)
-Phase 3: Implement → Skill(implement)
-Phase 4: Review    → Skill(review)
-Phase 5: Finalize  → Skill(finalize)
+Phase 1:   Setup          → Skill(setup)
+Phase 1.5: Visual Design  → Skill(visual-test, { mode: "design" })   [if --visual]
+Phase 1.6: Visual Before  → Skill(visual-test, { mode: "before" })   [if --visual]
+Phase 2:   Research        → Task(issue-researcher)
+Phase 3:   Implement       → Skill(implement)
+Phase 4:   Review          → Skill(review)
+Phase 4.5: Visual After    → Skill(visual-test, { mode: "after" })   [if --visual]
+Phase 5:   Finalize        → Skill(finalize)
 ```
 
 ---
@@ -181,6 +187,26 @@ The setup skill will:
 
 ---
 
+## Phase 1.5 + 1.6: Visual Capture (if --visual)
+
+**Condition:** Run if `--visual` flag is set, or if frontend signals are detected (see auto-issue skill for detection heuristic). Skip if `--no-visual`.
+
+```text
+Skill(visual-test):
+  Input:  { mode: "design", issue_number: <N>, [figma_url] }
+  Output: { screenshots[], design_url, skipped }
+
+Skill(visual-test):
+  Input:  { mode: "before", issue_number: <N>, [test_url], [viewports], [dev_server_cmd] }
+  Output: { screenshots[], app_url, skipped }
+```
+
+Captures Figma design reference and current app state before implementation begins. Both are best-effort — if either is skipped, the workflow continues normally.
+
+Store screenshot paths in workflow state for the finalize phase.
+
+---
+
 ## Phase 2: Research
 
 ```text
@@ -242,6 +268,22 @@ The review skill will:
 
 ---
 
+## Phase 4.5: Visual After (if --visual)
+
+**Condition:** Run if visual mode was activated in Phase 1.5/1.6.
+
+```text
+Skill(visual-test):
+  Input:  { mode: "after", issue_number: <N>, [test_url], [viewports] }
+  Output: { screenshots[], app_url, skipped }
+```
+
+Captures the app state after implementation and automatically compares with design screenshots (if they exist). Produces a comparison report.
+
+The comparison is informational — included in the PR body for human review, not used as a pass/fail gate.
+
+---
+
 ## Phase 5: Finalize
 
 ```text
@@ -288,11 +330,14 @@ Options:
 
 ## Flags
 
-| Flag            | Effect                                |
-| --------------- | ------------------------------------- |
-| `--dry-run`     | Stop after Phase 2, show plan         |
-| `--force-pr`    | Create PR even with unresolved issues |
-| `--skip-review` | Skip Phase 4 entirely                 |
+| Flag            | Effect                                           |
+| --------------- | ------------------------------------------------ |
+| `--dry-run`     | Stop after Phase 2, show plan                    |
+| `--force-pr`    | Create PR even with unresolved issues            |
+| `--skip-review` | Skip Phase 4 entirely                            |
+| `--visual`      | Force visual workflow (Phase 1.5, 1.6, 4.5)      |
+| `--no-visual`   | Suppress visual workflow even if frontend signals |
+| `--figma-url`   | Pass Figma URL to visual-test skill               |
 
 ---
 

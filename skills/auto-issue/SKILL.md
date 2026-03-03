@@ -18,6 +18,9 @@ Runs a single issue from setup to PR creation.
 | `dry_run`      | boolean | No       | Stop after research and output the plan       |
 | `skip_review`  | boolean | No       | Skip review phase and continue to finalize    |
 | `force_pr`     | boolean | No       | Allow PR creation even with unresolved issues |
+| `visual`       | boolean | No       | Force visual workflow (overrides auto-detect)  |
+| `no_visual`    | boolean | No       | Suppress visual workflow                       |
+| `figma_url`    | string  | No       | Figma URL to pass to visual-test skill         |
 
 ### Output
 
@@ -29,6 +32,7 @@ Runs a single issue from setup to PR creation.
 | `pr_number`      | number | PR number (if created)         |
 | `pr_url`         | string | PR URL (if created)            |
 | `status`         | string | `dry_run`, `completed`, `failed` |
+| `visual_active`  | boolean | Whether visual workflow ran      |
 
 ## Workflow
 
@@ -41,6 +45,27 @@ Skill(setup, args: { issue_number: <N> })
 ```
 
 Capture `branch` and issue metadata from output.
+
+### Phase 1.5 + 1.6: Visual Capture (conditional)
+
+**Determine if visual mode is active:**
+
+1. If `visual=true` → active
+2. If `no_visual=true` → inactive
+3. Otherwise, auto-detect from frontend signals:
+   - **Issue labels**: `frontend`, `ui`, `visual`, `css`, `component`, `layout`, `responsive`, `design`
+   - **Issue body keywords**: "screenshot", "figma", "design", "layout", "responsive", "viewport", "UI"
+   - **Linked issues**: presence of a "design issue" reference
+4. If any signal matches → active, otherwise → inactive
+
+**If active, run:**
+
+```text
+Skill(visual-test, args: { mode: "design", issue_number: <N>, figma_url: <if provided> })
+Skill(visual-test, args: { mode: "before", issue_number: <N> })
+```
+
+Store screenshot paths in workflow state. Both calls are best-effort — if skipped, continue normally.
 
 ### Phase 2: Research
 
@@ -75,6 +100,16 @@ Skill(review, args: { workflow_id: "issue-<N>" })
 The review skill includes a `/simplify` pass (Step 1.5) before spawning review agents, improving code quality before the detailed review.
 
 If unresolved critical findings remain and `force_pr` is false, stop with `failed` status.
+
+### Phase 4.5: Visual After (conditional)
+
+**If visual mode was activated in Phase 1.5/1.6:**
+
+```text
+Skill(visual-test, args: { mode: "after", issue_number: <N> })
+```
+
+Captures final app state and compares with design screenshots. Best-effort — if skipped, continue to finalize.
 
 ### Phase 5: Finalize
 
