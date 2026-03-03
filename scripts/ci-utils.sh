@@ -67,6 +67,10 @@ validate_issue_number() {
     log_error "Invalid issue number: '$issue_number' (must be a positive integer)"
     return 1
   fi
+  if (( 10#$issue_number <= 0 )); then
+    log_error "Invalid issue number: '$issue_number' (must be greater than 0)"
+    return 1
+  fi
 }
 
 # fetch_pr_checks queries gh for CI check status and parses counts in a single jq call.
@@ -76,7 +80,7 @@ validate_issue_number() {
 fetch_pr_checks() {
   local pr_number=$1
 
-  if ! _checks_raw=$(gh pr checks "$pr_number" --json name,state,conclusion 2>&1); then
+  if ! _checks_raw=$(gh pr checks "$pr_number" --json name,state,bucket 2>&1); then
     log_error "Failed to query CI status: $_checks_raw"
     return 1
   fi
@@ -87,8 +91,8 @@ fetch_pr_checks() {
     pending: [.[] | select(.state == "PENDING")] | length,
     in_progress: [.[] | select(.state == "IN_PROGRESS")] | length,
     completed: [.[] | select(.state == "COMPLETED")] | length,
-    passed: [.[] | select(.conclusion == "SUCCESS")] | length,
-    failed: [.[] | select(.conclusion == "FAILURE")] | length
+    passed: [.[] | select(.bucket == "pass")] | length,
+    failed: [.[] | select(.bucket == "fail")] | length
   }' 2>&1); then
     log_error "Received invalid JSON from gh pr checks: $_checks_raw"
     return 1
@@ -182,7 +186,7 @@ cmd_ci_status() {
         # All checks complete
         if [[ "$_checks_failed" -gt 0 ]]; then
           log_error "CI failed: $_checks_failed check(s) failed"
-          echo "$_checks_raw" | jq -r '.[] | select(.conclusion == "FAILURE") | "  - \(.name): \(.conclusion)"'
+          echo "$_checks_raw" | jq -r '.[] | select(.bucket == "fail") | "  - \(.name): \(.state)"'
           return 1
         else
           log_success "All CI checks passed ($_checks_completed checks)"
@@ -243,11 +247,20 @@ cmd_integration_test() {
 
   # Save current branch to restore after tests
   local original_branch
-  original_branch=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || echo "")
+  original_branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 
   if [[ -z "$original_branch" ]]; then
     log_warn "Could not determine current branch (detached HEAD?). You will be left on main after tests."
   fi
+
+  # Register cleanup trap to restore branch on any exit (including set -e failures)
+  _restore_original_branch() {
+    if [[ -n "${original_branch:-}" && "$original_branch" != "main" ]]; then
+      git -C "$REPO_ROOT" checkout "$original_branch" --quiet 2>/dev/null || \
+        log_warn "Could not restore branch '$original_branch' — still on main"
+    fi
+  }
+  trap _restore_original_branch EXIT
 
   # Ensure we're on main with latest
   git -C "$REPO_ROOT" fetch origin main --quiet
@@ -316,12 +329,7 @@ cmd_integration_test() {
     log_error "Integration tests failed. Manual intervention required."
   fi
 
-  # Restore original branch if we were on one
-  if [[ -n "$original_branch" && "$original_branch" != "main" ]]; then
-    git -C "$REPO_ROOT" checkout "$original_branch" --quiet 2>/dev/null || \
-      log_warn "Could not restore branch '$original_branch' — still on main"
-  fi
-
+  # Branch restoration handled by EXIT trap (_restore_original_branch)
   return $exit_code
 }
 

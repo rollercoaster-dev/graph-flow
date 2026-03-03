@@ -103,7 +103,7 @@ This complements the review agents which focus on bugs, test gaps, and silent fa
 2. If `/simplify` makes changes:
    a. Validate: `bun run type-check && bun run lint && bun test`
    b. If valid: commit with `git commit -m "refactor: apply simplify suggestions"`
-   c. If invalid: revert with `git checkout -- .`
+   c. If invalid: revert with `git reset --hard HEAD && git clean -fd` (resets tracked files and removes untracked artifacts created by `/simplify`)
 3. Continue to Step 2 regardless of outcome.
 
 ### Step 2: Spawn Review Agents
