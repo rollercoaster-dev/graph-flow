@@ -1,7 +1,8 @@
-import { constants } from "node:fs";
+import { constants, existsSync } from "node:fs";
 import { access } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { validateBoardConfig } from "@graph-flow/automation";
+import { getErrorMessage } from "@graph-flow/shared";
 
 export interface DoctorOptions {
   projectRoot?: string;
@@ -165,14 +166,13 @@ export async function runDoctor(
     }
   } catch (error) {
     // File exists but couldn't be read or parsed
-    const { existsSync } = await import("node:fs");
     if (existsSync(mcpPath)) {
       mcpFound = true;
       checks.push({
         id: "mcp-parse",
         status: "fail",
         summary: ".mcp.json exists but could not be read or parsed",
-        details: error instanceof Error ? error.message : String(error),
+        details: getErrorMessage(error),
       });
     }
   }

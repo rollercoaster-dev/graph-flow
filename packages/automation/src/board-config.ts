@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { getErrorMessage } from "@graph-flow/shared";
 
 export type BoardStatus =
   | "Backlog"
@@ -61,9 +62,8 @@ function loadProjectConfig(projectRoot: string): ProjectConfigFile {
   try {
     return JSON.parse(text) as ProjectConfigFile;
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Failed to parse ${path}: ${msg}. Fix the JSON syntax or delete the file to use env vars instead.`,
+      `Failed to parse ${path}: ${getErrorMessage(error)}. Fix the JSON syntax or delete the file to use env vars instead.`,
     );
   }
 }

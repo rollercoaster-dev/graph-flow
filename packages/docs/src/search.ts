@@ -50,11 +50,12 @@ export class DocsSearch {
     sections: DocSection[],
     existingIds: Set<string>,
   ): Promise<void> {
-    for (const section of sections) {
-      if (existingIds.has(section.id)) continue;
+    const newSections = sections.filter((s) => !existingIds.has(s.id));
+    if (newSections.length === 0) return;
 
+    const embedder = await getDefaultEmbedder();
+    for (const section of newSections) {
       try {
-        const embedder = await getDefaultEmbedder();
         const text = `${section.heading}\n\n${section.content}`;
         const embedding = await embedder.generate(text);
         await this.embeddingStorage.store(

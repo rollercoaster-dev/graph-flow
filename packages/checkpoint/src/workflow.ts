@@ -394,12 +394,12 @@ export class WorkflowManager {
 
         // Handle action_logged events
         if (event.type === "action_logged" && update.logAction) {
-          state.actions = [...state.actions, update.logAction];
+          state.actions.push(update.logAction);
         }
 
         // Handle commit_logged events
         if (event.type === "commit_logged" && update.logCommit) {
-          state.commits = [...state.commits, update.logCommit];
+          state.commits.push(update.logCommit);
         }
 
         // Handle status_changed: increment retryCount on failure

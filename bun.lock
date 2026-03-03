@@ -16,6 +16,7 @@
       "dependencies": {
         "@graph-flow/checkpoint": "workspace:*",
         "@graph-flow/planning": "workspace:*",
+        "@graph-flow/shared": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.0.0",

@@ -5,6 +5,7 @@
  * Uses spawnSync from Bun (same pattern as resolvers.ts).
  */
 
+import { getErrorMessage } from "@graph-flow/shared";
 import { spawnSync } from "bun";
 import type { GitHubIssue, GitHubMilestone, GitHubSubIssue } from "./types";
 
@@ -30,9 +31,11 @@ export function clearGitHubCache(): void {
 }
 
 /**
- * Run a `gh` CLI command and return parsed JSON output.
+ * Spawn `gh` CLI and return raw stdout, or null on failure.
+ * Shared runner for ghJson and ghRaw — handles spawn errors and stderr logging.
+ * When `repo` is provided, non-API commands get `--repo`, API commands get `GH_REPO` env.
  */
-function ghJson<T>(args: string[], repo?: string): T | null {
+function runGh(args: string[], repo?: string): string | null {
   let result: ReturnType<typeof spawnSync>;
   try {
     const isApi = args[0] === "api";
@@ -41,40 +44,7 @@ function ghJson<T>(args: string[], repo?: string): T | null {
     result = spawnSync(["gh", ...finalArgs], env ? { env } : undefined);
   } catch (error) {
     console.error(
-      `[automation/github] gh CLI not available: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return null;
-  }
-
-  if (!result.success) {
-    const stderr = result.stderr?.toString().trim() ?? "";
-    if (stderr) {
-      console.error(`[automation/github] gh ${args[0]} failed: ${stderr}`);
-    }
-    return null;
-  }
-
-  try {
-    return JSON.parse((result.stdout ?? "").toString()) as T;
-  } catch (error) {
-    console.error(
-      `[automation/github] Failed to parse gh ${args[0]} JSON output: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return null;
-  }
-}
-
-/**
- * Run a `gh` CLI command and return raw stdout.
- */
-function ghRaw(args: string[], repo?: string): string | null {
-  let result: ReturnType<typeof spawnSync>;
-  try {
-    const finalArgs = repo ? ["--repo", repo, ...args] : args;
-    result = spawnSync(["gh", ...finalArgs]);
-  } catch (error) {
-    console.error(
-      `[automation/github] gh CLI not available: ${error instanceof Error ? error.message : String(error)}`,
+      `[automation/github] gh CLI not available: ${getErrorMessage(error)}`,
     );
     return null;
   }
@@ -88,6 +58,30 @@ function ghRaw(args: string[], repo?: string): string | null {
   }
 
   return (result.stdout ?? "").toString().trim();
+}
+
+/**
+ * Run a `gh` CLI command and return parsed JSON output.
+ */
+function ghJson<T>(args: string[], repo?: string): T | null {
+  const stdout = runGh(args, repo);
+  if (stdout === null) return null;
+
+  try {
+    return JSON.parse(stdout) as T;
+  } catch (error) {
+    console.error(
+      `[automation/github] Failed to parse gh ${args[0]} JSON output: ${getErrorMessage(error)}`,
+    );
+    return null;
+  }
+}
+
+/**
+ * Run a `gh` CLI command and return raw stdout.
+ */
+function ghRaw(args: string[], repo?: string): string | null {
+  return runGh(args, repo);
 }
 
 /**
@@ -122,8 +116,8 @@ export function fetchMilestone(num: number, repo?: string): GitHubMilestone | nu
     title: data.title,
     description: data.description || "",
     state: data.state === "open" ? "open" : "closed",
-    openIssues: data.openIssues ?? data.openIssues,
-    closedIssues: data.closedIssues ?? data.closedIssues,
+    openIssues: data.openIssues ?? 0,
+    closedIssues: data.closedIssues ?? 0,
     url: data.url || "",
   };
 

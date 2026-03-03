@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
+import { getErrorMessage } from "@graph-flow/shared";
 
 export interface CachedGraphData {
   fileHash: string;
@@ -92,9 +93,7 @@ export class GraphCache {
       return cached;
     } catch (error) {
       console.warn(
-        `[graph/cache] Corrupted cache file "${cachePath}", ignoring: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `[graph/cache] Corrupted cache file "${cachePath}", ignoring: ${getErrorMessage(error)}`,
       );
       return null;
     }

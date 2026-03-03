@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@graph-flow/shared";
 import { cosineSimilarity, getDefaultEmbedder } from "./embeddings";
 import { EmbeddingStorage } from "./embeddings-storage.ts";
 import { type LearningRecord, LearningStorage } from "./storage.ts";
@@ -53,7 +54,7 @@ export class SemanticSearch {
       }
       return undefined;
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = getErrorMessage(error);
       console.error(
         `[knowledge/semantic] Failed to generate embedding for learning ${learning.id}: ${msg}`,
       );

@@ -7,6 +7,7 @@
  */
 
 import type { PlanningManager } from "@graph-flow/planning/manager";
+import { getErrorMessage } from "@graph-flow/shared";
 import {
   type BoardConfig,
   type BoardStatus,
@@ -223,7 +224,7 @@ export class AutomationOrchestrator {
         itemId: "",
         status,
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       };
     }
     const optionId = config.statusOptions[status];
@@ -426,7 +427,7 @@ export class AutomationOrchestrator {
         itemId: "",
         status,
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       };
     }
   }
