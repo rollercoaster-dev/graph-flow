@@ -94,6 +94,18 @@ git diff main --name-only | grep -iE "(badge|credential|issuer|assertion|ob2|ob3
 
 If matches found and `include_ob_compliance` not explicitly false → enable OB compliance review.
 
+### Step 1.5: Run /simplify (Code Quality Pass)
+
+Run the built-in `/simplify` command for code quality, reuse, and efficiency improvements.
+This complements the review agents which focus on bugs, test gaps, and silent failures.
+
+1. Run: `/simplify`
+2. If `/simplify` makes changes:
+   a. Validate: `bun run type-check && bun run lint && bun test`
+   b. If valid: commit with `git commit -m "refactor: apply simplify suggestions"`
+   c. If invalid: revert with `git checkout -- .`
+3. Continue to Step 2 regardless of outcome.
+
 ### Step 2: Spawn Review Agents
 
 **If parallel mode (default):**

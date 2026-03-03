@@ -72,6 +72,8 @@ Otherwise run:
 Skill(review, args: { workflow_id: "issue-<N>" })
 ```
 
+The review skill includes a `/simplify` pass (Step 1.5) before spawning review agents, improving code quality before the detailed review.
+
 If unresolved critical findings remain and `force_pr` is false, stop with `failed` status.
 
 ### Phase 5: Finalize

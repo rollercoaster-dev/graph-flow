@@ -232,6 +232,7 @@ Skill(review):
 
 The review skill will:
 
+- Run `/simplify` for code quality, reuse, and efficiency improvements
 - Spawn review agents in parallel (as Task subagents)
 - Classify findings by severity
 - Auto-fix critical findings (up to 3 attempts each)

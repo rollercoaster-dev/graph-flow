@@ -46,6 +46,7 @@ export interface WorkflowState {
   createdAt: string;
   updatedAt: string;
   branch?: string;
+  /** Worktree path — uses Claude Code's `.claude/worktrees/<name>/` format when spawned with isolation: "worktree" */
   worktree?: string;
   status: WorkflowStatus;
   retryCount: number;

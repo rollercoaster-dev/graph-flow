@@ -26,16 +26,17 @@ Task({
 
 ### Parallel (`--parallel N`)
 
-Spawn N teammates. They self-claim from the shared task list. Each task has a `worktreePath` in its metadata — workers **must** `cd` to that path before executing the skill:
+Spawn N teammates with `isolation: "worktree"`. Claude Code handles worktree creation and cleanup automatically — no manual worktree management needed:
 
 ```text
 For i in 1..N:
   Task({
-    prompt: "You are worker-<i> on team <team-name>. Check TaskList for available (unblocked, unowned) tasks. Claim one with TaskUpdate (set owner to your name, status to in_progress). Read the task's metadata for worktreePath. cd to that worktree path FIRST, then execute: Skill(graph-flow:auto-issue, args: '<issue-number>'). The branch is already created in the worktree — the auto-issue skill will detect it. When the skill completes, detect the PR number via `gh pr list --search 'head:feat/issue-<issue>' --state open --json number --limit 1`. Mark the task completed and send the lead a message with the PR number. Then check TaskList for the next available task. Repeat until no tasks remain.",
+    prompt: "You are worker-<i> on team <team-name>. Check TaskList for available (unblocked, unowned) tasks. Claim one with TaskUpdate (set owner to your name, status to in_progress). Execute: Skill(graph-flow:auto-issue, args: '<issue-number>'). When the skill completes, detect the PR number via `gh pr list --search 'head:feat/issue-<issue>' --state open --json number --limit 1`. Mark the task completed and send the lead a message with the PR number. Then check TaskList for the next available task. Repeat until no tasks remain.",
     subagent_type: "general-purpose",
     team_name: "<team-name>",
     name: "worker-<i>",
-    mode: "bypassPermissions"
+    mode: "bypassPermissions",
+    isolation: "worktree"
   })
 ```
 
@@ -51,8 +52,8 @@ gh pr list --search "head:feat/issue-<N>" --state open --json number,url,statusC
 git fetch origin
 git rev-list --count origin/main..origin/feat/issue-<N> 2>/dev/null
 
-# Check for existing worktree
-./scripts/worktree-manager.sh path <N> 2>/dev/null
+# Check for existing worktree (Claude Code manages worktrees automatically via isolation: "worktree")
+# No manual worktree check needed — branch existence is sufficient
 ```
 
 Route each issue based on what exists:
@@ -205,8 +206,9 @@ After all waves are processed:
 
 2. **Clean up worktrees** (if parallel mode was used):
 
+   Worktree cleanup is automatic when using `isolation: "worktree"` on Task calls. Claude Code removes worktrees when the task completes. Run `git worktree prune` if any stale entries remain:
+
    ```bash
-   ./scripts/worktree-manager.sh cleanup-all --force
    git worktree prune
    ```
 
@@ -258,8 +260,8 @@ gh pr list --search "head:feat/issue-<N>" --state all --json number,state,mergeC
 git fetch origin
 git rev-list --count origin/main..origin/feat/issue-<N> 2>/dev/null
 
-# Is there an existing worktree?
-./scripts/worktree-manager.sh path <N> 2>/dev/null
+# Worktree existence is managed by Claude Code (isolation: "worktree")
+# No manual check needed — branch existence above is sufficient
 ```
 
 ### Step 3: Route Each Issue
