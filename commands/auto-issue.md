@@ -335,9 +335,11 @@ Options:
 | `--dry-run`     | Stop after Phase 2, show plan                    |
 | `--force-pr`    | Create PR even with unresolved issues            |
 | `--skip-review` | Skip Phase 4 entirely                            |
-| `--visual`      | Force visual workflow (Phase 1.5, 1.6, 4.5)      |
-| `--no-visual`   | Suppress visual workflow even if frontend signals |
+| `--visual`      | Force visual workflow (Phase 1.5, 1.6, 4.5). Conflicts with `--no-visual` |
+| `--no-visual`   | Suppress visual workflow even if frontend signals. Conflicts with `--visual` |
 | `--figma-url`   | Pass Figma URL to visual-test skill               |
+
+**Note:** If both `--visual` and `--no-visual` are provided, the command exits with a usage error.
 
 ---
 

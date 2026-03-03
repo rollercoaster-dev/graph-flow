@@ -32,7 +32,7 @@ Runs a single issue from setup to PR creation.
 | `pr_number`      | number | PR number (if created)         |
 | `pr_url`         | string | PR URL (if created)            |
 | `status`         | string | `dry_run`, `completed`, `failed` |
-| `visual_active`  | boolean | Whether visual workflow ran      |
+| `visual_active`  | boolean | True iff Phase 1.5/1.6 was executed (visual mode resolved to active); false otherwise |
 
 ## Workflow
 
@@ -50,13 +50,16 @@ Capture `branch` and issue metadata from output.
 
 **Determine if visual mode is active:**
 
-1. If `visual=true` → active
-2. If `no_visual=true` → inactive
-3. Otherwise, auto-detect from frontend signals:
+1. If `visual=true` and `no_visual=true` → return error (conflicting flags)
+2. If `visual=true` → active
+3. If `no_visual=true` → inactive
+4. Otherwise, auto-detect from frontend signals:
    - **Issue labels**: `frontend`, `ui`, `visual`, `css`, `component`, `layout`, `responsive`, `design`
    - **Issue body keywords**: "screenshot", "figma", "design", "layout", "responsive", "viewport", "UI"
    - **Linked issues**: presence of a "design issue" reference
-4. If any signal matches → active, otherwise → inactive
+5. If any signal matches → active, otherwise → inactive
+
+Set `visual_active` in output based on whether visual mode resolved to active.
 
 **If active, run:**
 

@@ -1,7 +1,7 @@
 ---
 name: visual-test
 description: Captures visual evidence for frontend work - Figma designs, before/after app screenshots, and design comparison. Best-effort, never blocks workflow.
-allowed-tools: Bash, Read, Write, Glob, Grep
+allowed-tools: Bash, Read, Write, Glob, Grep, mcp__playwright__*, mcp__claude-in-chrome__*
 ---
 
 # Visual Test Skill
