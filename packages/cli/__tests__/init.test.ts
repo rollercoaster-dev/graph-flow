@@ -113,6 +113,70 @@ describe("runInit", () => {
     );
   });
 
+  test("preserves existing graph-flow config fields when writing .mcp.json", async () => {
+    await writeFile(
+      join(projectDir, ".mcp.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            "graph-flow": {
+              cwd: "/tmp/custom-cwd",
+              transport: "stdio",
+              env: {
+                EXTRA_FLAG: "enabled",
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await runInit({
+      projectRoot: projectDir,
+      indexCode: false,
+      indexDocs: false,
+    });
+
+    const text = await readFile(join(projectDir, ".mcp.json"), "utf-8");
+    const config = JSON.parse(text) as {
+      mcpServers: {
+        "graph-flow": {
+          command: string;
+          args: string[];
+          cwd: string;
+          transport: string;
+          env: {
+            CLAUDE_PROJECT_DIR: string;
+            EXTRA_FLAG: string;
+          };
+        };
+      };
+    };
+
+    expect(config.mcpServers["graph-flow"].command).toBe("bunx");
+    expect(config.mcpServers["graph-flow"].args).toEqual(["@graph-flow/mcp"]);
+    expect(config.mcpServers["graph-flow"].cwd).toBe("/tmp/custom-cwd");
+    expect(config.mcpServers["graph-flow"].transport).toBe("stdio");
+    expect(config.mcpServers["graph-flow"].env.EXTRA_FLAG).toBe("enabled");
+    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
+  });
+
+  test("fails when existing .mcp.json is malformed", async () => {
+    await writeFile(join(projectDir, ".mcp.json"), "{ invalid json content");
+
+    await expect(
+      runInit({
+        projectRoot: projectDir,
+        indexCode: false,
+        indexDocs: false,
+      }),
+    ).rejects.toThrow("Unable to read");
+  });
+
   test("indexes code files when indexCode is true", async () => {
     // Create a source file
     await mkdir(join(projectDir, "src"), { recursive: true });
@@ -371,6 +435,8 @@ describe("formatInitResult", () => {
     expect(output).not.toContain("Docs indexing:");
     expect(output).toContain("Health check:");
     expect(output).toContain("MCP Configuration");
+    expect(output).toContain("Command: bunx @graph-flow/mcp");
+    expect(output).not.toContain("CLAUDE_PROJECT_DIR");
   });
 
   test("includes failed files count when present", () => {

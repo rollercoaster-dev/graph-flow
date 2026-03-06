@@ -43,6 +43,13 @@ interface McpConfig {
   [key: string]: unknown;
 }
 
+interface McpServerConfig {
+  command?: string;
+  args?: unknown[];
+  env?: Record<string, string>;
+  [key: string]: unknown;
+}
+
 /**
  * Check if a directory exists.
  */
@@ -176,9 +183,9 @@ async function runHealthCheck(dataDir: string): Promise<HealthCheckResult> {
 }
 
 /**
- * Generate MCP config snippet for the user.
+ * Generate the graph-flow MCP server entry for a specific project.
  */
-function generateMcpServerConfig(projectRoot: string): object {
+function generateMcpServerConfig(projectRoot: string): McpServerConfig {
   return {
     command: "bunx",
     args: ["@graph-flow/mcp"],
@@ -188,6 +195,44 @@ function generateMcpServerConfig(projectRoot: string): object {
   };
 }
 
+/**
+ * Check if an unknown value is a plain object we can safely merge.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Merge graph-flow's managed MCP fields into an existing server config.
+ * Unknown top-level fields and extra env vars are preserved.
+ */
+function mergeGraphFlowServerConfig(
+  existing: unknown,
+  projectConfig: McpServerConfig,
+): McpServerConfig {
+  const existingServer = isRecord(existing)
+    ? (existing as McpServerConfig)
+    : {};
+  const existingEnv = isRecord(existingServer.env)
+    ? (existingServer.env as Record<string, string>)
+    : {};
+  const projectEnv = isRecord(projectConfig.env)
+    ? (projectConfig.env as Record<string, string>)
+    : {};
+
+  return {
+    ...existingServer,
+    ...projectConfig,
+    env: {
+      ...existingEnv,
+      ...projectEnv,
+    },
+  };
+}
+
+/**
+ * Read the existing project MCP config from disk, if present.
+ */
 async function readExistingMcpConfig(mcpPath: string): Promise<McpConfig> {
   try {
     const text = await readFile(mcpPath, "utf-8");
@@ -211,17 +256,24 @@ async function readExistingMcpConfig(mcpPath: string): Promise<McpConfig> {
   }
 }
 
+/**
+ * Persist the merged project MCP config to disk.
+ */
 async function writeMcpConfig(
   projectRoot: string,
-  projectConfig: object,
+  projectConfig: McpServerConfig,
 ): Promise<{ mcpPath: string; mcpConfig: McpConfig }> {
   const mcpPath = join(projectRoot, ".mcp.json");
   const existingConfig = await readExistingMcpConfig(mcpPath);
+  const mergedGraphFlowConfig = mergeGraphFlowServerConfig(
+    existingConfig.mcpServers?.["graph-flow"],
+    projectConfig,
+  );
   const mergedConfig: McpConfig = {
     ...existingConfig,
     mcpServers: {
       ...(existingConfig.mcpServers ?? {}),
-      "graph-flow": projectConfig,
+      "graph-flow": mergedGraphFlowConfig,
     },
   };
 
@@ -382,10 +434,10 @@ export function formatInitResult(result: InitResult): string {
   lines.push(`  Planning: ${h.planning.files} files`);
   lines.push("");
 
-  lines.push(
-    "MCP Configuration (.mcp.json written for MCP-capable hosts such as Claude Code):",
-  );
-  lines.push(JSON.stringify(result.mcpConfig, null, 2));
+  lines.push("MCP Configuration:");
+  lines.push(`  File: ${result.mcpPath}`);
+  lines.push("  Server: graph-flow");
+  lines.push("  Command: bunx @graph-flow/mcp");
   lines.push("");
   lines.push(
     "If your host does not expose project MCP servers yet, use the `graph-flow` CLI directly.",

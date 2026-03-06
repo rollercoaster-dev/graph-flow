@@ -95,10 +95,11 @@ export async function runDoctor(
   } else {
     checks.push({
       id: "gh-installed",
-      status: "fail",
+      status: "warn",
       summary: "GitHub CLI is not available",
       details:
-        ghVersion.stderr.trim() || "Install `gh` and ensure it is in PATH.",
+        ghVersion.stderr.trim() ||
+        "Install `gh` and ensure it is in PATH if you plan to use GitHub automation features.",
     });
   }
 

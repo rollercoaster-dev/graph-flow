@@ -86,7 +86,7 @@ After installation, these skills are available in all projects:
 - `/auto-epic` - Orchestrate epic execution (sub-issues with dependency waves)
 - `/auto-milestone` - Orchestrate milestone execution (planner + workers)
 - `/auto-merge` - Auto-merge workflow
-- `/init` - Set up MCP tools in current project
+- `/graph-flow:init` - Set up MCP tools in current project
 
 ## Available Agents (3)
 
