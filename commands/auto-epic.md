@@ -114,7 +114,7 @@ Epic is leaner: dependencies are already declared in GitHub, so no planner proce
 ```text
 Phase 1: Plan    → read GitHub sub-issue graph → compute waves → create team + tasks
 Phase 2: Execute → spawn teammates → they self-claim unblocked tasks via Skill(auto-issue)
-Phase 3: Review  → per-PR: CI → CodeRabbit → fix → Telegram approval → merge
+Phase 3: Review  → per-PR: CI → external review (CodeRabbit/Copilot/Claude fallback) → triage → fix → Telegram approval → merge
 Phase 4: Cleanup → shutdown teammates, delete team, update epic, summary, notification
 ```
 
@@ -200,23 +200,34 @@ Detect circular dependencies — if found, report and exit.
 
    This ensures `--continue` has real data to resume from even if the workflow is interrupted before any worker starts.
 
-3. Create native tasks with wave-based dependencies:
+3. Create native tasks with **per-issue dependency edges** (not wave-level blocking):
 
    ```text
+   issueToTaskId = {}
+
    For each wave W (1..N):
      For each issue in wave W:
+       # dependsOn comes from Step 2's dependency graph (parsed from issue body)
+       deps = dependencyMap[issueNumber]  # e.g. [636, 637]
+
        taskId = TaskCreate({
          subject: "Issue #<N>: <title>",
          description: "Execute Skill(graph-flow:auto-issue, args: '<N>'). Report PR number when done.",
          activeForm: "Working on issue #<N>",
-         metadata: { issueNumber: <N>, waveNumber: W, epicNumber: <epic> }
+         metadata: { issueNumber: <N>, waveNumber: W, epicNumber: <epic>, dependsOn: deps }
        })
-       if W > 1:
-         TaskUpdate(taskId, { addBlockedBy: [task IDs from previous wave] })
-       waveWTasks.push(taskId)
+
+       # Block on actual dependency issues, not entire previous wave
+       blockerTaskIds = deps.map(dep => issueToTaskId[dep]).filter(Boolean)
+       if blockerTaskIds.length > 0:
+         TaskUpdate(taskId, { addBlockedBy: blockerTaskIds })
+
+       issueToTaskId[issueNumber] = taskId
 
    TaskList() → Show full epic tree immediately
    ```
+
+   **Why per-issue edges?** Wave-level blocking makes every task in wave N wait for *all* tasks in wave N-1, even unrelated ones. Per-issue edges express the actual dependency graph — a task unblocks as soon as its specific dependencies complete. Waves remain for display and `--wave N` filtering.
 
    **Update checkpoints as execution progresses** — after each significant state change:
 
@@ -268,7 +279,7 @@ TeamDelete()
 **See [docs/multi-issue-workflow.md](../docs/multi-issue-workflow.md)** for the shared execution phases:
 
 - **Phase 2: Execute** — teammate spawning, self-claiming, pre-existing work detection, failure handling
-- **Phase 3: Per-PR Review Cycle** — CI wait, CodeRabbit, comment triage, Telegram approval, merge
+- **Phase 3: Per-PR Review Cycle** — CI wait, external review (fallback chain), structured triage, Telegram approval w/ dependency gate, merge
 - **Phase 4: Cleanup** — teammate shutdown, worktree cleanup, team deletion, checkpoint update
 
 Use `team_name: "epic-<N>"` when following the shared workflow.

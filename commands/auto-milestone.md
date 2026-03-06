@@ -20,10 +20,10 @@ claude
 
 **YOU MUST NEVER commit directly to `main` during this workflow.**
 
-Each issue gets its own branch, PR, CI, CodeRabbit review, and Telegram approval before merge. This preserves review quality, rollback safety (close PR vs. revert), dependency tracking, and user control.
+Each issue gets its own branch, PR, CI, external review, and Telegram approval before merge. This preserves review quality, rollback safety (close PR vs. revert), dependency tracking, and user control.
 
 ```text
-Issue #123 → feat/issue-123-... branch → PR #456 → CI → CodeRabbit → Telegram approval → Merge
+Issue #123 → feat/issue-123-... branch → PR #456 → CI → external review → Telegram approval → Merge
 NEVER: Issue #123 → commit directly to main
 ```
 
@@ -105,25 +105,36 @@ The only exception is calling the `telegram` skill via the Skill tool (lightweig
 
 Native task tracking provides wave-based progress visualization. Tasks are supplementary to the checkpoint system (source of truth).
 
-### Wave-Based Task Creation
+### Per-Issue Dependency Task Creation
 
-Create ALL tasks upfront during Phase 1, after dependency analysis:
+Create ALL tasks upfront during Phase 1, after dependency analysis. Use **per-issue dependency edges** (not wave-level blocking) so tasks unblock as soon as their specific dependencies complete:
 
 ```text
+issueToTaskId = {}
+
 For each wave W (1..N):
   For each issue in wave W:
+    # blocked_issues comes from the planner's dependency_graph output
+    deps = dependency_graph[issueNumber].blockedBy  # e.g. [153, 154]
+
     taskId = TaskCreate({
       subject: "Issue #<N>: <title>",
       description: "Execute Skill(graph-flow:auto-issue, args: '<N>'). Report PR number when done.",
       activeForm: "Working on issue #<N>",
-      metadata: { issueNumber: <N>, waveNumber: W, milestoneId: <id> }
+      metadata: { issueNumber: <N>, waveNumber: W, milestoneId: <id>, dependsOn: deps }
     })
-    if W > 1:
-      TaskUpdate(taskId, { addBlockedBy: [task IDs from previous wave] })
-    waveWTasks.push(taskId)
+
+    # Block on actual dependency issues, not entire previous wave
+    blockerTaskIds = deps.map(dep => issueToTaskId[dep]).filter(Boolean)
+    if blockerTaskIds.length > 0:
+      TaskUpdate(taskId, { addBlockedBy: blockerTaskIds })
+
+    issueToTaskId[issueNumber] = taskId
 
 TaskList() → Show full milestone tree immediately
 ```
+
+**Why per-issue edges?** Wave-level blocking makes every task in wave N wait for *all* tasks in wave N-1, even unrelated ones. Per-issue edges express the actual dependency graph — a task unblocks as soon as its specific dependencies complete. Waves remain for display and `--wave N` filtering.
 
 ### Task Updates During Execution
 
@@ -150,7 +161,7 @@ After each wave completes:
 ```text
 Phase 1: Plan    → milestone-planner teammate → GATE (if dependencies unclear) → create team + tasks
 Phase 2: Execute → spawn teammates → they self-claim unblocked tasks via Skill(auto-issue)
-Phase 3: Review  → per-PR: CI → CodeRabbit → fix → Telegram approval → merge
+Phase 3: Review  → per-PR: CI → external review (CodeRabbit/Copilot/Claude fallback) → triage → fix → Telegram approval → merge
 Phase 4: Cleanup → shutdown teammates, delete team, summary, notification
 ```
 
@@ -248,7 +259,7 @@ After wave plan is confirmed:
 
    This ensures `--continue` has real data to resume from even if the workflow is interrupted before any worker starts.
 
-2. Create native tasks with wave-based dependencies (see Task System Integration above)
+2. Create native tasks with per-issue dependency edges (see Task System Integration above)
 
    **Update checkpoints as execution progresses** — after each significant state change:
 
@@ -287,7 +298,7 @@ TeamDelete()
 **See [docs/multi-issue-workflow.md](../docs/multi-issue-workflow.md)** for the shared execution phases:
 
 - **Phase 2: Execute** — teammate spawning, self-claiming, pre-existing work detection, failure handling
-- **Phase 3: Per-PR Review Cycle** — CI wait, CodeRabbit, comment triage, Telegram approval, merge
+- **Phase 3: Per-PR Review Cycle** — CI wait, external review (fallback chain), structured triage, Telegram approval w/ dependency gate, merge
 - **Phase 4: Cleanup** — teammate shutdown, worktree cleanup, team deletion, checkpoint update
 
 Use `team_name: "milestone-<sanitized-name>"` when following the shared workflow.
