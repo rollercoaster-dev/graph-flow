@@ -114,7 +114,7 @@ If CI fails:
 
 ### Step 2: External Review with Fallback Chain
 
-Every PR gets reviewed by at least one reviewer. Use a **fallback chain**: CodeRabbit → Copilot → Claude internal review. If one reviewer fails or times out, try the next.
+Every PR should be reviewed by at least one reviewer. Use a **best-effort fallback chain**: CodeRabbit → Copilot → Claude internal review. If one reviewer is unavailable, unsupported for the repo, or times out, try the next.
 
 ```text
 reviewer_result = null
@@ -127,12 +127,11 @@ If found → reviewer_result = { source: "coderabbit", comments: [parsed from re
 
 # ── Attempt 2: Copilot (only if CodeRabbit failed/timed out) ──
 If reviewer_result is null:
-  Request Copilot review:
-    gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/requested_reviewers \
-      -f "reviewers[]=copilot" -X POST
-  Poll for Copilot review (max 5 min, same backoff):
-    reviews = gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/reviews
-    Look for review from "copilot" or "github-copilot[bot]"
+  If the repo supports Copilot review requests:
+    request Copilot review
+    poll for a Copilot-authored review (max 5 min, same backoff)
+  If not supported, or no review appears:
+    leave reviewer_result as null
   If found → reviewer_result = { source: "copilot", comments: [parsed from review] }
 
 # ── Attempt 3: Claude internal review (only if both external reviewers failed) ──
@@ -141,7 +140,7 @@ If reviewer_result is null:
     Skill(graph-flow:review, args: { workflow_id: "pr-<N>-fallback", skip_agents: [], max_retry: 1 })
   reviewer_result = { source: "claude-review", comments: [mapped from findings] }
 
-Log which reviewer was used. Include reviewer source in Telegram notification (Step 4).
+Log which reviewer was used. Include reviewer source in Telegram notification (Step 4). If all external reviewers fail, record that Claude review was used as the fallback.
 ```
 
 ### Step 3: Structured Comment Triage
@@ -181,9 +180,7 @@ if mustFix.length > 0:
 **Dismiss FALSE_POSITIVE comments on GitHub** (if the reviewer supports it):
 
 ```bash
-# For CodeRabbit: reply to dismiss
-gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/comments/<comment-id>/replies \
-  -f body="Dismissed: false positive — <reason>"
+# Reply or leave a follow-up comment explaining why the finding was judged false positive
 ```
 
 ### Step 4: Telegram Notification (Per-PR)
@@ -191,12 +188,12 @@ gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/comments/<comment-id>/replie
 Before notifying, check dependency status so the user sees the full picture:
 
 ```text
-# Read dependsOn from this issue's task metadata
+# Read dependsOn from this issue's task metadata or the saved wave/dependency plan
 deps = task.metadata.dependsOn  # e.g. [636, 637]
 depStatus = []
 for dep in deps:
-  # Check checkpoint first, fall back to GitHub
-  cpStatus = checkpoint_query(issue: dep)
+  # Check saved checkpoint state first, fall back to GitHub
+  cpStatus = checkpoint_record_for_issue(dep)
   if cpStatus and cpStatus.status == "merged":
     depStatus.push("#<dep>: merged ✓")
   else:
@@ -231,7 +228,7 @@ Reply: merge / changes: <feedback> / skip")
 ```text
 # Re-check dependency status at merge time (may have changed since Step 4)
 for dep in task.metadata.dependsOn:
-  cpStatus = checkpoint_query(issue: dep)
+  cpStatus = checkpoint_record_for_issue(dep)
   if cpStatus and cpStatus.status == "merged":
     continue
   mergedPR = gh pr list --search "head:feat/issue-<dep>" --state merged --json number --limit 1
@@ -239,19 +236,18 @@ for dep in task.metadata.dependsOn:
     # Block merge — dependency not yet merged
     Skill(telegram, args: "notify: ⚠️ Cannot merge PR #<N> — dependency #<dep> not yet merged.
     Will auto-retry when #<dep> merges.")
-    # Queue this PR for re-check after dep merges
-    mergeQueue.push({ pr: N, issue: M, waitingOn: dep })
+    # Record the blocked PR in lead notes/checkpoint so it can be revisited after dependencies merge
+    checkpoint_update(issue: <M>, status: "review-blocked", blockedOn: dep, pr: <N>)
     → skip to next PR (do not merge)
 ```
 
-**After any successful merge**, re-check the merge queue:
+**After any successful merge**, re-check blocked review items:
 
 ```text
 # After merging PR for issue M:
-for queued in mergeQueue:
-  if queued.waitingOn == M:
-    # Re-run dependency gate for this queued PR
-    → re-enter Step 5 for queued.pr
+for blocked review item waiting on M:
+  # Re-run dependency gate for that PR
+  → re-enter Step 5 for blocked.pr
 ```
 
 - **"merge"** / **"lgtm"** / **"ok"** → verify review steps ran, pass dependency gate, then merge the PR:
@@ -266,13 +262,13 @@ for queued in mergeQueue:
   git checkout main && git pull origin main
   ```
 
-  Then update checkpoint and re-check merge queue:
+  Then update checkpoint and re-check blocked review items:
 
   ```text
   checkpoint_update(issue: <M>, status: "merged")
-  # Re-check any PRs that were waiting on this issue
-  for queued in mergeQueue where queued.waitingOn == M:
-    → re-enter Step 5 for queued.pr
+  # Re-check any blocked review items that were waiting on this issue
+  for blocked review item waitingOn == M:
+    → re-enter Step 5 for blocked.pr
   ```
 
 - **"changes: ..."** → send feedback to the teammate, re-run CI, re-notify via Telegram
@@ -328,12 +324,12 @@ After all waves are processed:
 
 ## Resume Protocol
 
-On `--continue`, reconstruct state from **both** checkpoint DB and live GitHub state. Checkpoint provides the saved status; GitHub provides the current truth.
+On `--continue`, reconstruct state from **both** checkpoint records and live GitHub state. Checkpoint provides the saved status; GitHub provides the current truth.
 
 ### Step 1: Load Checkpoint
 
 ```text
-Read checkpoint DB for <scope identifier>
+Read checkpoint records for <scope identifier>
 → Returns per-issue records: { issue, wave, status, pr, error }
 ```
 
@@ -394,7 +390,7 @@ Runs inside `/auto-issue` **before** the PR is created. Uses the `/review` skill
 Runs **after** the PR exists, as part of Phase 3's per-PR review cycle (Steps 2-3).
 
 - **Scope:** Higher-level design issues, cross-file patterns, API misuse — things that benefit from seeing the full PR diff in context
-- **Reviewer:** Fallback chain (CodeRabbit → Copilot → Claude internal review) ensures every PR gets reviewed even if a service is down
+- **Reviewer:** Best-effort fallback chain (CodeRabbit → Copilot → Claude internal review) aims to keep every PR reviewed even if one service is down or unsupported
 - **Fix path:** Structured triage (BUG/CORRECTNESS/CONVENTION/NITPICK/FALSE_POSITIVE) routes findings to the worker with clear instructions. No auto-fix — the worker implements fixes.
 - **Outcome:** User makes final merge decision via Telegram with full visibility into review status and dependency readiness
 
@@ -414,9 +410,8 @@ Layer 1 catches the mechanical issues that are easy to auto-fix. Layer 2 catches
 
 ## State Management
 
-State tracked in four systems:
+State tracked in three systems:
 
-1. **Checkpoint DB** (`.claude/execution-state.db`) — source of truth for workflow status, actions, PR numbers
-2. **Native tasks** — progress visualization with per-issue `blockedBy` dependency edges. Task metadata includes `dependsOn` (issue numbers) for merge-time dependency checks
+1. **Checkpoint records** (`.claude/workflows/`) — source of truth for workflow status, actions, PR numbers, and any temporarily blocked review state
+2. **Native tasks** — progress visualization with per-issue `blockedBy` dependency edges. Task metadata may also carry `dependsOn` issue numbers for review-time dependency checks
 3. **Team task list** — coordination state for teammate self-claiming
-4. **Merge queue** — in-memory list of PRs blocked from merging because a dependency PR hasn't merged yet. Re-checked after each successful merge

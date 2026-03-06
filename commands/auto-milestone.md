@@ -20,10 +20,10 @@ claude
 
 **YOU MUST NEVER commit directly to `main` during this workflow.**
 
-Each issue gets its own branch, PR, CI, CodeRabbit review, and Telegram approval before merge. This preserves review quality, rollback safety (close PR vs. revert), dependency tracking, and user control.
+Each issue gets its own branch, PR, CI, external review, and Telegram approval before merge. This preserves review quality, rollback safety (close PR vs. revert), dependency tracking, and user control.
 
 ```text
-Issue #123 → feat/issue-123-... branch → PR #456 → CI → CodeRabbit → Telegram approval → Merge
+Issue #123 → feat/issue-123-... branch → PR #456 → CI → external review → Telegram approval → Merge
 NEVER: Issue #123 → commit directly to main
 ```
 
