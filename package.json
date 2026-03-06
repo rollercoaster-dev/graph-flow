@@ -22,7 +22,6 @@
     "lint:fix": "biome check --write packages/",
     "validate:plan-paths": "bun run scripts/validate-plan-paths.ts",
     "validate:references": "bun run scripts/validate-references.ts",
-    "validate:plan-paths": "bun run scripts/validate-plan-paths.ts",
     "migrate": "bun run scripts/migrate-to-v2.ts",
     "mcp": "bun run packages/mcp/src/index.ts"
   },
