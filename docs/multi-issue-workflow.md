@@ -8,7 +8,7 @@ Shared execution phases for `/auto-epic` and `/auto-milestone`. Both commands re
 
 ## Phase 2: Execute
 
-Spawn teammates to work through the task list. Wave gating is automatic — tasks in later waves have `blockedBy` dependencies on earlier wave tasks, so teammates can only claim unblocked tasks.
+Spawn teammates to work through the task list. Dependency gating is automatic — tasks have `blockedBy` edges on their actual dependency issues (not entire waves), so teammates can only claim tasks whose specific dependencies are complete.
 
 ### Sequential (default, `--parallel 1`)
 
@@ -112,55 +112,149 @@ If CI fails:
 2. Re-wait for CI (max 2 attempts)
 3. If still failing after 2 attempts → mark as failed, notify user
 
-### Step 2: Wait for CodeRabbit
+### Step 2: External Review with Fallback Chain
 
-Poll for CodeRabbit review:
+Every PR gets reviewed by at least one reviewer. Use a **fallback chain**: CodeRabbit → Copilot → Claude internal review. If one reviewer fails or times out, try the next.
 
-```bash
-gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/reviews
+```text
+reviewer_result = null
+
+# ── Attempt 1: CodeRabbit ──
+Poll for CodeRabbit review (max 5 min, exponential backoff: 10s, 20s, 40s, 60s, 60s, 60s):
+  reviews = gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/reviews
+  Look for review from "coderabbitai[bot]"
+If found → reviewer_result = { source: "coderabbit", comments: [parsed from review] }
+
+# ── Attempt 2: Copilot (only if CodeRabbit failed/timed out) ──
+If reviewer_result is null:
+  Request Copilot review:
+    gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/requested_reviewers \
+      -f "reviewers[]=copilot" -X POST
+  Poll for Copilot review (max 5 min, same backoff):
+    reviews = gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/reviews
+    Look for review from "copilot" or "github-copilot[bot]"
+  If found → reviewer_result = { source: "copilot", comments: [parsed from review] }
+
+# ── Attempt 3: Claude internal review (only if both external reviewers failed) ──
+If reviewer_result is null:
+  Run the review skill as a fallback:
+    Skill(graph-flow:review, args: { workflow_id: "pr-<N>-fallback", skip_agents: [], max_retry: 1 })
+  reviewer_result = { source: "claude-review", comments: [mapped from findings] }
+
+Log which reviewer was used. Include reviewer source in Telegram notification (Step 4).
 ```
 
-- Wait up to 5 minutes for a review to appear
-- If no review appears, proceed anyway (CodeRabbit may be slow or disabled)
+### Step 3: Structured Comment Triage
 
-### Step 3: Read and Address Review Comments
+Once we have comments from whichever reviewer succeeded, classify each into a category to determine action:
 
-```bash
-gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/comments
-```
+| Category | Criteria | Action |
+|----------|----------|--------|
+| **BUG** | Logic error, crash, security issue | MUST FIX → route to worker |
+| **CORRECTNESS** | Wrong behavior, missing edge case | MUST FIX → route to worker |
+| **CONVENTION** | Style, naming, imports | FIX IF EASY → low priority to worker |
+| **NITPICK** | Subjective, minor preference | SKIP → note in Telegram |
+| **FALSE_POSITIVE** | Reviewer misunderstood the code | SKIP → dismiss on GitHub |
 
-Claude triages comments:
+**Classification signals by reviewer source:**
 
-- **Nitpick / style** → skip (note in Telegram message)
-- **Real issue / bug** → send teammate a message to fix:
+- **CodeRabbit**: Use its severity labels as starting signal (critical→BUG, warning→CORRECTNESS, suggestion→CONVENTION, nitpick→NITPICK)
+- **Copilot**: Map "error"→BUG, "warning"→CORRECTNESS, "suggestion"→CONVENTION
+- **Claude review**: Already classified by severity — CRITICAL/HIGH→BUG/CORRECTNESS, MEDIUM→CONVENTION, LOW→NITPICK
 
-  ```text
+**Route MUST FIX findings to the worker:**
+
+```text
+mustFix = reviewer_result.comments.filter(c => c.category in ["BUG", "CORRECTNESS"])
+if mustFix.length > 0:
   SendMessage({
     type: "message",
     recipient: "worker-<i>",
-    content: "Review comments on PR #<N> need addressing:\n<comments>\nPlease fix, commit, push, and message me when done.",
-    summary: "Review fix request for PR #<N>"
+    content: "Review comments on PR #<N> need fixing (source: <reviewer_result.source>):\n\n" +
+      mustFix.map(c => "- [<c.category>] <c.file>:<c.line> — <c.message>").join("\n") +
+      "\n\nPlease fix, commit, push, and message me when done.",
+    summary: "Review fix request for PR #<N> (<mustFix.length> findings from <reviewer_result.source>)"
   })
-  ```
+  # After fix: re-wait for CI
+```
 
-- After fix: re-wait for CI
+**Dismiss FALSE_POSITIVE comments on GitHub** (if the reviewer supports it):
+
+```bash
+# For CodeRabbit: reply to dismiss
+gh api repos/rollercoaster-dev/graph-flow/pulls/<N>/comments/<comment-id>/replies \
+  -f body="Dismissed: false positive — <reason>"
+```
 
 ### Step 4: Telegram Notification (Per-PR)
+
+Before notifying, check dependency status so the user sees the full picture:
+
+```text
+# Read dependsOn from this issue's task metadata
+deps = task.metadata.dependsOn  # e.g. [636, 637]
+depStatus = []
+for dep in deps:
+  # Check checkpoint first, fall back to GitHub
+  cpStatus = checkpoint_query(issue: dep)
+  if cpStatus and cpStatus.status == "merged":
+    depStatus.push("#<dep>: merged ✓")
+  else:
+    mergedPR = gh pr list --search "head:feat/issue-<dep>" --state merged --json number --limit 1
+    if mergedPR:
+      depStatus.push("#<dep>: merged ✓")
+    else:
+      depStatus.push("#<dep>: NOT MERGED ✗")
+
+allDepsMerged = depStatus.every(s => s.includes("✓"))
+depLine = deps.length > 0
+  ? "Dependencies: " + (allDepsMerged ? "all merged ✓" : depStatus.join(", "))
+  : "Dependencies: none"
+```
 
 ```text
 Skill(telegram, args: "ask: PR #<N> for issue #<M> ready for review.
 <title>
 <pr-url>
-CI: <passed/failed> | CodeRabbit: <X> comments (<Y> addressed)
+CI: <passed/failed> | Review: <reviewer-source> — <X> comments (<Y> addressed)
+<depLine>
 
 Reply: merge / changes: <feedback> / skip")
 ```
 
 ### Step 5: Handle Reply
 
-**Guard: Steps 1-3 must have completed before merge.** Even if CI is green and the user says "merge", do NOT merge until CodeRabbit review (Step 2) and comment triage (Step 3) have run. If they haven't, run them now before proceeding.
+**Guard: Steps 1-3 must have completed before merge.** Even if CI is green and the user says "merge", do NOT merge until review (Step 2) and comment triage (Step 3) have run. If they haven't, run them now before proceeding.
 
-- **"merge"** / **"lgtm"** / **"ok"** → verify review steps ran, then merge the PR:
+**Guard: Dependency gate.** Before merging, verify all dependency PRs are merged:
+
+```text
+# Re-check dependency status at merge time (may have changed since Step 4)
+for dep in task.metadata.dependsOn:
+  cpStatus = checkpoint_query(issue: dep)
+  if cpStatus and cpStatus.status == "merged":
+    continue
+  mergedPR = gh pr list --search "head:feat/issue-<dep>" --state merged --json number --limit 1
+  if not mergedPR:
+    # Block merge — dependency not yet merged
+    Skill(telegram, args: "notify: ⚠️ Cannot merge PR #<N> — dependency #<dep> not yet merged.
+    Will auto-retry when #<dep> merges.")
+    # Queue this PR for re-check after dep merges
+    mergeQueue.push({ pr: N, issue: M, waitingOn: dep })
+    → skip to next PR (do not merge)
+```
+
+**After any successful merge**, re-check the merge queue:
+
+```text
+# After merging PR for issue M:
+for queued in mergeQueue:
+  if queued.waitingOn == M:
+    # Re-run dependency gate for this queued PR
+    → re-enter Step 5 for queued.pr
+```
+
+- **"merge"** / **"lgtm"** / **"ok"** → verify review steps ran, pass dependency gate, then merge the PR:
 
   ```bash
   gh pr merge <N> --squash --delete-branch
@@ -172,10 +266,13 @@ Reply: merge / changes: <feedback> / skip")
   git checkout main && git pull origin main
   ```
 
-  Then update checkpoint:
+  Then update checkpoint and re-check merge queue:
 
   ```text
   checkpoint_update(issue: <M>, status: "merged")
+  # Re-check any PRs that were waiting on this issue
+  for queued in mergeQueue where queued.waitingOn == M:
+    → re-enter Step 5 for queued.pr
   ```
 
 - **"changes: ..."** → send feedback to the teammate, re-run CI, re-notify via Telegram
@@ -280,10 +377,46 @@ git rev-list --count origin/main..origin/feat/issue-<N> 2>/dev/null
 
 ---
 
+## Review Architecture
+
+The workflow uses a **two-layer review model**. Both layers are intentional — they catch different classes of issues at different stages.
+
+### Layer 1: Pre-PR (Internal Agents + Auto-Fix)
+
+Runs inside `/auto-issue` **before** the PR is created. Uses the `/review` skill which spawns `code-reviewer`, `test-analyzer`, and `silent-failure-hunter` in parallel.
+
+- **Scope:** Code quality, test gaps, silent failures, OB compliance (if applicable)
+- **Fix path:** Automatic — the auto-fixer agent attempts fixes for CRITICAL findings, commits directly to the branch
+- **Outcome:** PR is created only after critical issues are resolved (or escalated to user)
+
+### Layer 2: Post-PR (External Reviewer + Telegram Approval)
+
+Runs **after** the PR exists, as part of Phase 3's per-PR review cycle (Steps 2-3).
+
+- **Scope:** Higher-level design issues, cross-file patterns, API misuse — things that benefit from seeing the full PR diff in context
+- **Reviewer:** Fallback chain (CodeRabbit → Copilot → Claude internal review) ensures every PR gets reviewed even if a service is down
+- **Fix path:** Structured triage (BUG/CORRECTNESS/CONVENTION/NITPICK/FALSE_POSITIVE) routes findings to the worker with clear instructions. No auto-fix — the worker implements fixes.
+- **Outcome:** User makes final merge decision via Telegram with full visibility into review status and dependency readiness
+
+### Why Two Layers?
+
+| Aspect | Layer 1 (Pre-PR) | Layer 2 (Post-PR) |
+|--------|-------------------|---------------------|
+| When | Before PR creation | After PR exists |
+| Who | Internal review agents | External reviewer (CodeRabbit/Copilot/Claude) |
+| What it catches | Code-level bugs, test gaps, silent failures | Design issues, cross-file patterns, API misuse |
+| Fix mechanism | Auto-fix loop (automated) | Worker fix with structured instructions (human-guided) |
+| Escalation | To user if auto-fix fails | To user via Telegram for merge decision |
+
+Layer 1 catches the mechanical issues that are easy to auto-fix. Layer 2 catches the higher-level issues that benefit from a full PR diff view and human judgment.
+
+---
+
 ## State Management
 
-State tracked in three systems:
+State tracked in four systems:
 
 1. **Checkpoint DB** (`.claude/execution-state.db`) — source of truth for workflow status, actions, PR numbers
-2. **Native tasks** — UI-only progress visualization with wave-based `blockedBy` dependencies
+2. **Native tasks** — progress visualization with per-issue `blockedBy` dependency edges. Task metadata includes `dependsOn` (issue numbers) for merge-time dependency checks
 3. **Team task list** — coordination state for teammate self-claiming
+4. **Merge queue** — in-memory list of PRs blocked from merging because a dependency PR hasn't merged yet. Re-checked after each successful merge

@@ -244,6 +244,19 @@ NON-CRITICAL (for PR reviewer):
 Summary: <unresolved> unresolved critical findings
 ```
 
+## Position in the Review Architecture
+
+This skill is **Layer 1 (pre-PR)** of a two-layer review model:
+
+- **Layer 1 (this skill):** Runs inside `/auto-issue` before the PR is created. Spawns review agents, classifies findings, auto-fixes critical issues. The PR is created only after critical findings are resolved or escalated.
+- **Layer 2 (post-PR):** Runs after the PR exists, in the multi-issue workflow's Phase 3. Uses an external reviewer fallback chain (CodeRabbit → Copilot → this skill as last resort) with structured triage (BUG/CORRECTNESS/CONVENTION/NITPICK/FALSE_POSITIVE). Fixes are routed to the worker, not auto-fixed.
+
+Both layers are intentional — Layer 1 catches mechanical code-level issues that can be auto-fixed; Layer 2 catches higher-level design issues that benefit from a full PR diff view and human judgment. This skill can also serve as Layer 2's fallback reviewer when external services (CodeRabbit, Copilot) are unavailable.
+
+See [docs/multi-issue-workflow.md — Review Architecture](../docs/multi-issue-workflow.md#review-architecture) for the full two-layer model.
+
+---
+
 ## Escalation Trigger
 
 If `summary.unresolved > 0`:
