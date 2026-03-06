@@ -109,6 +109,30 @@ describe("graph-flow CLI", () => {
     expect(planningReady).toBe(true);
   });
 
+  test("init writes .mcp.json for the target project", async () => {
+    const result = await runCli(
+      scriptPath,
+      ["init", "--project", projectDir, "--skip-code", "--skip-docs"],
+      { CLAUDE_PROJECT_DIR: projectDir },
+      repoRoot,
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("MCP config:");
+
+    const mcpReady = await waitForPath(join(projectDir, ".mcp.json"), 2000);
+    expect(mcpReady).toBe(true);
+
+    const config = JSON.parse(
+      await Bun.file(join(projectDir, ".mcp.json")).text(),
+    ) as {
+      mcpServers: { "graph-flow": { env: { CLAUDE_PROJECT_DIR: string } } };
+    };
+    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
+  });
+
   test("deprecated tool aliases are routed", async () => {
     const result = await runCli(
       scriptPath,

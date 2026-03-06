@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { formatInitResult, runInit } from "../src/init.ts";
@@ -47,6 +47,67 @@ describe("runInit", () => {
     const config = result.mcpConfig as {
       mcpServers: { "graph-flow": { env: { CLAUDE_PROJECT_DIR: string } } };
     };
+    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
+  });
+
+  test("writes .mcp.json to the project root", async () => {
+    const result = await runInit({
+      projectRoot: projectDir,
+      indexCode: false,
+      indexDocs: false,
+    });
+
+    expect(result.mcpPath).toBe(join(projectDir, ".mcp.json"));
+
+    const text = await readFile(join(projectDir, ".mcp.json"), "utf-8");
+    const config = JSON.parse(text) as {
+      mcpServers: { "graph-flow": { env: { CLAUDE_PROJECT_DIR: string } } };
+    };
+
+    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
+  });
+
+  test("preserves existing MCP servers when writing .mcp.json", async () => {
+    await writeFile(
+      join(projectDir, ".mcp.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            existing: {
+              command: "node",
+              args: ["server.js"],
+            },
+          },
+          metadata: {
+            owner: "test",
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await runInit({
+      projectRoot: projectDir,
+      indexCode: false,
+      indexDocs: false,
+    });
+
+    const text = await readFile(join(projectDir, ".mcp.json"), "utf-8");
+    const config = JSON.parse(text) as {
+      metadata: { owner: string };
+      mcpServers: {
+        existing: { command: string };
+        "graph-flow": { env: { CLAUDE_PROJECT_DIR: string } };
+      };
+    };
+
+    expect(config.metadata.owner).toBe("test");
+    expect(config.mcpServers.existing.command).toBe("node");
     expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
       projectDir,
     );
@@ -220,6 +281,7 @@ describe("formatInitResult", () => {
     const result = {
       projectRoot: "/test/project",
       dataDir: "/test/project/.claude",
+      mcpPath: "/test/project/.mcp.json",
       mcpConfig: { mcpServers: {} },
       codeIndexResult: {
         totalFiles: 10,
@@ -255,6 +317,7 @@ describe("formatInitResult", () => {
     const result = {
       projectRoot: "/test/project",
       dataDir: "/test/project/.claude",
+      mcpPath: "/test/project/.mcp.json",
       mcpConfig: { mcpServers: {} },
       docsIndexResult: {
         totalFiles: 5,
@@ -289,6 +352,7 @@ describe("formatInitResult", () => {
     const result = {
       projectRoot: "/test/project",
       dataDir: "/test/project/.claude",
+      mcpPath: "/test/project/.mcp.json",
       mcpConfig: { mcpServers: { "graph-flow": { command: "bunx" } } },
       healthCheck: {
         dataDir: { exists: true, writable: true },
@@ -313,6 +377,7 @@ describe("formatInitResult", () => {
     const result = {
       projectRoot: "/test/project",
       dataDir: "/test/project/.claude",
+      mcpPath: "/test/project/.mcp.json",
       mcpConfig: { mcpServers: {} },
       codeIndexResult: {
         totalFiles: 10,

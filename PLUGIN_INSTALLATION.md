@@ -2,6 +2,8 @@
 
 graph-flow can be installed as a Claude Code plugin to make its skills and commands available across all your projects.
 
+The plugin is optional. The core integration surface is the `@graph-flow/mcp` server plus the `graph-flow` CLI. For non-plugin hosts, see [docs/host-setup.md](docs/host-setup.md).
+
 ## Prerequisites
 
 - Claude Code CLI installed and configured
@@ -94,7 +96,7 @@ After installation, these skills are available in all projects:
 
 ## MCP Tools Setup
 
-After installing the plugin, run `/graph-flow:init` in each project to configure the MCP server. This creates a `.mcp.json` that connects to the 26 graph-flow MCP tools:
+After installing the plugin, run `/graph-flow:init` in each project to configure the MCP server. You can also run `graph-flow init` directly. Both paths write `.mcp.json`, which connects the project to the 26 graph-flow MCP tools:
 
 | Subsystem  | Tools |
 |------------|-------|
@@ -152,7 +154,7 @@ Skills and commands are loaded when Claude Code starts. After installing or upda
 
 ### MCP Tools Not Available
 
-Run `/graph-flow:init` in the project, then restart Claude Code. This creates the `.mcp.json` that connects to the MCP server.
+Run `/graph-flow:init` or `graph-flow init` in the project, then restart Claude Code. This writes `.mcp.json`, which connects to the MCP server.
 
 For local CLI validation, run `graph-flow doctor` inside the project root.
 

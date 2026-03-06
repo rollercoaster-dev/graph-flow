@@ -35,7 +35,7 @@ Usage:
 
 Commands:
   init                Initialize graph-flow for a project
-  doctor              Validate local graph-flow/Codex setup
+  doctor              Validate local graph-flow host/MCP setup
   tools               List available MCP tools
 
 Init options:

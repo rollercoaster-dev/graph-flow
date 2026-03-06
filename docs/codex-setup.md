@@ -1,6 +1,8 @@
 # Codex Setup Guide
 
-This guide configures graph-flow for reliable use from Codex and Claude Code.
+This guide configures graph-flow for Codex and other non-plugin hosts.
+
+For the broader cross-host model, see [docs/host-setup.md](./host-setup.md).
 
 ## 1) Install and verify dependencies
 
@@ -18,7 +20,7 @@ From your project root:
 graph-flow init
 ```
 
-This creates `.mcp.json` and project-local storage under `.claude/`.
+This creates project-local storage under `.claude/` and writes or updates `.mcp.json`.
 
 ## 3) Validate setup with doctor
 
@@ -74,6 +76,8 @@ graph-flow c-find --json '{}'
 graph-flow g-calls --json '{"name":"main"}'
 graph-flow d-index --json '{}'
 ```
+
+If your Codex host does not expose project MCP servers yet, use these CLI commands directly as the integration fallback.
 
 ## 7) CI consistency checks
 
