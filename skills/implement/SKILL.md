@@ -163,7 +163,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`, `ci`
 2. **Load development plan:**
    - Read from the `plan_path` provided by the caller (required input)
    - The path is determined by the issue-researcher based on project conventions
-   - Do not fall back to `.claude/dev-plans/issue-<number>.md` if `plan_path` is missing or different
+   - Do not reconstruct a fallback path if `plan_path` is missing or different
 
 ### Phase 2: Execute Plan Step by Step
 

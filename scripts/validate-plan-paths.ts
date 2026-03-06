@@ -1,12 +1,15 @@
 #!/usr/bin/env bun
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 
-interface FileRule {
+interface RequiredSnippetRule {
   path: string;
   requiredSnippets?: string[];
 }
 
-const FILE_RULES: FileRule[] = [
+const MARKDOWN_ROOTS = ["agents", "commands", "docs", "skills"];
+
+const REQUIRED_SNIPPET_RULES: RequiredSnippetRule[] = [
   {
     path: "agents/issue-researcher.md",
     requiredSnippets: [
@@ -30,44 +33,75 @@ const FILE_RULES: FileRule[] = [
     path: "skills/implement/SKILL.md",
     requiredSnippets: ["`plan_path`"],
   },
+  {
+    path: "skills/finalize/SKILL.md",
+    requiredSnippets: ["`plan_path`"],
+  },
 ];
 
 const FORBIDDEN_PATTERNS = [
   {
-    pattern:
-      /Create (?:dev plan|the development plan) at `\.claude\/dev-plans\/issue-<[^`]+>`/g,
-    message: "imperative hardcoded create-path instruction",
-  },
-  {
-    pattern: /Read from `\.claude\/dev-plans\/issue-<[^`]+>`/g,
-    message: "hardcoded read-path instruction",
-  },
-  {
-    pattern: /Write to `\.claude\/dev-plans\/issue-<[^`]+>`/g,
-    message: "hardcoded write-path instruction",
+    pattern: /\.claude\/dev-plans\/issue-<[^>\n]+>(?:\.md)?/g,
+    message: "hardcoded plan-path reference",
   },
 ];
 
+async function collectMarkdownFiles(root: string): Promise<string[]> {
+  const files: string[] = [];
+  const entries = await readdir(root, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectMarkdownFiles(fullPath)));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
 function toLineNumber(text: string, index: number): number {
   return text.slice(0, index).split("\n").length;
 }
 
 async function main(): Promise<void> {
   const errors: string[] = [];
+  const files = (await Promise.all(MARKDOWN_ROOTS.map((root) => collectMarkdownFiles(root)))).flat();
 
-  for (const rule of FILE_RULES) {
-    const text = await readFile(rule.path, "utf-8");
-
-    for (const snippet of rule.requiredSnippets ?? []) {
-      if (!text.includes(snippet)) {
-        errors.push(`${rule.path}: missing required snippet ${JSON.stringify(snippet)}`);
-      }
+  for (const file of files) {
+    let text: string;
+    try {
+      text = await readFile(file, "utf-8");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`${file}: unable to read file (${message})`);
+      continue;
     }
 
     for (const { pattern, message } of FORBIDDEN_PATTERNS) {
       for (const match of text.matchAll(pattern)) {
         const line = toLineNumber(text, match.index ?? 0);
-        errors.push(`${rule.path}:${line} contains ${message}`);
+        errors.push(`${file}:${line} contains ${message}`);
+      }
+    }
+  }
+
+  for (const rule of REQUIRED_SNIPPET_RULES) {
+    let text: string;
+    try {
+      text = await readFile(rule.path, "utf-8");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`${rule.path}: unable to read file (${message})`);
+      continue;
+    }
+
+    for (const snippet of rule.requiredSnippets ?? []) {
+      if (!text.includes(snippet)) {
+        errors.push(`${rule.path}: missing required snippet ${JSON.stringify(snippet)}`);
       }
     }
   }
@@ -80,7 +114,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`Plan path validation passed (${FILE_RULES.length} workflow files checked).`);
+  console.log(`Plan path validation passed (${files.length} markdown files checked).`);
 }
 
 await main();

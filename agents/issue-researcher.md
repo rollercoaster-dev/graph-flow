@@ -30,7 +30,7 @@ model: sonnet
 
 ### Side Effects
 
-- Creates the development plan at the discovered `plan_path` (defaults to `.claude/dev-plans/issue-<N>.md`)
+- Creates the development plan at the discovered `plan_path` using project conventions or the graph-flow fallback
 - Logs plan creation to checkpoint (if workflow_id provided)
 
 ### Checkpoint Actions Logged
@@ -175,7 +175,7 @@ Before creating any plan, check the **target project's** rules and docs for plan
    If a directory exists with plans in it, that's the project's convention.
 
 4. **Graph-flow fallback:**
-   - If none of the above defines a convention, use `.claude/dev-plans/issue-<number>.md`
+   - If none of the above defines a convention, use the graph-flow default dev-plan directory with the standard `issue-<number>.md` filename
 
 **Result: set these values before writing anything:**
 
@@ -203,8 +203,6 @@ cat ARCHITECTURE.md 2>/dev/null | head -20
 ```
 
 These inform the research phase and help the plan align with the project's existing patterns.
-
----
 
 ### Phase 2: Research Codebase
 
