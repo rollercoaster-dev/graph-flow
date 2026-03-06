@@ -183,7 +183,8 @@ The issue-researcher will:
 - Discover the project's plan conventions (location, template) from `.claude/rules/`, `CLAUDE.md`, or existing plan directories
 - Analyze codebase using Glob, Grep, Read
 - Check dependencies
-- Create dev plan at the discovered location (defaults to `.claude/dev-plans/issue-<N>.md`)
+- Create the development plan at the discovered location (defaults to `.claude/dev-plans/issue-<N>.md`)
+- Return the exact `plan_path` to the saved plan so Gate 2 and Phase 3 use the same artifact
 
 ---
 
@@ -306,7 +307,7 @@ Skill(finalize):
 The finalize skill will:
 
 - Run final validation
-- Clean up dev plan file
+- Clean up the discovered plan file, if the workflow created one
 - Push branch
 - Create PR
 - Update board to "Blocked"

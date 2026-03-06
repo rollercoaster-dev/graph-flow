@@ -21,7 +21,7 @@ model: sonnet
 
 | Field             | Type     | Description                          |
 | ----------------- | -------- | ------------------------------------ |
-| `plan_path`       | string   | Path to created dev plan             |
+| `plan_path`       | string   | Exact path where the development plan was written |
 | `complexity`      | string   | TRIVIAL, SMALL, MEDIUM, LARGE        |
 | `estimated_lines` | number   | Estimated lines of code              |
 | `commit_count`    | number   | Number of planned commits            |
@@ -30,7 +30,7 @@ model: sonnet
 
 ### Side Effects
 
-- Creates dev plan at the project's plan location (discovered in Phase 1.8, defaults to `.claude/dev-plans/issue-<N>.md`)
+- Creates the development plan at the discovered `plan_path` (defaults to `.claude/dev-plans/issue-<N>.md`)
 - Logs plan creation to checkpoint (if workflow_id provided)
 
 ### Checkpoint Actions Logged
@@ -56,7 +56,7 @@ Fetches a GitHub issue, analyzes the codebase to understand the context, and cre
 - Starting work on a new GitHub issue
 - Planning implementation before coding
 - When you need to understand what code changes are required
-- To create a dev plan document for review
+- To create a project-aligned development plan document for review
 
 ## Trigger Phrases
 
@@ -144,9 +144,9 @@ gh pr list --state merged --search "closes #<dep-number>" --json number,title,me
 
 ### Phase 1.8: Discover Project Plan Conventions
 
-Before creating any plan, check the **target project's** rules and docs for plan conventions. Project rules take precedence over graph-flow defaults.
+Before creating any plan, check the **target project's** rules and docs for plan conventions. Project rules take precedence over graph-flow defaults, and the researcher must decide the final `plan_path` before Phase 2 starts.
 
-**Search order (first match wins):**
+**Precedence order (highest wins):**
 
 1. **Project rules directory:**
    ```bash
@@ -174,7 +174,15 @@ Before creating any plan, check the **target project's** rules and docs for plan
    ```
    If a directory exists with plans in it, that's the project's convention.
 
-**Result: Set `plan_dir` and `plan_template`:**
+4. **Graph-flow fallback:**
+   - If none of the above defines a convention, use `.claude/dev-plans/issue-<number>.md`
+
+**Result: set these values before writing anything:**
+
+- `plan_dir`: directory selected by the precedence rules above
+- `plan_filename`: use the project's documented naming convention, otherwise `issue-<number>.md`
+- `plan_path`: `<plan_dir>/<plan_filename>`
+- `plan_template`: project template if documented, otherwise the default graph-flow template
 
 | Discovery Result | `plan_dir` | `plan_template` |
 |-----------------|-----------|----------------|
@@ -183,7 +191,7 @@ Before creating any plan, check the **target project's** rules and docs for plan
 | `docs/plans/` exists | `docs/plans/` | Default graph-flow template |
 | Nothing found | `.claude/dev-plans/` (graph-flow default) | Default graph-flow template |
 
-The final plan will be saved to `<plan_dir>/issue-<number>.md` (or the project's naming convention if different).
+The final plan must be written to `plan_path`, and `plan_path` must be returned in the agent output exactly as written. Downstream workflows consume that value directly; they must not infer the location themselves.
 
 **Also check for project-specific research conventions** — the project may have docs, specs, or architecture files that the researcher should consult during Phase 2:
 
@@ -346,8 +354,8 @@ See `.claude/skills/board-manager/SKILL.md` for command reference and IDs.
 ### Phase 7: Save and Report
 
 1. **Save development plan:**
-   - Write to `<plan_dir>/issue-<number>.md` (path from Phase 1.8 discovery)
-   - If the project rule specifies a different naming convention, use that instead
+   - Write to `plan_path` (from Phase 1.8 discovery)
+   - If the project rule specifies a different naming convention, encode that in `plan_filename` before writing
    - If using a project-specific template (from Phase 1.8), ensure the plan follows it
 
 2. **Report summary:**
@@ -355,6 +363,7 @@ See `.claude/skills/board-manager/SKILL.md` for command reference and IDs.
    - Recommended approach
    - Any blockers or questions
    - Board status updated
+   - Exact `plan_path`
 
 ## Output Format
 
@@ -362,8 +371,9 @@ Return:
 
 1. **Issue summary** (1-2 sentences)
 2. **Complexity assessment** (with reasoning)
-3. **Development plan** (full markdown)
-4. **Recommended next step**
+3. **`plan_path`** (exact value written to disk)
+4. **Development plan** (full markdown)
+5. **Recommended next step**
 
 ## Tools Required
 
@@ -407,9 +417,10 @@ Agent:
 3. Finds existing controllers, service patterns
 4. Maps: new controller needed, key service needed
 5. Estimates: ~150 lines (SMALL complexity)
-6. Creates dev plan with 3 atomic commits
+6. Creates development plan at the discovered `plan_path` with 3 atomic commits
 7. Returns: "Issue #15 requires adding /.well-known/jwks.json endpoint.
    Complexity: SMALL (~150 lines). 3 commits planned.
+   Plan path: docs/exec-plans/issue-15.md
    Ready to proceed with implement skill."
 ```
 

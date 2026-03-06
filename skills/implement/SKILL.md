@@ -14,7 +14,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Skill
 | -------------- | ------ | -------- | ------------------------------------ |
 | `issue_number` | number | Yes      | GitHub issue number                  |
 | `workflow_id`  | string | No       | Checkpoint workflow ID (for logging) |
-| `plan_path`    | string | Yes      | Path to dev plan file                |
+| `plan_path`    | string | Yes      | Exact path to the development plan file |
 | `start_step`   | number | No       | Resume from specific step            |
 
 ### Output
@@ -163,6 +163,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`, `ci`
 2. **Load development plan:**
    - Read from the `plan_path` provided by the caller (required input)
    - The path is determined by the issue-researcher based on project conventions
+   - Do not fall back to `.claude/dev-plans/issue-<number>.md` if `plan_path` is missing or different
 
 ### Phase 2: Execute Plan Step by Step
 

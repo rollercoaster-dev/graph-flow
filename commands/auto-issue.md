@@ -220,7 +220,8 @@ The issue-researcher will:
 - Discover the project's plan conventions (location, template) from `.claude/rules/`, `CLAUDE.md`, or existing plan directories
 - Analyze codebase using Glob, Grep, Read
 - Check dependencies
-- Create dev plan at the discovered location (defaults to `.claude/dev-plans/issue-<N>.md`)
+- Create the development plan at the discovered location (defaults to `.claude/dev-plans/issue-<N>.md`)
+- Return the exact `plan_path` to the saved plan; do not infer or reconstruct it in later phases
 
 **If `--dry-run`:** Stop here, display plan, exit.
 
@@ -238,7 +239,7 @@ Skill(implement):
 
 The implement skill will:
 
-- Read the dev plan
+- Read the development plan from the `plan_path` returned by Phase 2
 - Implement each step in the plan
 - Make atomic commits
 - Run validation after each commit
@@ -296,7 +297,7 @@ Skill(finalize):
 The finalize skill will:
 
 - Run final validation
-- Clean up dev plan file
+- Clean up the discovered plan file, if the workflow created one
 - Push branch
 - Create PR
 - Update board to "Blocked"

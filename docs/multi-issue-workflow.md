@@ -60,10 +60,10 @@ Route each issue based on what exists:
 | Already closed | Mark task completed, skip |
 | Open PR exists (CI green) | Skip to Phase 3 review cycle for this PR |
 | Open PR exists (CI failing) | Send worker to fix CI in that branch, then Phase 3 |
-| Branch with commits, no PR | Spawn worker with context: "Issue #N has existing work on branch `feat/issue-<N>`. Read the issue requirements and the dev plan (if one exists). Review what's been implemented so far via `git log` and `git diff origin/main`. Complete any remaining work, ensure tests pass, then create a PR. Report PR number when done." |
+| Branch with commits, no PR | Spawn worker with context: "Issue #N has existing work on branch `feat/issue-<N>`. Read the issue requirements and the discovered development plan file (if one exists; do not assume `.claude/dev-plans`). Review what's been implemented so far via `git log` and `git diff origin/main`. Complete any remaining work, ensure tests pass, then create a PR. Report PR number when done." |
 | No branch | Standard auto-issue execution |
 
-The key difference from a fresh start: when work exists, the worker **checks it against the issue and dev plan** rather than starting from scratch. The auto-issue skill already handles branch detection, but the worker prompt must tell it to assess completeness first.
+The key difference from a fresh start: when work exists, the worker **checks it against the issue and the discovered development plan file** rather than starting from scratch. The auto-issue skill already handles branch detection, but the worker prompt must tell it to assess completeness first.
 
 ### Teammate Messages
 
