@@ -161,8 +161,8 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`, `ci`
    ```
 
 2. **Load development plan:**
-   - Read from `.claude/dev-plans/issue-<number>.md`
-   - Or receive from caller
+   - Read from the `plan_path` provided by the caller (required input)
+   - The path is determined by the issue-researcher based on project conventions
 
 ### Phase 2: Execute Plan Step by Step
 

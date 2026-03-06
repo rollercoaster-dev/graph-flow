@@ -72,11 +72,9 @@ Store screenshot paths in workflow state. Both calls are best-effort — if skip
 
 ### Phase 2: Research
 
-Run issue analysis with the issue-researcher agent using `Task` and create a plan at:
+Run issue analysis with the issue-researcher agent using `Task`. The researcher discovers the project's plan conventions (Phase 1.8 in the researcher workflow) and saves the plan at the appropriate location — defaults to `.claude/dev-plans/issue-<N>.md` but uses the project's configured plan directory if one exists (e.g. `docs/exec-plans/`).
 
-```text
-.claude/dev-plans/issue-<N>.md
-```
+Capture `plan_path` from the researcher output — do not assume a hardcoded location.
 
 If `dry_run=true`, return the plan path and stop.
 

@@ -30,7 +30,7 @@ model: sonnet
 
 ### Side Effects
 
-- Creates dev plan at `.claude/dev-plans/issue-<N>.md`
+- Creates dev plan at the project's plan location (discovered in Phase 1.8, defaults to `.claude/dev-plans/issue-<N>.md`)
 - Logs plan creation to checkpoint (if workflow_id provided)
 
 ### Checkpoint Actions Logged
@@ -142,7 +142,68 @@ gh pr list --state merged --search "closes #<dep-number>" --json number,title,me
    Recommendation: Work on #164 first, or confirm with user to proceed anyway.
 ```
 
+### Phase 1.8: Discover Project Plan Conventions
+
+Before creating any plan, check the **target project's** rules and docs for plan conventions. Project rules take precedence over graph-flow defaults.
+
+**Search order (first match wins):**
+
+1. **Project rules directory:**
+   ```bash
+   # Check for planning rules in the project's .claude/rules/
+   ls .claude/rules/ 2>/dev/null | grep -iE "plan"
+   ```
+   Look for files like `planning.md`, `exec-plans.md`, etc. Read any matches for:
+   - Plan file location (e.g. `docs/exec-plans/`, `.claude/dev-plans/`)
+   - Required template/format
+   - Finalization convention (e.g. "rewrite as decision log")
+
+2. **Project CLAUDE.md:**
+   ```bash
+   # Check root and .claude/ for CLAUDE.md
+   cat CLAUDE.md 2>/dev/null | grep -iA5 "plan"
+   cat .claude/CLAUDE.md 2>/dev/null | grep -iA5 "plan"
+   ```
+
+3. **Existing plan directories:**
+   ```bash
+   # Check for established plan locations
+   ls docs/exec-plans/ 2>/dev/null
+   ls docs/plans/ 2>/dev/null
+   ls .claude/dev-plans/ 2>/dev/null
+   ```
+   If a directory exists with plans in it, that's the project's convention.
+
+**Result: Set `plan_dir` and `plan_template`:**
+
+| Discovery Result | `plan_dir` | `plan_template` |
+|-----------------|-----------|----------------|
+| Project rule found with explicit path | Use the path from the rule | Use template from rule if provided |
+| `docs/exec-plans/` exists | `docs/exec-plans/` | Use project's template if documented |
+| `docs/plans/` exists | `docs/plans/` | Default graph-flow template |
+| Nothing found | `.claude/dev-plans/` (graph-flow default) | Default graph-flow template |
+
+The final plan will be saved to `<plan_dir>/issue-<number>.md` (or the project's naming convention if different).
+
+**Also check for project-specific research conventions** — the project may have docs, specs, or architecture files that the researcher should consult during Phase 2:
+
+```bash
+# Check for architecture docs, product specs, etc.
+ls docs/product-specs/ 2>/dev/null
+ls docs/architecture/ 2>/dev/null
+cat ARCHITECTURE.md 2>/dev/null | head -20
+```
+
+These inform the research phase and help the plan align with the project's existing patterns.
+
+---
+
 ### Phase 2: Research Codebase
+
+0. **Consult project docs discovered in Phase 1.8:**
+   - Read any architecture docs, product specs, or design docs found
+   - Check `.claude/rules/` for coding conventions, testing requirements, or other project rules
+   - These inform the research and ensure the plan aligns with established project patterns
 
 1. **Identify affected areas:**
    - Search for keywords from the issue
@@ -285,8 +346,9 @@ See `.claude/skills/board-manager/SKILL.md` for command reference and IDs.
 ### Phase 7: Save and Report
 
 1. **Save development plan:**
-   - Write to `.claude/dev-plans/issue-<number>.md`
-   - Or return inline for user review
+   - Write to `<plan_dir>/issue-<number>.md` (path from Phase 1.8 discovery)
+   - If the project rule specifies a different naming convention, use that instead
+   - If using a project-specific template (from Phase 1.8), ensure the plan follows it
 
 2. **Report summary:**
    - Key findings

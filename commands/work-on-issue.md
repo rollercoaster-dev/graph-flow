@@ -180,9 +180,10 @@ Task(issue-researcher):
 
 The issue-researcher will:
 
+- Discover the project's plan conventions (location, template) from `.claude/rules/`, `CLAUDE.md`, or existing plan directories
 - Analyze codebase using Glob, Grep, Read
 - Check dependencies
-- Create dev plan at `.claude/dev-plans/issue-<N>.md`
+- Create dev plan at the discovered location (defaults to `.claude/dev-plans/issue-<N>.md`)
 
 ---
 
