@@ -41,7 +41,7 @@ const REQUIRED_SNIPPET_RULES: RequiredSnippetRule[] = [
 
 const FORBIDDEN_PATTERNS = [
   {
-    pattern: /\.claude\/dev-plans\/issue-<[^>\n]+>(?:\.md)?/g,
+    pattern: /\.claude\/dev-plans\/issue-(?:<[^>\n]+>|\d+)(?:\.md)?/g,
     message: "hardcoded plan-path reference",
   },
 ];
