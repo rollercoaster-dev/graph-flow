@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { access, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 interface CliRunResult {
   exitCode: number;
@@ -109,6 +109,32 @@ describe("graph-flow CLI", () => {
     expect(planningReady).toBe(true);
   });
 
+  test("init writes .mcp.json for the target project", async () => {
+    const result = await runCli(
+      scriptPath,
+      ["init", "--project", projectDir, "--skip-code", "--skip-docs"],
+      { CLAUDE_PROJECT_DIR: projectDir },
+      repoRoot,
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("MCP config:");
+    expect(result.stdout).toContain("Command: bunx @graph-flow/mcp");
+    expect(result.stdout).not.toContain("CLAUDE_PROJECT_DIR");
+
+    const mcpReady = await waitForPath(join(projectDir, ".mcp.json"), 2000);
+    expect(mcpReady).toBe(true);
+
+    const config = JSON.parse(
+      await Bun.file(join(projectDir, ".mcp.json")).text(),
+    ) as {
+      mcpServers: { "graph-flow": { env: { CLAUDE_PROJECT_DIR: string } } };
+    };
+    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
+  });
+
   test("deprecated tool aliases are routed", async () => {
     const result = await runCli(
       scriptPath,
@@ -136,5 +162,30 @@ describe("graph-flow CLI", () => {
     };
     expect(report.projectRoot).toBe(projectDir);
     expect(report.checks.length).toBeGreaterThan(0);
+  });
+
+  test("doctor warns instead of failing when gh is unavailable", async () => {
+    const result = await runCli(
+      scriptPath,
+      ["doctor", "--project", projectDir, "--doctor-json"],
+      {
+        CLAUDE_PROJECT_DIR: projectDir,
+        PATH: dirname(process.execPath),
+      },
+      repoRoot,
+    );
+
+    expect(result.exitCode).toBe(0);
+
+    const report = JSON.parse(result.stdout) as {
+      ok: boolean;
+      checks: Array<{ id: string; status: string }>;
+    };
+    expect(report.ok).toBe(true);
+    expect(
+      report.checks.some(
+        (check) => check.id === "gh-installed" && check.status === "warn",
+      ),
+    ).toBe(true);
   });
 });

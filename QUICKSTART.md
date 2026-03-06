@@ -12,7 +12,16 @@ bun test
 
 ## Configuration
 
-Add a `.mcp.json` to your project root (or run `/graph-flow:init` after installing the plugin):
+Preferred setup from the project root:
+
+```bash
+graph-flow init
+graph-flow doctor
+```
+
+`graph-flow init` creates project-local storage under `.claude/` and writes or updates `.mcp.json`.
+
+If you need to wire the server manually, use:
 
 ```json
 {
@@ -30,7 +39,7 @@ Add a `.mcp.json` to your project root (or run `/graph-flow:init` after installi
 
 Setting `CLAUDE_PROJECT_DIR` ensures each project stores its data in its own `.claude/` directory, preventing cross-project data leaks.
 
-Restart Claude Code.
+Restart your MCP-capable host after `.mcp.json` changes. In Claude Code, the plugin is optional and only adds skills, commands, and hooks.
 
 ### Optional: Configure Board Automation
 
@@ -216,9 +225,10 @@ a-board-update { issueNumber: 123, status: "In Progress" }
 ### Tools not appearing?
 
 1. Check `.mcp.json` in your project root has correct path
-2. Restart Claude Code completely
-3. Run `/graph-flow:init` to auto-configure
+2. Restart your host completely
+3. Run `graph-flow init` to auto-configure, or `/graph-flow:init` in Claude Code
 4. Run `graph-flow doctor` for a full environment check
+5. If your host still does not expose MCP tools, use the `graph-flow` CLI directly
 
 ### Slow search?
 
@@ -252,6 +262,7 @@ Removed tools:
 - Read [README.md](README.md) for full feature overview
 - Read [ARCHITECTURE.md](ARCHITECTURE.md) to understand how it works
 - See [PLUGIN_INSTALLATION.md](PLUGIN_INSTALLATION.md) for plugin setup
+- See [docs/host-setup.md](docs/host-setup.md) for cross-host setup
 
 ## Help
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { formatInitResult, runInit } from "../src/init.ts";
@@ -50,6 +50,131 @@ describe("runInit", () => {
     expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
       projectDir,
     );
+  });
+
+  test("writes .mcp.json to the project root", async () => {
+    const result = await runInit({
+      projectRoot: projectDir,
+      indexCode: false,
+      indexDocs: false,
+    });
+
+    expect(result.mcpPath).toBe(join(projectDir, ".mcp.json"));
+
+    const text = await readFile(join(projectDir, ".mcp.json"), "utf-8");
+    const config = JSON.parse(text) as {
+      mcpServers: { "graph-flow": { env: { CLAUDE_PROJECT_DIR: string } } };
+    };
+
+    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
+  });
+
+  test("preserves existing MCP servers when writing .mcp.json", async () => {
+    await writeFile(
+      join(projectDir, ".mcp.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            existing: {
+              command: "node",
+              args: ["server.js"],
+            },
+          },
+          metadata: {
+            owner: "test",
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await runInit({
+      projectRoot: projectDir,
+      indexCode: false,
+      indexDocs: false,
+    });
+
+    const text = await readFile(join(projectDir, ".mcp.json"), "utf-8");
+    const config = JSON.parse(text) as {
+      metadata: { owner: string };
+      mcpServers: {
+        existing: { command: string };
+        "graph-flow": { env: { CLAUDE_PROJECT_DIR: string } };
+      };
+    };
+
+    expect(config.metadata.owner).toBe("test");
+    expect(config.mcpServers.existing.command).toBe("node");
+    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
+  });
+
+  test("preserves existing graph-flow config fields when writing .mcp.json", async () => {
+    await writeFile(
+      join(projectDir, ".mcp.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            "graph-flow": {
+              cwd: "/tmp/custom-cwd",
+              transport: "stdio",
+              env: {
+                EXTRA_FLAG: "enabled",
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await runInit({
+      projectRoot: projectDir,
+      indexCode: false,
+      indexDocs: false,
+    });
+
+    const text = await readFile(join(projectDir, ".mcp.json"), "utf-8");
+    const config = JSON.parse(text) as {
+      mcpServers: {
+        "graph-flow": {
+          command: string;
+          args: string[];
+          cwd: string;
+          transport: string;
+          env: {
+            CLAUDE_PROJECT_DIR: string;
+            EXTRA_FLAG: string;
+          };
+        };
+      };
+    };
+
+    expect(config.mcpServers["graph-flow"].command).toBe("bunx");
+    expect(config.mcpServers["graph-flow"].args).toEqual(["@graph-flow/mcp"]);
+    expect(config.mcpServers["graph-flow"].cwd).toBe("/tmp/custom-cwd");
+    expect(config.mcpServers["graph-flow"].transport).toBe("stdio");
+    expect(config.mcpServers["graph-flow"].env.EXTRA_FLAG).toBe("enabled");
+    expect(config.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
+  });
+
+  test("fails when existing .mcp.json is malformed", async () => {
+    await writeFile(join(projectDir, ".mcp.json"), "{ invalid json content");
+
+    await expect(
+      runInit({
+        projectRoot: projectDir,
+        indexCode: false,
+        indexDocs: false,
+      }),
+    ).rejects.toThrow("Unable to read");
   });
 
   test("indexes code files when indexCode is true", async () => {
@@ -220,6 +345,7 @@ describe("formatInitResult", () => {
     const result = {
       projectRoot: "/test/project",
       dataDir: "/test/project/.claude",
+      mcpPath: "/test/project/.mcp.json",
       mcpConfig: { mcpServers: {} },
       codeIndexResult: {
         totalFiles: 10,
@@ -255,6 +381,7 @@ describe("formatInitResult", () => {
     const result = {
       projectRoot: "/test/project",
       dataDir: "/test/project/.claude",
+      mcpPath: "/test/project/.mcp.json",
       mcpConfig: { mcpServers: {} },
       docsIndexResult: {
         totalFiles: 5,
@@ -289,6 +416,7 @@ describe("formatInitResult", () => {
     const result = {
       projectRoot: "/test/project",
       dataDir: "/test/project/.claude",
+      mcpPath: "/test/project/.mcp.json",
       mcpConfig: { mcpServers: { "graph-flow": { command: "bunx" } } },
       healthCheck: {
         dataDir: { exists: true, writable: true },
@@ -307,12 +435,15 @@ describe("formatInitResult", () => {
     expect(output).not.toContain("Docs indexing:");
     expect(output).toContain("Health check:");
     expect(output).toContain("MCP Configuration");
+    expect(output).toContain("Command: bunx @graph-flow/mcp");
+    expect(output).not.toContain("CLAUDE_PROJECT_DIR");
   });
 
   test("includes failed files count when present", () => {
     const result = {
       projectRoot: "/test/project",
       dataDir: "/test/project/.claude",
+      mcpPath: "/test/project/.mcp.json",
       mcpConfig: { mcpServers: {} },
       codeIndexResult: {
         totalFiles: 10,

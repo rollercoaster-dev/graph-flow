@@ -1,5 +1,12 @@
 import { constants } from "node:fs";
-import { access, mkdir, readdir, stat } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  readdir,
+  readFile,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { CodeIndexer, type IndexResult } from "@graph-flow/graph";
 import { DocsIndexer, type DocsIndexResult } from "@graph-flow/knowledge";
@@ -15,6 +22,7 @@ export interface InitOptions {
 export interface InitResult {
   projectRoot: string;
   dataDir: string;
+  mcpPath: string;
   mcpConfig: object;
   codeIndexResult?: IndexResult;
   docsIndexResult?: DocsIndexResult;
@@ -28,6 +36,18 @@ export interface HealthCheckResult {
   embeddings: { files: number };
   workflows: { files: number };
   planning: { files: number };
+}
+
+interface McpConfig {
+  mcpServers?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+interface McpServerConfig {
+  command?: string;
+  args?: unknown[];
+  env?: Record<string, string>;
+  [key: string]: unknown;
 }
 
 /**
@@ -163,20 +183,106 @@ async function runHealthCheck(dataDir: string): Promise<HealthCheckResult> {
 }
 
 /**
- * Generate MCP config snippet for the user.
+ * Generate the graph-flow MCP server entry for a specific project.
  */
-function generateMcpConfig(projectRoot: string): object {
+function generateMcpServerConfig(projectRoot: string): McpServerConfig {
   return {
-    mcpServers: {
-      "graph-flow": {
-        command: "bunx",
-        args: ["@graph-flow/mcp"],
-        env: {
-          CLAUDE_PROJECT_DIR: projectRoot,
-        },
-      },
+    command: "bunx",
+    args: ["@graph-flow/mcp"],
+    env: {
+      CLAUDE_PROJECT_DIR: projectRoot,
     },
   };
+}
+
+/**
+ * Check if an unknown value is a plain object we can safely merge.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Merge graph-flow's managed MCP fields into an existing server config.
+ * Unknown top-level fields and extra env vars are preserved.
+ */
+function mergeGraphFlowServerConfig(
+  existing: unknown,
+  projectConfig: McpServerConfig,
+): McpServerConfig {
+  const existingServer = isRecord(existing)
+    ? (existing as McpServerConfig)
+    : {};
+  const existingEnv = isRecord(existingServer.env)
+    ? (existingServer.env as Record<string, string>)
+    : {};
+  const projectEnv = isRecord(projectConfig.env)
+    ? (projectConfig.env as Record<string, string>)
+    : {};
+
+  return {
+    ...existingServer,
+    ...projectConfig,
+    env: {
+      ...existingEnv,
+      ...projectEnv,
+    },
+  };
+}
+
+/**
+ * Read the existing project MCP config from disk, if present.
+ */
+async function readExistingMcpConfig(mcpPath: string): Promise<McpConfig> {
+  try {
+    const text = await readFile(mcpPath, "utf-8");
+    if (text.trim().length === 0) {
+      return {};
+    }
+
+    const parsed = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("MCP config must be a JSON object");
+    }
+
+    return parsed as McpConfig;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return {};
+    }
+    throw new Error(
+      `Unable to read ${mcpPath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+/**
+ * Persist the merged project MCP config to disk.
+ */
+async function writeMcpConfig(
+  projectRoot: string,
+  projectConfig: McpServerConfig,
+): Promise<{ mcpPath: string; mcpConfig: McpConfig }> {
+  const mcpPath = join(projectRoot, ".mcp.json");
+  const existingConfig = await readExistingMcpConfig(mcpPath);
+  const mergedGraphFlowConfig = mergeGraphFlowServerConfig(
+    existingConfig.mcpServers?.["graph-flow"],
+    projectConfig,
+  );
+  const mergedConfig: McpConfig = {
+    ...existingConfig,
+    mcpServers: {
+      ...(existingConfig.mcpServers ?? {}),
+      "graph-flow": mergedGraphFlowConfig,
+    },
+  };
+
+  await writeFile(
+    mcpPath,
+    `${JSON.stringify(mergedConfig, null, 2)}\n`,
+    "utf-8",
+  );
+  return { mcpPath, mcpConfig: mergedConfig };
 }
 
 /**
@@ -193,6 +299,7 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
 
   const resolvedRoot = resolve(projectRoot);
   const dataDir = join(resolvedRoot, ".claude");
+  const projectMcpConfig = generateMcpServerConfig(resolvedRoot);
 
   console.error("Initializing graph-flow...");
   console.error(`Project root: ${resolvedRoot}`);
@@ -205,10 +312,17 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
   }
   console.error("✓ Created data directories");
 
+  const { mcpPath, mcpConfig } = await writeMcpConfig(
+    resolvedRoot,
+    projectMcpConfig,
+  );
+  console.error(`✓ Updated MCP config: ${mcpPath}`);
+
   const result: Partial<InitResult> = {
     projectRoot: resolvedRoot,
     dataDir,
-    mcpConfig: generateMcpConfig(resolvedRoot),
+    mcpPath,
+    mcpConfig,
   };
 
   // Index code if enabled
@@ -272,6 +386,7 @@ export function formatInitResult(result: InitResult): string {
   lines.push("");
   lines.push(`Project root: ${result.projectRoot}`);
   lines.push(`Data directory: ${result.dataDir}`);
+  lines.push(`MCP config: ${result.mcpPath}`);
   lines.push("");
 
   if (result.codeIndexResult) {
@@ -319,8 +434,14 @@ export function formatInitResult(result: InitResult): string {
   lines.push(`  Planning: ${h.planning.files} files`);
   lines.push("");
 
-  lines.push("MCP Configuration (add to your Claude config):");
-  lines.push(JSON.stringify(result.mcpConfig, null, 2));
+  lines.push("MCP Configuration:");
+  lines.push(`  File: ${result.mcpPath}`);
+  lines.push("  Server: graph-flow");
+  lines.push("  Command: bunx @graph-flow/mcp");
+  lines.push("");
+  lines.push(
+    "If your host does not expose project MCP servers yet, use the `graph-flow` CLI directly.",
+  );
 
   return lines.join("\n");
 }

@@ -1,52 +1,58 @@
 # @graph-flow/cli
 
-Command-line access to graph-flow tools.
+Command-line access to graph-flow tools and the fallback surface for hosts that do not expose MCP yet.
 
 ## Usage
 
 ```bash
+# Initialize a project and write .mcp.json
+graph-flow init
+
+# Validate host/MCP setup
+graph-flow doctor
+
 # List all available tools
 graph-flow tools
 
 # Call a tool with JSON args
-graph-flow checkpoint-find --json '{"issue": 123}'
+graph-flow c-find --json '{"issue": 123}'
 
 # Read args from a JSON file
-graph-flow knowledge-store --file ./learning.json
+graph-flow k-store --file ./learning.json
 
 # Read args from stdin
-cat ./args.json | graph-flow graph-calls
+cat ./args.json | graph-flow g-calls
 
 # Pretty-print JSON output
-graph-flow planning-stack --pretty
+graph-flow p-stack --pretty
 ```
 
 ## Planning Tools
 
 ```bash
 # Push a goal onto the stack
-graph-flow planning-goal --json '{"title": "Implement feature X"}'
+graph-flow p-goal --json '{"title": "Implement feature X"}'
 
 # Push an interrupt (context switch)
-graph-flow planning-interrupt --json '{"title": "Fix prod bug", "reason": "Critical issue"}'
+graph-flow p-interrupt --json '{"title": "Fix prod bug", "reason": "Critical issue"}'
 
 # Pop top item (mark as completed)
-graph-flow planning-done --json '{"summary": "Fixed the bug"}'
+graph-flow p-done --json '{"summary": "Fixed the bug"}'
 
 # View current stack with stale detection
-graph-flow planning-stack --pretty
+graph-flow p-stack --pretty
 
 # Create a plan for a goal
-graph-flow planning-plan --json '{"title": "Feature X Plan", "goalId": "goal-xxx", "sourceType": "manual"}'
+graph-flow p-plan --json '{"title": "Feature X Plan", "goalId": "goal-xxx", "sourceType": "manual"}'
 
 # Add steps to a plan
-graph-flow planning-steps --json '{"planId": "plan-xxx", "steps": [{"title": "Step 1", "ordinal": 1, "wave": 1, "externalRef": {"type": "issue", "number": 123}}]}'
+graph-flow p-steps --json '{"planId": "plan-xxx", "steps": [{"title": "Step 1", "ordinal": 1, "wave": 1, "externalRef": {"type": "issue", "number": 123}}]}'
 
 # Get plan and steps
-graph-flow planning-planget --json '{"goalId": "goal-xxx"}' --pretty
+graph-flow p-progress --json '{"goalId": "goal-xxx"}' --pretty
 
 # Get progress for a plan
-graph-flow planning-progress --json '{"planId": "plan-xxx"}' --pretty
+graph-flow p-progress --json '{"planId": "plan-xxx"}' --pretty
 ```
 
 ## Storage Location

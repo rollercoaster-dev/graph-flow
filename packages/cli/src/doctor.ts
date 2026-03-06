@@ -95,10 +95,11 @@ export async function runDoctor(
   } else {
     checks.push({
       id: "gh-installed",
-      status: "fail",
+      status: "warn",
       summary: "GitHub CLI is not available",
       details:
-        ghVersion.stderr.trim() || "Install `gh` and ensure it is in PATH.",
+        ghVersion.stderr.trim() ||
+        "Install `gh` and ensure it is in PATH if you plan to use GitHub automation features.",
     });
   }
 
@@ -144,7 +145,8 @@ export async function runDoctor(
           id: "mcp-entry",
           status: "fail",
           summary: ".mcp.json missing graph-flow server entry",
-          details: "Run `graph-flow init` or `/graph-flow:init`.",
+          details:
+            "Run `graph-flow init` for host-agnostic setup, or `/graph-flow:init` inside Claude Code.",
         });
       } else if (
         configuredProject &&
@@ -161,6 +163,8 @@ export async function runDoctor(
           id: "mcp-entry",
           status: "pass",
           summary: "MCP graph-flow server entry is configured",
+          details:
+            "This project can be used from any host that loads stdio MCP servers from .mcp.json.",
         });
       }
     }
@@ -182,7 +186,8 @@ export async function runDoctor(
       id: "mcp-file",
       status: "warn",
       summary: ".mcp.json not found",
-      details: "Run `graph-flow init` or `/graph-flow:init` to configure MCP.",
+      details:
+        "Run `graph-flow init` to create project-local MCP config. If your host does not support MCP yet, use the CLI directly.",
     });
   }
 
@@ -210,10 +215,10 @@ export async function runDoctor(
   if (!pluginRoot) {
     checks.push({
       id: "plugin-root",
-      status: "warn",
-      summary: "CLAUDE_PLUGIN_ROOT not set",
+      status: "pass",
+      summary: "Claude plugin runtime not detected",
       details:
-        "Hook checks skipped. This is expected outside Claude plugin runtime.",
+        "Hook checks skipped. CLI and MCP setup remain valid outside Claude Code plugin runtime.",
     });
   } else {
     const hooksPath = join(pluginRoot, "hooks", "hooks.json");
