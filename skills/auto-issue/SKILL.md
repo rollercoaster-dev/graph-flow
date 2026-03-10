@@ -72,11 +72,9 @@ Store screenshot paths in workflow state. Both calls are best-effort — if skip
 
 ### Phase 2: Research
 
-Run issue analysis with the issue-researcher agent using `Task` and create a plan at:
+Run issue analysis with the issue-researcher agent using `Task`. The researcher discovers the project's plan conventions (Phase 1.8 in the researcher workflow) and saves the plan at the appropriate location, using the project-configured plan directory when one exists and otherwise falling back to the graph-flow default convention.
 
-```text
-.claude/dev-plans/issue-<N>.md
-```
+Capture `plan_path` from the researcher output and pass that exact value through the rest of the workflow. Do not assume or reconstruct a default location.
 
 If `dry_run=true`, return the plan path and stop.
 
@@ -119,7 +117,7 @@ Captures final app state and compares with design screenshots. Best-effort — i
 Run:
 
 ```text
-Skill(finalize, args: { issue_number: <N>, force: <force_pr> })
+Skill(finalize, args: { issue_number: <N>, plan_path: "<path>", force: <force_pr> })
 ```
 
 Return PR details and `completed` status.

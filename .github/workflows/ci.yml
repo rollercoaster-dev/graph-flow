@@ -32,6 +32,9 @@ jobs:
       - name: Validate command/skill references
         run: bun run validate:references
 
+      - name: Validate plan path references
+        run: bun run validate:plan-paths
+
       - name: Type check
         run: bun tsc --noEmit
 

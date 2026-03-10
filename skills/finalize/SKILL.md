@@ -15,6 +15,7 @@ Completes the workflow by creating PR and cleaning up.
 | Field              | Type    | Required | Description                                            |
 | ------------------ | ------- | -------- | ------------------------------------------------------ |
 | `issue_number`     | number  | Yes      | GitHub issue number                                    |
+| `plan_path`        | string  | No       | Exact development plan path to clean up after PR creation |
 | `findings_summary` | object  | No       | Summary from review phase                              |
 | `force`            | boolean | No       | Create PR even with unresolved issues (default: false) |
 | `skip_board`       | boolean | No       | Skip board update (default: false)                     |
@@ -35,7 +36,7 @@ Completes the workflow by creating PR and cleaning up.
 1. Pushes branch to remote
 2. Creates GitHub PR
 3. Updates board to "Blocked" (awaiting review)
-4. Cleans up dev plan file
+4. Cleans up the issue's discovered development plan file at `plan_path`, if provided
 5. Sends Telegram notification with PR link
 
 ## Prerequisites
@@ -200,6 +201,14 @@ a-board-update({ issueNumber: <issue_number>, status: "Blocked" })
 
 **If board update fails:** Log warning, continue.
 
+### Step 5.5: Clean Up Plan File (if plan_path provided)
+
+- Delete the file at the exact `plan_path` passed into this skill.
+- Do not reconstruct a fallback location or infer the path from `issue_number`.
+- If the file is already missing, log a warning and continue.
+
+Callers must pass the exact `plan_path` returned by the research phase so cleanup targets the canonical plan artifact.
+
 ### Step 6: Send Notification (unless skip_notify)
 
 Use the `telegram` skill (via Skill tool) to send a notification:
@@ -245,7 +254,8 @@ Status: Awaiting review
 ```json
 {
   "issue_number": 487,
-  "workflow_id": "workflow-487-1736500000000-abc123"
+  "workflow_id": "workflow-487-1736500000000-abc123",
+  "plan_path": "docs/exec-plans/issue-487.md"
 }
 ```
 

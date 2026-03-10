@@ -21,7 +21,7 @@ model: sonnet
 
 | Field             | Type     | Description                          |
 | ----------------- | -------- | ------------------------------------ |
-| `plan_path`       | string   | Path to created dev plan             |
+| `plan_path`       | string   | Exact path where the development plan was written |
 | `complexity`      | string   | TRIVIAL, SMALL, MEDIUM, LARGE        |
 | `estimated_lines` | number   | Estimated lines of code              |
 | `commit_count`    | number   | Number of planned commits            |
@@ -30,7 +30,7 @@ model: sonnet
 
 ### Side Effects
 
-- Creates dev plan at `.claude/dev-plans/issue-<N>.md`
+- Creates the development plan at the discovered `plan_path` using project conventions or the graph-flow fallback
 - Logs plan creation to checkpoint (if workflow_id provided)
 
 ### Checkpoint Actions Logged
@@ -56,7 +56,7 @@ Fetches a GitHub issue, analyzes the codebase to understand the context, and cre
 - Starting work on a new GitHub issue
 - Planning implementation before coding
 - When you need to understand what code changes are required
-- To create a dev plan document for review
+- To create a project-aligned development plan document for review
 
 ## Trigger Phrases
 
@@ -142,7 +142,74 @@ gh pr list --state merged --search "closes #<dep-number>" --json number,title,me
    Recommendation: Work on #164 first, or confirm with user to proceed anyway.
 ```
 
+### Phase 1.8: Discover Project Plan Conventions
+
+Before creating any plan, check the **target project's** rules and docs for plan conventions. Project rules take precedence over graph-flow defaults, and the researcher must decide the final `plan_path` before Phase 2 starts.
+
+**Precedence order (highest wins):**
+
+1. **Project rules directory:**
+   ```bash
+   # Check for planning rules in the project's .claude/rules/
+   ls .claude/rules/ 2>/dev/null | grep -iE "plan"
+   ```
+   Look for files like `planning.md`, `exec-plans.md`, etc. Read any matches for:
+   - Plan file location (e.g. `docs/exec-plans/`, `.claude/dev-plans/`)
+   - Required template/format
+   - Finalization convention (e.g. "rewrite as decision log")
+
+2. **Project CLAUDE.md:**
+   ```bash
+   # Check root and .claude/ for CLAUDE.md
+   cat CLAUDE.md 2>/dev/null | grep -iA5 "plan"
+   cat .claude/CLAUDE.md 2>/dev/null | grep -iA5 "plan"
+   ```
+
+3. **Existing plan directories:**
+   ```bash
+   # Check for established plan locations
+   ls docs/exec-plans/ 2>/dev/null
+   ls docs/plans/ 2>/dev/null
+   ls .claude/dev-plans/ 2>/dev/null
+   ```
+   If a directory exists with plans in it, that's the project's convention.
+
+4. **Graph-flow fallback:**
+   - If none of the above defines a convention, use the graph-flow default dev-plan directory with the standard `issue-<number>.md` filename
+
+**Result: set these values before writing anything:**
+
+- `plan_dir`: directory selected by the precedence rules above
+- `plan_filename`: use the project's documented naming convention, otherwise `issue-<number>.md`
+- `plan_path`: `<plan_dir>/<plan_filename>`
+- `plan_template`: project template if documented, otherwise the default graph-flow template
+
+| Discovery Result | `plan_dir` | `plan_template` |
+|-----------------|-----------|----------------|
+| Project rule found with explicit path | Use the path from the rule | Use template from rule if provided |
+| `docs/exec-plans/` exists | `docs/exec-plans/` | Use project's template if documented |
+| `docs/plans/` exists | `docs/plans/` | Default graph-flow template |
+| Nothing found | `.claude/dev-plans/` (graph-flow default) | Default graph-flow template |
+
+The final plan must be written to `plan_path`, and `plan_path` must be returned in the agent output exactly as written. Downstream workflows consume that value directly; they must not infer the location themselves.
+
+**Also check for project-specific research conventions** — the project may have docs, specs, or architecture files that the researcher should consult during Phase 2:
+
+```bash
+# Check for architecture docs, product specs, etc.
+ls docs/product-specs/ 2>/dev/null
+ls docs/architecture/ 2>/dev/null
+cat ARCHITECTURE.md 2>/dev/null | head -20
+```
+
+These inform the research phase and help the plan align with the project's existing patterns.
+
 ### Phase 2: Research Codebase
+
+0. **Consult project docs discovered in Phase 1.8:**
+   - Read any architecture docs, product specs, or design docs found
+   - Check `.claude/rules/` for coding conventions, testing requirements, or other project rules
+   - These inform the research and ensure the plan aligns with established project patterns
 
 1. **Identify affected areas:**
    - Search for keywords from the issue
@@ -285,14 +352,16 @@ See `.claude/skills/board-manager/SKILL.md` for command reference and IDs.
 ### Phase 7: Save and Report
 
 1. **Save development plan:**
-   - Write to `.claude/dev-plans/issue-<number>.md`
-   - Or return inline for user review
+   - Write to `plan_path` (from Phase 1.8 discovery)
+   - If the project rule specifies a different naming convention, encode that in `plan_filename` before writing
+   - If using a project-specific template (from Phase 1.8), ensure the plan follows it
 
 2. **Report summary:**
    - Key findings
    - Recommended approach
    - Any blockers or questions
    - Board status updated
+   - Exact `plan_path`
 
 ## Output Format
 
@@ -300,8 +369,9 @@ Return:
 
 1. **Issue summary** (1-2 sentences)
 2. **Complexity assessment** (with reasoning)
-3. **Development plan** (full markdown)
-4. **Recommended next step**
+3. **`plan_path`** (exact value written to disk)
+4. **Development plan** (full markdown)
+5. **Recommended next step**
 
 ## Tools Required
 
@@ -345,9 +415,10 @@ Agent:
 3. Finds existing controllers, service patterns
 4. Maps: new controller needed, key service needed
 5. Estimates: ~150 lines (SMALL complexity)
-6. Creates dev plan with 3 atomic commits
+6. Creates development plan at the discovered `plan_path` with 3 atomic commits
 7. Returns: "Issue #15 requires adding /.well-known/jwks.json endpoint.
    Complexity: SMALL (~150 lines). 3 commits planned.
+   Plan path: docs/exec-plans/issue-15.md
    Ready to proceed with implement skill."
 ```
 
