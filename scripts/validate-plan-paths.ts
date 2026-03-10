@@ -47,9 +47,14 @@ const FORBIDDEN_PATTERNS = [
 ];
 
 async function collectMarkdownFiles(root: string): Promise<string[]> {
-  const files: string[] = [];
-  const entries = await readdir(root, { withFileTypes: true });
+  let entries: import("node:fs").Dirent[];
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
 
+  const files: string[] = [];
   for (const entry of entries) {
     const fullPath = join(root, entry.name);
     if (entry.isDirectory()) {
@@ -70,7 +75,20 @@ function toLineNumber(text: string, index: number): number {
 
 async function main(): Promise<void> {
   const errors: string[] = [];
-  const files = (await Promise.all(MARKDOWN_ROOTS.map((root) => collectMarkdownFiles(root)))).flat();
+  const results = await Promise.all(
+    MARKDOWN_ROOTS.map(async (root) => {
+      const found = await collectMarkdownFiles(root);
+      if (found.length === 0) {
+        try {
+          await readdir(root);
+        } catch {
+          errors.push(`${root}: directory not found or inaccessible`);
+        }
+      }
+      return found;
+    }),
+  );
+  const files = results.flat();
 
   for (const file of files) {
     let text: string;
