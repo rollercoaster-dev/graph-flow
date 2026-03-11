@@ -220,8 +220,7 @@ The issue-researcher will:
 - Discover the project's plan conventions (location, template) from `.claude/rules/`, `CLAUDE.md`, or existing plan directories
 - Analyze codebase using Glob, Grep, Read
 - Check dependencies
-- Create the development plan at the discovered location, using the graph-flow fallback only when the project does not define its own convention
-- Return the exact `plan_path` to the saved plan; do not infer or reconstruct it in later phases
+- Create dev plan (path follows host project conventions, default: `docs/dev-plans/issue-<N>.md`)
 
 **If `--dry-run`:** Stop here, display plan, exit.
 
@@ -297,7 +296,6 @@ Skill(finalize):
 The finalize skill will:
 
 - Run final validation
-- Clean up the discovered plan file at the exact `plan_path` from Phase 2, if the workflow created one
 - Push branch
 - Create PR
 - Update board to "Blocked"

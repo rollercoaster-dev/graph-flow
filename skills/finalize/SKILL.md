@@ -36,8 +36,7 @@ Completes the workflow by creating PR and cleaning up.
 1. Pushes branch to remote
 2. Creates GitHub PR
 3. Updates board to "Blocked" (awaiting review)
-4. Cleans up the issue's discovered development plan file at `plan_path`, if provided
-5. Sends Telegram notification with PR link
+4. Sends Telegram notification with PR link
 
 ## Prerequisites
 

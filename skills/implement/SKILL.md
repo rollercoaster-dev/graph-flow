@@ -161,9 +161,8 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`, `ci`
    ```
 
 2. **Load development plan:**
-   - Read from the `plan_path` provided by the caller (required input)
-   - The path is determined by the issue-researcher based on project conventions
-   - Do not reconstruct a fallback path if `plan_path` is missing or different
+   - Read from the path provided by the caller (`plan_path` input)
+   - The researcher agent determines this path based on host project conventions
 
 ### Phase 2: Execute Plan Step by Step
 

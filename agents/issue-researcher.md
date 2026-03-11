@@ -30,7 +30,7 @@ model: sonnet
 
 ### Side Effects
 
-- Creates the development plan at the discovered `plan_path` using project conventions or the graph-flow fallback
+- Creates dev plan (path determined by host project conventions, see below)
 - Logs plan creation to checkpoint (if workflow_id provided)
 
 ### Checkpoint Actions Logged
@@ -352,9 +352,9 @@ See `.claude/skills/board-manager/SKILL.md` for command reference and IDs.
 ### Phase 7: Save and Report
 
 1. **Save development plan:**
-   - Write to `plan_path` (from Phase 1.8 discovery)
-   - If the project rule specifies a different naming convention, encode that in `plan_filename` before writing
-   - If using a project-specific template (from Phase 1.8), ensure the plan follows it
+   - Check the host project's CLAUDE.md or planning rules for a preferred plan directory (e.g., `docs/exec-plans/`, `docs/plans/`)
+   - If a convention exists, follow it — use the project's naming pattern and template
+   - If no convention exists, write to `docs/dev-plans/issue-<number>.md`
 
 2. **Report summary:**
    - Key findings

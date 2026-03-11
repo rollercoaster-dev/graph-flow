@@ -73,9 +73,7 @@ Store screenshot paths in workflow state. Both calls are best-effort — if skip
 
 ### Phase 2: Research
 
-Run issue analysis with the issue-researcher agent using `Task`. The researcher discovers the project's plan conventions (Phase 1.8 in the researcher workflow) and saves the plan at the appropriate location, using the project-configured plan directory when one exists and otherwise falling back to the graph-flow default convention.
-
-Capture `plan_path` from the researcher output and pass that exact value through the rest of the workflow. Do not assume or reconstruct a default location.
+Run issue analysis with the issue-researcher agent using `Task`. The researcher determines the plan path based on host project conventions (e.g., `docs/exec-plans/`, `docs/plans/`). Default fallback: `docs/dev-plans/issue-<N>.md`.
 
 If `dry_run=true`, return the plan path and stop.
 
