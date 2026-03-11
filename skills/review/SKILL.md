@@ -75,6 +75,19 @@ Additional review agents can be defined in the project's `.claude/agents/` direc
 git diff main --name-only
 ```
 
+**Read dev plan (if it exists):**
+
+Look for the dev plan in the project's plan directory:
+
+```bash
+ls docs/dev-plans/issue-*.md docs/plans/issue-*.md docs/exec-plans/issue-*.md 2>/dev/null
+```
+
+If a plan exists for the current issue:
+1. Read the **Intent Verification** section — these are the success criteria
+2. Read the **Not in Scope** section — these items should NOT have been implemented
+3. Store both for use in the output summary
+
 **Check for project-specific agents:**
 
 ```bash
@@ -241,6 +254,10 @@ UNRESOLVED (require manual attention):
 NON-CRITICAL (for PR reviewer):
 - [code-reviewer] src/baz.ts:15 - Consider extracting helper (confidence: 72)
 - [test-analyzer] Missing edge case test for empty input (gap: 4)
+
+PLAN COMPLIANCE:
+- Intent Verification: <N>/<M> criteria met
+- Scope: clean | scope creep detected (<details if any>)
 
 Summary: <unresolved> unresolved critical findings
 ```

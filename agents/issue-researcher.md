@@ -252,7 +252,9 @@ These inform the research phase and help the plan align with the project's exist
 
 ### Phase 4: Create Development Plan
 
-Generate a detailed plan document:
+Generate a detailed plan document.
+
+**File naming:** `issue-<number>-<short-desc>.md` (e.g., `issue-42-add-jwks-endpoint.md`) for findability. Use lowercase kebab-case for the short description (2-4 words from the issue title).
 
 ```markdown
 # Development Plan: Issue #<number>
@@ -263,6 +265,16 @@ Generate a detailed plan document:
 **Type**: <feature|bug|enhancement|refactor>
 **Complexity**: <TRIVIAL|SMALL|MEDIUM|LARGE>
 **Estimated Lines**: ~<n> lines
+
+## Intent Verification
+
+Observable criteria derived from the issue. These describe what success looks like from a user/system perspective — not generic checklists.
+
+- [ ] <When [actor] does [action], [observable result]>
+- [ ] <[System/component] [behaves in specific way] under [condition]>
+- [ ] <[Metric/output] meets [specific threshold/format]>
+
+_Write criteria that a reviewer could verify by running the code or reading tests. Avoid generic items like "tests pass" — those are assumed._
 
 ## Dependencies
 
@@ -275,6 +287,14 @@ Generate a detailed plan document:
 ## Objective
 
 <What this PR will accomplish>
+
+## Decisions
+
+Architectural and implementation choices made during research. Populated when the researcher encounters multiple valid approaches.
+
+| ID | Decision | Alternatives Considered | Rationale |
+|----|----------|------------------------|-----------|
+| D1 | <what was decided> | <other options> | <why this choice> |
 
 ## Affected Areas
 
@@ -289,8 +309,8 @@ Generate a detailed plan document:
 **Commit**: `<type>(<scope>): <message>`
 **Changes**:
 
-- <specific change>
-- <specific change>
+- [ ] <specific change>
+- [ ] <specific change>
 
 ### Step 2: <description>
 
@@ -302,17 +322,23 @@ Generate a detailed plan document:
 - [ ] Integration tests for <flow>
 - [ ] Manual testing: <steps>
 
-## Definition of Done
+## Not in Scope
 
-- [ ] All implementation steps complete
-- [ ] Tests passing
-- [ ] Type-check passing
-- [ ] Lint passing
-- [ ] Ready for PR
+Items explicitly deferred from this issue. Helps prevent scope creep during implementation.
 
-## Notes
+| Item | Reason | Follow-up |
+|------|--------|-----------|
+| <deferred item> | <why not now> | <issue # or "none"> |
 
-<Any considerations, risks, or questions>
+_If nothing is deferred, write "No items deferred."_
+
+## Discovery Log
+
+Runtime discoveries made during implementation. Starts empty — populated by the implement skill as work progresses.
+
+<!-- Entries added by implement skill:
+- [YYYY-MM-DD HH:MM] <discovery description>
+-->
 ```
 
 ### Phase 5: Validate Plan
@@ -354,7 +380,7 @@ See `.claude/skills/board-manager/SKILL.md` for command reference and IDs.
 1. **Save development plan:**
    - Check the host project's CLAUDE.md or planning rules for a preferred plan directory (e.g., `docs/exec-plans/`, `docs/plans/`)
    - If a convention exists, follow it — use the project's naming pattern and template
-   - If no convention exists, write to `docs/dev-plans/issue-<number>.md`
+   - If no convention exists, write to `docs/dev-plans/issue-<number>-<short-desc>.md`
 
 2. **Report summary:**
    - Key findings

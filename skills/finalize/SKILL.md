@@ -134,6 +134,21 @@ Determine scope from primary package affected.
 
 **Create PR:**
 
+**Read dev plan (if it exists):**
+
+Before creating the PR, look for the dev plan to extract Intent Verification and Decisions:
+
+```bash
+ls docs/dev-plans/issue-*.md docs/plans/issue-*.md docs/exec-plans/issue-*.md 2>/dev/null
+```
+
+If found, extract:
+- **Intent Verification** section (with check status from implementation)
+- **Decisions** table (key architectural choices)
+- **Discovery Log** entries (if any, for notable runtime findings)
+
+**Create PR:**
+
 ```bash
 gh pr create --title "<type>(<scope>): <description> (#<issue_number>)" --body "$(cat <<'PRBODY'
 ## Summary
@@ -143,6 +158,22 @@ gh pr create --title "<type>(<scope>): <description> (#<issue_number>)" --body "
 ## Changes
 
 <bullet list of key changes>
+
+## Intent Verification
+
+<Copy from dev plan with check status. If no plan exists, omit this section.>
+
+- [x] <met criterion>
+- [x] <met criterion>
+- [ ] <unmet criterion, if any — explain why>
+
+## Key Decisions
+
+<Summarize from Decisions table. If no plan or no decisions, omit this section.>
+
+| Decision | Rationale |
+|----------|-----------|
+| <what> | <why> |
 
 ## Test Plan
 
