@@ -2,6 +2,7 @@
 name: auto-issue
 description: Fully autonomous issue-to-PR workflow. Use when a worker should execute one issue end-to-end without human gates.
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Skill, Task
+context: fork
 ---
 
 # Auto-Issue Skill
