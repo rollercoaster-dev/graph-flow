@@ -39,8 +39,8 @@ Coordinates code review and manages the auto-fix cycle.
 
 ### Side Effects
 
-1. Spawns review agents (parallel or sequential)
-2. Spawns auto-fixer for critical findings
+1. Spawns review agents as standalone background agents (parallel or sequential, never as team members)
+2. Spawns auto-fixer as standalone background agent for critical findings
 3. Creates fix commits
 4. Logs all actions to checkpoint
 
@@ -122,20 +122,22 @@ This complements the review agents which focus on bugs, test gaps, and silent fa
 
 ### Step 2: Spawn Review Agents
 
+**CRITICAL: Team isolation.** All review agents are internal sub-agents — they MUST be spawned as standalone background agents, never as team members. Do NOT pass `team_name` to any Agent call. This prevents zombie team members and idle notification noise when the review skill runs inside a team worker.
+
 **If parallel mode (default):**
 
-Spawn all agents simultaneously using Task tool with multiple calls:
+Spawn all agents simultaneously using the Agent tool with `run_in_background: true` (no `team_name`):
 
 ```text
-Task(pr-review-toolkit:code-reviewer): "Review code changes for issue workflow <workflow_id>"
-Task(pr-review-toolkit:pr-test-analyzer): "Analyze test coverage for changes"
-Task(pr-review-toolkit:silent-failure-hunter): "Check for silent failures in changes"
-Task(openbadges-compliance-reviewer): "Check OB spec compliance" (if badge code AND agent exists in project)
+Agent(pr-review-toolkit:code-reviewer, run_in_background: true): "Review code changes for issue workflow <workflow_id>"
+Agent(pr-review-toolkit:pr-test-analyzer, run_in_background: true): "Analyze test coverage for changes"
+Agent(pr-review-toolkit:silent-failure-hunter, run_in_background: true): "Check for silent failures in changes"
+Agent(openbadges-compliance-reviewer, run_in_background: true): "Check OB spec compliance" (if badge code AND agent exists in project)
 ```
 
 **If sequential mode:**
 
-Spawn each agent one at a time, collecting results.
+Spawn each agent one at a time using the Agent tool (no `team_name`), collecting results.
 
 ### Step 3: Collect and Normalize Findings
 
@@ -170,8 +172,8 @@ attempt = 0
 while not fixed AND attempt < max_retry:
     attempt++
 
-    Spawn auto-fixer:
-    Task(auto-fixer): "Fix: <finding.message> in <finding.file>:<finding.line>"
+    Spawn auto-fixer (standalone — no team_name):
+    Agent(auto-fixer, run_in_background: true): "Fix: <finding.message> in <finding.file>:<finding.line>"
 
     If fix successful:
         finding.fixed = true

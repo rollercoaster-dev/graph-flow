@@ -52,15 +52,28 @@ WRONG understanding:
 /auto-issue 123 --visual --figma-url https://figma.com/design/...
 ```
 
+## Team Isolation
+
+**CRITICAL: When this workflow runs inside a team worker, sub-agents MUST NOT join the team.**
+
+All Agent/Task calls in this workflow (issue-researcher, review agents, auto-fixer) are internal implementation details — they should be standalone background agents, not team members.
+
+**Rules for all Agent calls in this workflow:**
+- **Never** pass `team_name` to Agent calls
+- Always use `run_in_background: true` for sub-agents
+- The team lead should only see the worker running this workflow, not its internal sub-agents
+
+This prevents zombie agents that the team lead can't control and eliminates idle notification noise from internal sub-agents.
+
 ## Workflow
 
 ```text
 Phase 1:   Setup          → Skill(setup)
 Phase 1.5: Visual Design  → Skill(visual-test, { mode: "design" })   [if --visual]
 Phase 1.6: Visual Before  → Skill(visual-test, { mode: "before" })   [if --visual]
-Phase 2:   Research        → Task(issue-researcher)
+Phase 2:   Research        → Agent(issue-researcher) [standalone, no team_name]
 Phase 3:   Implement       → Skill(implement)
-Phase 4:   Review          → Skill(review)
+Phase 4:   Review          → Skill(review) [internally spawns standalone agents]
 Phase 4.5: Visual After    → Skill(visual-test, { mode: "after" })   [if --visual]
 Phase 5:   Finalize        → Skill(finalize)
 ```
@@ -210,9 +223,10 @@ Store screenshot paths in workflow state for the finalize phase.
 ## Phase 2: Research
 
 ```text
-Task(issue-researcher):
+Agent(issue-researcher):
   Input:  { issue_number: <N> }
   Output: { plan_path, complexity, commit_count }
+  Options: { run_in_background: true }  # standalone — no team_name
 ```
 
 The issue-researcher will:
