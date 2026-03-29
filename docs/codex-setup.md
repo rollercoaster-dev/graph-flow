@@ -1,10 +1,41 @@
 # Codex Setup Guide
 
-This guide configures graph-flow for Codex and other non-plugin hosts.
+This guide configures graph-flow for Codex using the repo-local Codex plugin, workflow skills, and the existing graph-flow MCP/CLI core.
 
 For the broader cross-host model, see [docs/host-setup.md](./host-setup.md).
 
-## 1) Install and verify dependencies
+## 1) Install the repo-local Codex plugin
+
+This repository now includes:
+
+- a repo marketplace at `.agents/plugins/marketplace.json`
+- a local Codex plugin at `plugins/graph-flow/`
+- repo-scoped custom agents at `.codex/agents/`
+
+In Codex:
+
+1. Open the Plugin Directory.
+2. Select the repo marketplace for this repository.
+3. Install `graph-flow`.
+4. Restart Codex if the new skills do not appear immediately.
+
+The main Codex-native workflow skills are:
+
+- `graph-flow init`
+- `graph-flow auto-issue`
+- `graph-flow work-on-issue`
+- `graph-flow auto-merge`
+
+The phase skills are also available for advanced use:
+
+- `graph-flow setup`
+- `graph-flow implement`
+- `graph-flow review`
+- `graph-flow finalize`
+
+Invoke them explicitly by typing `$` in the composer and selecting the graph-flow skill you want.
+
+## 2) Install and verify dependencies
 
 ```bash
 bun install
@@ -12,7 +43,7 @@ gh --version
 gh auth status
 ```
 
-## 2) Configure MCP for this repository
+## 3) Bootstrap graph-flow for this repository
 
 From your project root:
 
@@ -22,7 +53,9 @@ graph-flow init
 
 This creates project-local storage under `.claude/` and writes or updates `.mcp.json`.
 
-## 3) Validate setup with doctor
+You can do the same setup through Codex by invoking the `graph-flow init` skill from the plugin.
+
+## 4) Validate setup with doctor
 
 ```bash
 graph-flow doctor
@@ -34,7 +67,7 @@ Use JSON output for scripting:
 graph-flow doctor --doctor-json
 ```
 
-## 4) Configure board automation (required for `a-board-update`)
+## 5) Configure board automation (required for `a-board-update`)
 
 Copy `.graph-flow.json.example` to `.graph-flow.json` and fill board IDs:
 
@@ -59,7 +92,17 @@ You can override any field with environment variables:
 `BOARD_PROJECT_NUMBER`, `BOARD_OPT_BACKLOG`, `BOARD_OPT_NEXT`,
 `BOARD_OPT_IN_PROGRESS`, `BOARD_OPT_BLOCKED`, `BOARD_OPT_DONE`.
 
-## 5) Optional: enable neural embeddings
+## 6) Optional: enable custom Codex agents
+
+This repo now ships project-scoped custom agents in `.codex/agents/`:
+
+- `issue_worker`
+- `pr_reviewer`
+- `docs_researcher`
+
+Use them only when you explicitly want delegation or parallel work. The workflow skills do not require them.
+
+## 7) Optional: enable neural embeddings
 
 Set one provider key:
 
@@ -68,7 +111,7 @@ Set one provider key:
 
 Without these, docs/knowledge search runs on TF-IDF fallback.
 
-## 6) Smoke test commands
+## 8) Smoke test commands
 
 ```bash
 graph-flow tools | jq '.[].name'
@@ -79,7 +122,14 @@ graph-flow d-index --json '{}'
 
 If your Codex host does not expose project MCP servers yet, use these CLI commands directly as the integration fallback.
 
-## 7) CI consistency checks
+## 9) Recommended Codex usage model
+
+- Use the plugin skills for workflow entry points.
+- Use graph-flow MCP tools as the preferred core integration surface once setup is complete.
+- Use the `graph-flow` CLI as the fallback when MCP is unavailable.
+- Use repo-scoped custom agents only for explicit delegated work, not as a hidden dependency.
+
+## 10) CI consistency checks
 
 Run before opening PRs:
 

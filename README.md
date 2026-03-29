@@ -83,9 +83,10 @@ Override with:
 
 - `@graph-flow/mcp`: host-agnostic stdio MCP server
 - `graph-flow` CLI: direct tool access and setup fallback
-- Claude Code plugin: optional skills, slash commands, and hooks
+- Codex plugin: optional workflow skills packaged under `plugins/graph-flow`
+- Claude Code plugin: optional Claude-specific skills, slash commands, and hooks
 
-The plugin is not required to use graph-flow. For cross-host setup, see [docs/host-setup.md](docs/host-setup.md).
+Plugins are optional. The portable core remains MCP + CLI. For cross-host setup, see [docs/host-setup.md](docs/host-setup.md). For Codex-specific setup, see [docs/codex-setup.md](docs/codex-setup.md).
 
 ## MCP Integration
 

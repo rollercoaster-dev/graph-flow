@@ -4,13 +4,14 @@ This guide explains how to use graph-flow from any host environment.
 
 ## Integration Model
 
-graph-flow has three layers:
+graph-flow has four layers:
 
 - `MCP server`: the primary tool surface for hosts that support stdio MCP servers
 - `CLI`: the fallback and scripting surface when MCP is unavailable
-- `Claude Code plugin`: optional UX layer for skills, commands, and hooks
+- `Codex plugin`: optional Codex-native UX layer for workflow skills
+- `Claude Code plugin`: optional Claude-specific UX layer for skills, commands, and hooks
 
-The plugin is not required to use graph-flow tools.
+The portable core remains MCP + CLI. Host-specific plugins sit above that core.
 
 ## One-Time Prerequisites
 
@@ -50,7 +51,14 @@ graph-flow doctor
 - Run `/graph-flow:init` or `graph-flow init` in each project
 - Restart Claude Code after `.mcp.json` changes
 
-### Codex or another MCP-capable host
+### Codex
+
+- Install the repo or personal Codex plugin if you want first-class workflow skills
+- Use the `graph-flow init` skill or run `graph-flow init` in the project
+- Use repo-scoped `.codex/agents/` only when you explicitly want delegated or parallel agent work
+- If you do not install the plugin, graph-flow still works through MCP + CLI
+
+### Another MCP-capable host
 
 - Run `graph-flow init` in the project
 - Ensure the host loads stdio MCP servers from the project `.mcp.json`
@@ -88,6 +96,6 @@ If the plugin runtime is absent, that is expected outside Claude Code and does n
 Treat graph-flow as:
 
 - `core`: MCP server + CLI
-- `optional`: Claude plugin
+- `optional host UX`: Codex plugin or Claude plugin
 
-That keeps the tool surface portable across agent hosts and makes the plugin a convenience layer instead of a requirement.
+That keeps the tool surface portable across agent hosts while still giving Codex and Claude first-class workflow ergonomics on top.
