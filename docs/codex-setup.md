@@ -48,10 +48,10 @@ gh auth status
 From your project root:
 
 ```bash
-graph-flow init
+graph-flow init --codex
 ```
 
-This creates project-local storage under `.claude/` and writes or updates `.mcp.json`.
+This creates project-local storage under `.claude/`, writes or updates `.mcp.json`, and writes a project-scoped `.codex/config.toml` block for the graph-flow MCP server.
 
 You can do the same setup through Codex by invoking the `graph-flow init` skill from the plugin.
 

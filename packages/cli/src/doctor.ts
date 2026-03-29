@@ -191,6 +191,75 @@ export async function runDoctor(
     });
   }
 
+  // Codex project config
+  const codexConfigPath = join(projectRoot, ".codex", "config.toml");
+  if (existsSync(codexConfigPath)) {
+    try {
+      const text = await Bun.file(codexConfigPath).text();
+      if (text.includes("[mcp_servers.graph-flow]")) {
+        checks.push({
+          id: "codex-config",
+          status: "pass",
+          summary: "Codex project config includes graph-flow MCP",
+          details: codexConfigPath,
+        });
+      } else {
+        checks.push({
+          id: "codex-config",
+          status: "warn",
+          summary: "Codex config exists but has no graph-flow MCP entry",
+          details:
+            "Run `graph-flow init --codex` to add a project-scoped Codex MCP config block.",
+        });
+      }
+    } catch (error) {
+      checks.push({
+        id: "codex-config",
+        status: "warn",
+        summary: "Codex config exists but could not be read",
+        details: getErrorMessage(error),
+      });
+    }
+  } else {
+    checks.push({
+      id: "codex-config",
+      status: "warn",
+      summary: "Codex project config not found",
+      details:
+        "Run `graph-flow init --codex` if you want project-scoped Codex MCP setup in addition to .mcp.json.",
+    });
+  }
+
+  const codexMarketplacePath = join(
+    projectRoot,
+    ".agents",
+    "plugins",
+    "marketplace.json",
+  );
+  const codexPluginManifestPath = join(
+    projectRoot,
+    "plugins",
+    "graph-flow",
+    ".codex-plugin",
+    "plugin.json",
+  );
+  checks.push(
+    existsSync(codexMarketplacePath) && existsSync(codexPluginManifestPath)
+      ? {
+          id: "codex-plugin",
+          status: "pass",
+          summary: "Repo-local Codex plugin files are present",
+          details: `${codexMarketplacePath}\n${codexPluginManifestPath}`,
+        }
+      : {
+          id: "codex-plugin",
+          status: "warn",
+          summary: "Repo-local Codex plugin files are incomplete",
+          details:
+            "Expected .agents/plugins/marketplace.json and plugins/graph-flow/.codex-plugin/plugin.json for the repo plugin path.",
+        },
+  );
+
   // Data dir
   const dataDir = join(projectRoot, ".claude");
   const writable = await isWritableDir(projectRoot);

@@ -54,7 +54,7 @@ graph-flow doctor
 ### Codex
 
 - Install the repo or personal Codex plugin if you want first-class workflow skills
-- Use the `graph-flow init` skill or run `graph-flow init` in the project
+- Use the `graph-flow init` skill or run `graph-flow init --codex` in the project
 - Use repo-scoped `.codex/agents/` only when you explicitly want delegated or parallel agent work
 - If you do not install the plugin, graph-flow still works through MCP + CLI
 

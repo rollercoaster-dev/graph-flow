@@ -17,6 +17,7 @@ export interface InitOptions {
   indexDocs?: boolean;
   codePatterns?: string[];
   docsPatterns?: string[];
+  codex?: boolean;
 }
 
 export interface InitResult {
@@ -24,6 +25,7 @@ export interface InitResult {
   dataDir: string;
   mcpPath: string;
   mcpConfig: object;
+  codexConfigPath?: string;
   codeIndexResult?: IndexResult;
   docsIndexResult?: DocsIndexResult;
   healthCheck: HealthCheckResult;
@@ -49,6 +51,9 @@ interface McpServerConfig {
   env?: Record<string, string>;
   [key: string]: unknown;
 }
+
+const CODEX_MANAGED_BLOCK_START = "# BEGIN graph-flow MCP";
+const CODEX_MANAGED_BLOCK_END = "# END graph-flow MCP";
 
 /**
  * Check if a directory exists.
@@ -195,6 +200,58 @@ function generateMcpServerConfig(projectRoot: string): McpServerConfig {
   };
 }
 
+function toTomlString(value: string): string {
+  return JSON.stringify(value);
+}
+
+function generateCodexManagedBlock(projectRoot: string): string {
+  return [
+    CODEX_MANAGED_BLOCK_START,
+    "[mcp_servers.graph-flow]",
+    `command = ${toTomlString("bunx")}`,
+    'args = ["@graph-flow/mcp"]',
+    `cwd = ${toTomlString(projectRoot)}`,
+    "",
+    "[mcp_servers.graph-flow.env]",
+    `CLAUDE_PROJECT_DIR = ${toTomlString(projectRoot)}`,
+    CODEX_MANAGED_BLOCK_END,
+  ].join("\n");
+}
+
+async function writeCodexConfig(projectRoot: string): Promise<string> {
+  const codexDir = join(projectRoot, ".codex");
+  const codexConfigPath = join(codexDir, "config.toml");
+  await mkdir(codexDir, { recursive: true });
+
+  const managedBlock = generateCodexManagedBlock(projectRoot);
+  let nextText = `${managedBlock}\n`;
+
+  try {
+    const existingText = await readFile(codexConfigPath, "utf-8");
+    const blockPattern = new RegExp(
+      `${CODEX_MANAGED_BLOCK_START}[\\s\\S]*?${CODEX_MANAGED_BLOCK_END}`,
+      "m",
+    );
+
+    if (blockPattern.test(existingText)) {
+      nextText = `${existingText.replace(blockPattern, managedBlock).trimEnd()}\n`;
+    } else {
+      const trimmed = existingText.trimEnd();
+      nextText =
+        trimmed.length > 0
+          ? `${trimmed}\n\n${managedBlock}\n`
+          : `${managedBlock}\n`;
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  await writeFile(codexConfigPath, nextText, "utf-8");
+  return codexConfigPath;
+}
+
 /**
  * Check if an unknown value is a plain object we can safely merge.
  */
@@ -295,6 +352,7 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
     indexDocs = true,
     codePatterns,
     docsPatterns,
+    codex = false,
   } = options;
 
   const resolvedRoot = resolve(projectRoot);
@@ -324,6 +382,11 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
     mcpPath,
     mcpConfig,
   };
+
+  if (codex) {
+    result.codexConfigPath = await writeCodexConfig(resolvedRoot);
+    console.error(`✓ Updated Codex config: ${result.codexConfigPath}`);
+  }
 
   // Index code if enabled
   if (indexCode) {
@@ -439,6 +502,15 @@ export function formatInitResult(result: InitResult): string {
   lines.push("  Server: graph-flow");
   lines.push("  Command: bunx @graph-flow/mcp");
   lines.push("");
+
+  if (result.codexConfigPath) {
+    lines.push("Codex Configuration:");
+    lines.push(`  File: ${result.codexConfigPath}`);
+    lines.push("  Project-scoped MCP: enabled");
+    lines.push("  Repo marketplace: .agents/plugins/marketplace.json");
+    lines.push("");
+  }
+
   lines.push(
     "If your host does not expose project MCP servers yet, use the `graph-flow` CLI directly.",
   );

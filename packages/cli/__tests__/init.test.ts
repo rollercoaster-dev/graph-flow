@@ -71,6 +71,52 @@ describe("runInit", () => {
     );
   });
 
+  test("writes .codex/config.toml when codex bootstrap is enabled", async () => {
+    const result = await runInit({
+      projectRoot: projectDir,
+      indexCode: false,
+      indexDocs: false,
+      codex: true,
+    });
+
+    expect(result.codexConfigPath).toBe(
+      join(projectDir, ".codex", "config.toml"),
+    );
+
+    const text = await readFile(
+      join(projectDir, ".codex", "config.toml"),
+      "utf-8",
+    );
+    expect(text).toContain("[mcp_servers.graph-flow]");
+    expect(text).toContain('command = "bunx"');
+    expect(text).toContain('args = ["@graph-flow/mcp"]');
+    expect(text).toContain(`CLAUDE_PROJECT_DIR = "${projectDir}"`);
+  });
+
+  test("preserves existing .codex/config.toml content when adding graph-flow block", async () => {
+    await mkdir(join(projectDir, ".codex"), { recursive: true });
+    await writeFile(
+      join(projectDir, ".codex", "config.toml"),
+      ['model = "gpt-5.4"', "", "[agents]", "max_threads = 4", ""].join("\n"),
+      "utf-8",
+    );
+
+    await runInit({
+      projectRoot: projectDir,
+      indexCode: false,
+      indexDocs: false,
+      codex: true,
+    });
+
+    const text = await readFile(
+      join(projectDir, ".codex", "config.toml"),
+      "utf-8",
+    );
+    expect(text).toContain('model = "gpt-5.4"');
+    expect(text).toContain("[agents]");
+    expect(text).toContain("[mcp_servers.graph-flow]");
+  });
+
   test("preserves existing MCP servers when writing .mcp.json", async () => {
     await writeFile(
       join(projectDir, ".mcp.json"),
@@ -437,6 +483,32 @@ describe("formatInitResult", () => {
     expect(output).toContain("MCP Configuration");
     expect(output).toContain("Command: bunx @graph-flow/mcp");
     expect(output).not.toContain("CLAUDE_PROJECT_DIR");
+  });
+
+  test("formats result with Codex bootstrap details", () => {
+    const result = {
+      projectRoot: "/test/project",
+      dataDir: "/test/project/.claude",
+      mcpPath: "/test/project/.mcp.json",
+      mcpConfig: { mcpServers: { "graph-flow": { command: "bunx" } } },
+      codexConfigPath: "/test/project/.codex/config.toml",
+      healthCheck: {
+        dataDir: { exists: true, writable: true },
+        graphs: { files: 0 },
+        learnings: { files: 0, areas: [] },
+        embeddings: { files: 0 },
+        workflows: { files: 0 },
+        planning: { files: 0 },
+      },
+    };
+
+    const output = formatInitResult(result);
+
+    expect(output).toContain("Codex Configuration:");
+    expect(output).toContain("/test/project/.codex/config.toml");
+    expect(output).toContain(
+      "Repo marketplace: .agents/plugins/marketplace.json",
+    );
   });
 
   test("includes failed files count when present", () => {

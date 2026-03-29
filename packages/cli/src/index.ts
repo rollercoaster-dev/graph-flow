@@ -28,7 +28,7 @@ function printHelp(): void {
   const text = `graph-flow CLI
 
 Usage:
-  graph-flow init [--skip-code] [--skip-docs] [--project <path>] [--background]
+  graph-flow init [--skip-code] [--skip-docs] [--project <path>] [--background] [--codex]
   graph-flow doctor [--project <path>] [--doctor-json]
   graph-flow tools
   graph-flow <tool> [--json '{...}'] [--file path] [--pretty]
@@ -43,9 +43,11 @@ Init options:
   --skip-docs         Skip docs indexing
   --project <path>    Project root (default: current directory)
   --background        Run indexing in background (non-blocking)
+  --codex             Also write project-scoped .codex/config.toml MCP config
 
 Examples:
   graph-flow init
+  graph-flow init --codex
   graph-flow init --background
   graph-flow init --skip-code
   graph-flow c-find --json '{"issue": 123}'
@@ -92,6 +94,7 @@ async function main(): Promise<void> {
       "skip-docs": { type: "boolean" },
       project: { type: "string" },
       background: { type: "boolean" },
+      codex: { type: "boolean" },
       "doctor-json": { type: "boolean" },
     },
     allowPositionals: true,
@@ -114,6 +117,7 @@ async function main(): Promise<void> {
       projectRoot: values.project,
       indexCode: !values["skip-code"],
       indexDocs: !values["skip-docs"],
+      codex: values.codex,
     };
 
     // Run in background if requested
@@ -131,6 +135,7 @@ async function main(): Promise<void> {
       const args = [cliEntry, "init"];
       if (values["skip-code"]) args.push("--skip-code");
       if (values["skip-docs"]) args.push("--skip-docs");
+      if (values.codex) args.push("--codex");
       if (values.project) args.push("--project", values.project);
 
       const child = Bun.spawn(["bun", ...args], {
