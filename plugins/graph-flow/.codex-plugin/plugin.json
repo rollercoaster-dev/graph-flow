@@ -1,0 +1,39 @@
+{
+  "name": "graph-flow",
+  "version": "3.1.0",
+  "description": "Workflow skills and MCP-oriented setup guidance for using graph-flow from Codex.",
+  "author": {
+    "name": "rollercoaster.dev"
+  },
+  "homepage": "https://github.com/rollercoaster-dev/graph-flow",
+  "repository": "https://github.com/rollercoaster-dev/graph-flow",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "workflow",
+    "planning",
+    "knowledge",
+    "graph",
+    "automation",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "graph-flow",
+    "shortDescription": "Codex-native graph-flow workflows for issue execution, review, and merge prep.",
+    "longDescription": "Install graph-flow in Codex with workflow skills that wrap the existing CLI and MCP core instead of relying on Claude-specific slash commands.",
+    "developerName": "rollercoaster.dev",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/rollercoaster-dev/graph-flow",
+    "defaultPrompt": [
+      "Use graph-flow to bootstrap this repository for Codex and verify MCP access.",
+      "Use graph-flow to run the issue workflow for GitHub issue #31.",
+      "Use graph-flow to get a pull request merge-ready."
+    ],
+    "brandColor": "#0F766E"
+  }
+}
