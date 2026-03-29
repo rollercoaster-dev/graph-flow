@@ -1,0 +1,6 @@
+interface:
+  display_name: "graph-flow review"
+  short_description: "Run the pre-PR review phase for a graph-flow workflow."
+  default_prompt: "Use graph-flow review on the current branch and tell me what must be fixed before finalize."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "graph-flow auto-merge"
+  short_description: "Get a PR merge-ready, then merge it when it is safe."
+  default_prompt: "Use graph-flow auto-merge on the current pull request and only merge when checks and review state are clean."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "graph-flow implement"
+  short_description: "Implement planned issue work in logical, validated slices."
+  default_prompt: "Use graph-flow implement for issue #31 from the existing plan and commit the work in logical chunks."
+policy:
+  allow_implicit_invocation: false
