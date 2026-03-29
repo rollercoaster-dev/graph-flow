@@ -146,7 +146,7 @@ export async function runDoctor(
           status: "fail",
           summary: ".mcp.json missing graph-flow server entry",
           details:
-            "Run `graph-flow init` for host-agnostic setup, or `/graph-flow:init` inside Claude Code.",
+            "Run `graph-flow init` for host-agnostic setup, `/graph-flow:init` inside Claude Code, or `graph-flow init --codex` for project-scoped Codex bootstrap.",
         });
       } else if (
         configuredProject &&
@@ -187,7 +187,7 @@ export async function runDoctor(
       status: "warn",
       summary: ".mcp.json not found",
       details:
-        "Run `graph-flow init` to create project-local MCP config. If your host does not support MCP yet, use the CLI directly.",
+        "Run `graph-flow init` to create project-local MCP config. For Codex project bootstrap, use `graph-flow init --codex`. If your host does not support MCP yet, use the CLI directly.",
     });
   }
 
