@@ -83,7 +83,7 @@ Look for the dev plan in the project's plan directory:
 ls docs/dev-plans/issue-*.md docs/plans/issue-*.md docs/exec-plans/issue-*.md 2>/dev/null
 ```
 
-If a plan exists for the current issue:
+If multiple files match, use the one whose filename contains the current issue number. If a plan exists for the current issue:
 1. Read the **Intent Verification** section — these are the success criteria
 2. Read the **Not in Scope** section — these items should NOT have been implemented
 3. Store both for use in the output summary
@@ -257,7 +257,7 @@ NON-CRITICAL (for PR reviewer):
 - [code-reviewer] src/baz.ts:15 - Consider extracting helper (confidence: 72)
 - [test-analyzer] Missing edge case test for empty input (gap: 4)
 
-PLAN COMPLIANCE:
+PLAN COMPLIANCE: (omit section if no plan exists)
 - Intent Verification: <N>/<M> criteria met
 - Scope: clean | scope creep detected (<details if any>)
 

@@ -274,7 +274,7 @@ After all commits:
    - Read the dev plan's Intent Verification section
    - For each criterion, verify it is met by the implementation
    - Check off met criteria in the plan (change `- [ ]` to `- [x]`)
-   - If any criteria are NOT met, stop and report which ones failed and why
+   - If any criteria are NOT met, report which ones failed and why. In gated workflows (work-on-issue), stop and wait for user approval before continuing. In autonomous workflows (auto-issue), log the gap and proceed
 
 ### Phase 5: Report Completion
 

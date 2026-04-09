@@ -175,12 +175,12 @@ Before creating any plan, check the **target project's** rules and docs for plan
    If a directory exists with plans in it, that's the project's convention.
 
 4. **Graph-flow fallback:**
-   - If none of the above defines a convention, use the graph-flow default dev-plan directory with the standard `issue-<number>.md` filename
+   - If none of the above defines a convention, use the graph-flow default dev-plan directory with the standard `issue-<number>-<short-desc>.md` filename
 
 **Result: set these values before writing anything:**
 
 - `plan_dir`: directory selected by the precedence rules above
-- `plan_filename`: use the project's documented naming convention, otherwise `issue-<number>.md`
+- `plan_filename`: use the project's documented naming convention, otherwise `issue-<number>-<short-desc>.md`
 - `plan_path`: `<plan_dir>/<plan_filename>`
 - `plan_template`: project template if documented, otherwise the default graph-flow template
 

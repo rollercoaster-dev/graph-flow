@@ -142,10 +142,12 @@ Before creating the PR, look for the dev plan to extract Intent Verification and
 ls docs/dev-plans/issue-*.md docs/plans/issue-*.md docs/exec-plans/issue-*.md 2>/dev/null
 ```
 
-If found, extract:
+If multiple files match, use the one whose filename contains the current issue number. If found, extract:
 - **Intent Verification** section (with check status from implementation)
 - **Decisions** table (key architectural choices)
 - **Discovery Log** entries (if any, for notable runtime findings)
+
+If no plan file exists, omit the Intent Verification and Key Decisions sections from the PR body.
 
 **Create PR:**
 

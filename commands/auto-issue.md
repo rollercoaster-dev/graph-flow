@@ -234,7 +234,7 @@ The issue-researcher will:
 - Discover the project's plan conventions (location, template) from `.claude/rules/`, `CLAUDE.md`, or existing plan directories
 - Analyze codebase using Glob, Grep, Read
 - Check dependencies
-- Create dev plan (path follows host project conventions, default: `docs/dev-plans/issue-<N>.md`)
+- Create dev plan (path follows host project conventions, default: `docs/dev-plans/issue-<number>-<short-desc>.md`)
 
 **If `--dry-run`:** Stop here, display plan, exit.
 
@@ -274,7 +274,7 @@ Skill(review):
 The review skill will:
 
 - Run `/simplify` for code quality, reuse, and efficiency improvements
-- Spawn review agents in parallel (as Task subagents)
+- Spawn standalone background review agents in parallel (do not pass team_name)
 - Classify findings by severity
 - Auto-fix critical findings (up to 3 attempts each)
 - Return summary with unresolved findings
