@@ -221,6 +221,7 @@ Skill(implement):
 
 The implement skill handles the full implementation cycle with per-commit gates:
 
+- Reads the development plan from the `plan_path` returned by Phase 2
 - Makes changes per plan step
 - Runs validation (type-check, lint)
 - Shows diff and proposed commit message at each gate
