@@ -149,6 +149,12 @@ If multiple files match, use the one whose filename contains the current issue n
 
 If no plan file exists, omit the Intent Verification and Key Decisions sections from the PR body.
 
+**Extraction logic:**
+
+1. **Intent Verification** — extract every checkbox line (`- [ ]` or `- [x]`) between the `## Intent Verification` heading and the next `##` heading. Preserve check status verbatim.
+2. **Key Decisions** — extract the markdown table under `## Key Decisions` (or `## Decisions`). Skip the header and separator rows; re-emit as a two-column `| Decision | Rationale |` table in the PR body. If the table is empty or absent, omit the section.
+3. **Discovery Log** — extract timestamped entries of the form `- [YYYY-MM-DD HH:MM] <text>` under the `## Discovery Log` heading (entries may be wrapped in an HTML comment block; strip `<!-- … -->` delimiters before parsing). If no entries exist, omit the section from the PR body.
+
 **Create PR:**
 
 ```bash

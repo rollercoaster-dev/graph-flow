@@ -257,9 +257,13 @@ NON-CRITICAL (for PR reviewer):
 - [code-reviewer] src/baz.ts:15 - Consider extracting helper (confidence: 72)
 - [test-analyzer] Missing edge case test for empty input (gap: 4)
 
-PLAN COMPLIANCE: (omit section if no plan exists)
+PLAN COMPLIANCE: (omit entire section if no plan exists)
 - Intent Verification: <N>/<M> criteria met
+  - N = number of plan-specified criteria satisfied by the implementation
+  - M = total criteria listed under "## Intent Verification" in the plan
 - Scope: clean | scope creep detected (<details if any>)
+  - "clean" = no items from "Not in Scope" were implemented AND all changed files fall within the plan's "Affected Areas"
+  - "scope creep detected" = any "Not in Scope" item was implemented, OR files outside "Affected Areas" were changed — list the specific items/files as details
 
 Summary: <unresolved> unresolved critical findings
 ```

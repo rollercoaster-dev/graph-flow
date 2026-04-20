@@ -214,9 +214,27 @@ For each step in the development plan:
      ```markdown
      - [YYYY-MM-DD HH:MM] <what changed and why>
      ```
-     Also log to checkpoint: `c-update` with context describing the deviation
+     Also log to checkpoint with this exact payload:
+     ```
+     c-update({
+       issueNumber,
+       workflowId,
+       type: "deviation",
+       discovery: "<deviation description>",
+       timestamp: "<ISO-8601>"
+     })
+     ```
    - **On new decision:** Add a row to the Decisions table with ID, decision, alternatives, rationale.
-     Also log to checkpoint: `c-update` with the decision in the decisions array
+     Also log to checkpoint with this exact payload:
+     ```
+     c-update({
+       issueNumber,
+       workflowId,
+       type: "decision",
+       decision: { id, decision, alternatives, rationale },
+       timestamp: "<ISO-8601>"
+     })
+     ```
    - **On explicit deferral:** Add to the Not in Scope table with item, reason, and follow-up issue (if any)
 
 ### Phase 3: Handle Deviations

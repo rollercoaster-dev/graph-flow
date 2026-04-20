@@ -56,12 +56,14 @@ WRONG understanding:
 
 **CRITICAL: When this workflow runs inside a team worker, sub-agents MUST NOT join the team.**
 
-All Agent/Task calls in this workflow (issue-researcher, review agents, auto-fixer) are internal implementation details — they should be standalone background agents, not team members.
+All **Agent** calls in this workflow (issue-researcher, review agents, auto-fixer) are internal implementation details — they should be standalone background agents, not team members.
 
 **Rules for all Agent calls in this workflow:**
 - **Never** pass `team_name` to Agent calls
 - Always use `run_in_background: true` for sub-agents
 - The team lead should only see the worker running this workflow, not its internal sub-agents
+
+These rules are **Agent-only**. `Task` calls use a different API and do not accept `team_name` or `run_in_background` — do not apply these options to Task.
 
 This prevents zombie agents that the team lead can't control and eliminates idle notification noise from internal sub-agents.
 
