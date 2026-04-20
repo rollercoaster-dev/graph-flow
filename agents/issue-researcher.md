@@ -189,7 +189,7 @@ Before creating any plan, check the **target project's** rules and docs for plan
 | Project rule found with explicit path | Use the path from the rule | Use template from rule if provided |
 | `docs/exec-plans/` exists | `docs/exec-plans/` | Use project's template if documented |
 | `docs/plans/` exists | `docs/plans/` | Default graph-flow template |
-| Nothing found | `.claude/dev-plans/` (graph-flow default) | Default graph-flow template |
+| Nothing found | `docs/dev-plans/` (graph-flow default) | Default graph-flow template |
 
 The final plan must be written to `plan_path`, and `plan_path` must be returned in the agent output exactly as written. Downstream workflows consume that value directly; they must not infer the location themselves.
 

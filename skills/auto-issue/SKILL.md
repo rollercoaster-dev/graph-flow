@@ -73,7 +73,7 @@ Store screenshot paths in workflow state. Both calls are best-effort — if skip
 
 ### Phase 2: Research
 
-Run issue analysis with the issue-researcher agent using `Task`. The researcher determines the plan path based on host project conventions (e.g., `docs/exec-plans/`, `docs/plans/`). Default fallback: `docs/dev-plans/issue-<number>-<short-desc>.md`.
+Run issue analysis with the issue-researcher agent using the `Agent` tool — standalone (no `team_name`) with `run_in_background: true` to match the nested-agent prevention rules in `commands/auto-issue.md`. The researcher determines the plan path based on host project conventions (e.g., `docs/exec-plans/`, `docs/plans/`). Default fallback: `docs/dev-plans/issue-<number>-<short-desc>.md`.
 
 Capture `plan_path` from the researcher output and pass that exact value through the rest of the workflow.
 

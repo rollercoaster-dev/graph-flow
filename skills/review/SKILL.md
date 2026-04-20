@@ -1,7 +1,7 @@
 ---
 name: review
 description: Coordinates review agents and manages auto-fix loop. Spawns code-reviewer, test-analyzer, silent-failure-hunter in parallel, classifies findings, and attempts fixes for critical issues.
-allowed-tools: Bash, Read, Glob, Grep, Skill, Task
+allowed-tools: Bash, Read, Glob, Grep, Skill, Agent
 context: fork
 ---
 

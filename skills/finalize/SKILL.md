@@ -15,7 +15,7 @@ Completes the workflow by creating PR and cleaning up.
 | Field              | Type    | Required | Description                                            |
 | ------------------ | ------- | -------- | ------------------------------------------------------ |
 | `issue_number`     | number  | Yes      | GitHub issue number                                    |
-| `plan_path`        | string  | No       | Exact development plan path to clean up after PR creation |
+| `plan_path`        | string  | No       | Exact development plan path to read for Intent Verification, Decisions, and Discovery Log extraction into the PR body |
 | `findings_summary` | object  | No       | Summary from review phase                              |
 | `force`            | boolean | No       | Create PR even with unresolved issues (default: false) |
 | `skip_board`       | boolean | No       | Skip board update (default: false)                     |
@@ -238,14 +238,6 @@ a-board-update({ issueNumber: <issue_number>, status: "Blocked" })
 ```
 
 **If board update fails:** Log warning, continue.
-
-### Step 5.5: Clean Up Plan File (if plan_path provided)
-
-- Delete the file at the exact `plan_path` passed into this skill.
-- Do not reconstruct a fallback location or infer the path from `issue_number`.
-- If the file is already missing, log a warning and continue.
-
-Callers must pass the exact `plan_path` returned by the research phase so cleanup targets the canonical plan artifact.
 
 ### Step 6: Send Notification (unless skip_notify)
 
