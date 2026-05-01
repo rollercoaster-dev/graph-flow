@@ -117,6 +117,54 @@ describe("runInit", () => {
     expect(text).toContain("[mcp_servers.graph-flow]");
   });
 
+  test("repeated codex bootstrap is idempotent", async () => {
+    const opts = {
+      projectRoot: projectDir,
+      indexCode: false,
+      indexDocs: false,
+      codex: true,
+    };
+
+    await runInit(opts);
+    await runInit(opts);
+
+    const text = await readFile(
+      join(projectDir, ".codex", "config.toml"),
+      "utf-8",
+    );
+
+    const startMatches = text.match(/# BEGIN graph-flow MCP/g) ?? [];
+    const endMatches = text.match(/# END graph-flow MCP/g) ?? [];
+    const tableMatches = text.match(/^\[mcp_servers\.graph-flow\]/gm) ?? [];
+
+    expect(startMatches.length).toBe(1);
+    expect(endMatches.length).toBe(1);
+    expect(tableMatches.length).toBe(1);
+  });
+
+  test("refuses to overwrite an unmanaged graph-flow table in .codex/config.toml", async () => {
+    await mkdir(join(projectDir, ".codex"), { recursive: true });
+    await writeFile(
+      join(projectDir, ".codex", "config.toml"),
+      [
+        "[mcp_servers.graph-flow]",
+        'command = "old"',
+        'args = ["legacy"]',
+        "",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    await expect(
+      runInit({
+        projectRoot: projectDir,
+        indexCode: false,
+        indexDocs: false,
+        codex: true,
+      }),
+    ).rejects.toThrow(/unmanaged \[mcp_servers\.graph-flow\] table/);
+  });
+
   test("preserves existing MCP servers when writing .mcp.json", async () => {
     await writeFile(
       join(projectDir, ".mcp.json"),

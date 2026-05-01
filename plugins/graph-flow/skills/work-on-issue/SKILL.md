@@ -15,7 +15,7 @@ This is the Codex-native equivalent of the Claude `/work-on-issue` workflow.
 4. Present the plan and wait for approval before implementation.
 5. Run `implement`.
 6. Present implementation and validation status, then wait for approval before `review` and `finalize`.
-7. Run `review` unless the user explicitly asked to skip that gate.
+7. Run the `review` phase unless the user explicitly asked to skip the review phase itself. If the user only asked to skip the approval gate, still run `review` but proceed to `finalize` without a separate approval prompt.
 8. Run `finalize`.
 
 ## Operating Rules

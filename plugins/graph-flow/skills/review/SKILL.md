@@ -24,5 +24,5 @@ Perform the graph-flow review phase using Codex-native review behavior.
 
 ## Guardrails
 
-- This skill reviews and fixes only when the user wants fixes as part of the same task.
+- This skill performs reviews by default and only applies fixes when the user explicitly requests fixes in the same task. It does not apply fixes automatically.
 - Do not merge the PR here.

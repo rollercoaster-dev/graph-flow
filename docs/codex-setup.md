@@ -124,10 +124,10 @@ If your Codex host does not expose project MCP servers yet, use these CLI comman
 
 ## 9) Recommended Codex usage model
 
-- Use the plugin skills for workflow entry points.
-- Use graph-flow MCP tools as the preferred core integration surface once setup is complete.
-- Use the `graph-flow` CLI as the fallback when MCP is unavailable.
-- Use repo-scoped custom agents only for explicit delegated work, not as a hidden dependency.
+- Prefer the plugin skills for workflow entry points.
+- Rely on graph-flow MCP tools as the core integration surface once setup is complete.
+- Fall back to the `graph-flow` CLI when MCP is unavailable.
+- Reserve repo-scoped custom agents for explicit delegated work, not as a hidden dependency.
 
 ## 10) CI consistency checks
 

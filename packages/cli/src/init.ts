@@ -55,6 +55,13 @@ interface McpServerConfig {
 const CODEX_MANAGED_BLOCK_START = "# BEGIN graph-flow MCP";
 const CODEX_MANAGED_BLOCK_END = "# END graph-flow MCP";
 
+const GRAPH_FLOW_MCP_COMMAND = "bunx";
+const GRAPH_FLOW_MCP_PACKAGE = "@graph-flow/mcp";
+const GRAPH_FLOW_MCP_ARGS = [GRAPH_FLOW_MCP_PACKAGE] as const;
+const GRAPH_FLOW_PROJECT_ENV_KEY = "CLAUDE_PROJECT_DIR";
+const GRAPH_FLOW_TOML_TABLE_PATTERN =
+  /^\[mcp_servers\.graph-flow(?:\.[^\]]*)?\]/m;
+
 /**
  * Check if a directory exists.
  */
@@ -192,10 +199,10 @@ async function runHealthCheck(dataDir: string): Promise<HealthCheckResult> {
  */
 function generateMcpServerConfig(projectRoot: string): McpServerConfig {
   return {
-    command: "bunx",
-    args: ["@graph-flow/mcp"],
+    command: GRAPH_FLOW_MCP_COMMAND,
+    args: [...GRAPH_FLOW_MCP_ARGS],
     env: {
-      CLAUDE_PROJECT_DIR: projectRoot,
+      [GRAPH_FLOW_PROJECT_ENV_KEY]: projectRoot,
     },
   };
 }
@@ -205,15 +212,16 @@ function toTomlString(value: string): string {
 }
 
 function generateCodexManagedBlock(projectRoot: string): string {
+  const argsToml = GRAPH_FLOW_MCP_ARGS.map((a) => toTomlString(a)).join(", ");
   return [
     CODEX_MANAGED_BLOCK_START,
     "[mcp_servers.graph-flow]",
-    `command = ${toTomlString("bunx")}`,
-    'args = ["@graph-flow/mcp"]',
+    `command = ${toTomlString(GRAPH_FLOW_MCP_COMMAND)}`,
+    `args = [${argsToml}]`,
     `cwd = ${toTomlString(projectRoot)}`,
     "",
     "[mcp_servers.graph-flow.env]",
-    `CLAUDE_PROJECT_DIR = ${toTomlString(projectRoot)}`,
+    `${GRAPH_FLOW_PROJECT_ENV_KEY} = ${toTomlString(projectRoot)}`,
     CODEX_MANAGED_BLOCK_END,
   ].join("\n");
 }
@@ -232,6 +240,18 @@ async function writeCodexConfig(projectRoot: string): Promise<string> {
       `${CODEX_MANAGED_BLOCK_START}[\\s\\S]*?${CODEX_MANAGED_BLOCK_END}`,
       "m",
     );
+
+    // Strip any managed blocks first so the remaining text only contains
+    // user-authored content. This lets us safely detect an unmanaged
+    // [mcp_servers.graph-flow] table that would otherwise collide with the
+    // managed block we are about to write.
+    const cleanedExisting = existingText.replace(blockPattern, "");
+
+    if (GRAPH_FLOW_TOML_TABLE_PATTERN.test(cleanedExisting)) {
+      throw new Error(
+        `Refusing to write Codex MCP config: ${codexConfigPath} already contains an unmanaged [mcp_servers.graph-flow] table outside the managed markers. Remove or merge it manually, then re-run init.`,
+      );
+    }
 
     if (blockPattern.test(existingText)) {
       nextText = `${existingText.replace(blockPattern, managedBlock).trimEnd()}\n`;

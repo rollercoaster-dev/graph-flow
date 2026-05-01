@@ -1,6 +1,6 @@
 interface:
   display_name: "graph-flow init"
   short_description: "Bootstrap graph-flow for Codex in the current repository."
-  default_prompt: "Use graph-flow init to configure this repository for Codex and verify doctor passes."
+  default_prompt: "Use graph-flow init to configure this repository for Codex, then run doctor and verify it reports no errors (warnings are acceptable)."
 policy:
   allow_implicit_invocation: false

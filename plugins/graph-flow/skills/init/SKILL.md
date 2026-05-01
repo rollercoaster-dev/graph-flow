@@ -11,8 +11,8 @@ Bootstrap graph-flow for Codex without relying on Claude slash commands.
 
 1. Work from the repository root.
 2. Prefer the installed `graph-flow` CLI. If it is unavailable, fall back to `bunx @graph-flow/cli`.
-3. Run initialization:
-   `graph-flow init`
+3. Run initialization with the Codex flag so both `.mcp.json` and `.codex/config.toml` are written:
+   `graph-flow init --codex`
 4. Verify setup:
    `graph-flow doctor`
 5. If MCP still is not available in Codex, explain the exact next step:
