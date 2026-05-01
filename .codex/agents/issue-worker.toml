@@ -1,4 +1,3 @@
-name = "issue_worker"
 description = "Implementation-focused graph-flow worker for issue execution on the current repository."
 model_reasoning_effort = "medium"
 developer_instructions = """

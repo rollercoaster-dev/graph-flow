@@ -94,13 +94,15 @@ You can override any field with environment variables:
 
 ## 6) Optional: enable custom Codex agents
 
-This repo now ships project-scoped custom agents in `.codex/agents/`:
+This repo ships project-scoped custom agents in `.codex/agents/` and wires them into `.codex/config.toml` via `agents.<role>.config_file`. Codex loads them automatically once you point Codex at this repo's config. The wired roles are:
 
 - `issue_worker`
 - `pr_reviewer`
 - `docs_researcher`
 
 Use them only when you explicitly want delegation or parallel work. The workflow skills do not require them.
+
+If you maintain your own `.codex/config.toml` outside this repo, you can either point Codex at the repo's `config.toml` or copy the `[agents.*]` blocks into your own file and adjust the `config_file` paths.
 
 ## 7) Optional: enable neural embeddings
 
