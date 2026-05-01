@@ -30,7 +30,7 @@ model: sonnet
 
 ### Side Effects
 
-- Creates the development plan at the discovered `plan_path` using project conventions or the graph-flow fallback
+- Creates dev plan (path determined by host project conventions, see below)
 - Logs plan creation to checkpoint (if workflow_id provided)
 
 ### Checkpoint Actions Logged
@@ -175,12 +175,12 @@ Before creating any plan, check the **target project's** rules and docs for plan
    If a directory exists with plans in it, that's the project's convention.
 
 4. **Graph-flow fallback:**
-   - If none of the above defines a convention, use the graph-flow default dev-plan directory with the standard `issue-<number>.md` filename
+   - If none of the above defines a convention, use the graph-flow default dev-plan directory with the standard `issue-<number>-<short-desc>.md` filename
 
 **Result: set these values before writing anything:**
 
 - `plan_dir`: directory selected by the precedence rules above
-- `plan_filename`: use the project's documented naming convention, otherwise `issue-<number>.md`
+- `plan_filename`: use the project's documented naming convention, otherwise `issue-<number>-<short-desc>.md`
 - `plan_path`: `<plan_dir>/<plan_filename>`
 - `plan_template`: project template if documented, otherwise the default graph-flow template
 
@@ -189,7 +189,7 @@ Before creating any plan, check the **target project's** rules and docs for plan
 | Project rule found with explicit path | Use the path from the rule | Use template from rule if provided |
 | `docs/exec-plans/` exists | `docs/exec-plans/` | Use project's template if documented |
 | `docs/plans/` exists | `docs/plans/` | Default graph-flow template |
-| Nothing found | `.claude/dev-plans/` (graph-flow default) | Default graph-flow template |
+| Nothing found | `docs/dev-plans/` (graph-flow default) | Default graph-flow template |
 
 The final plan must be written to `plan_path`, and `plan_path` must be returned in the agent output exactly as written. Downstream workflows consume that value directly; they must not infer the location themselves.
 
@@ -252,7 +252,9 @@ These inform the research phase and help the plan align with the project's exist
 
 ### Phase 4: Create Development Plan
 
-Generate a detailed plan document:
+Generate a detailed plan document.
+
+**File naming:** `issue-<number>-<short-desc>.md` (e.g., `issue-42-add-jwks-endpoint.md`) for findability. Use lowercase kebab-case for the short description (2-4 words from the issue title).
 
 ```markdown
 # Development Plan: Issue #<number>
@@ -263,6 +265,16 @@ Generate a detailed plan document:
 **Type**: <feature|bug|enhancement|refactor>
 **Complexity**: <TRIVIAL|SMALL|MEDIUM|LARGE>
 **Estimated Lines**: ~<n> lines
+
+## Intent Verification
+
+Observable criteria derived from the issue. These describe what success looks like from a user/system perspective — not generic checklists.
+
+- [ ] <When [actor] does [action], [observable result]>
+- [ ] <[System/component] [behaves in specific way] under [condition]>
+- [ ] <[Metric/output] meets [specific threshold/format]>
+
+_Write criteria that a reviewer could verify by running the code or reading tests. Avoid generic items like "tests pass" — those are assumed._
 
 ## Dependencies
 
@@ -275,6 +287,14 @@ Generate a detailed plan document:
 ## Objective
 
 <What this PR will accomplish>
+
+## Decisions
+
+Architectural and implementation choices made during research. Populated when the researcher encounters multiple valid approaches.
+
+| ID | Decision | Alternatives Considered | Rationale |
+|----|----------|------------------------|-----------|
+| D1 | <what was decided> | <other options> | <why this choice> |
 
 ## Affected Areas
 
@@ -289,8 +309,8 @@ Generate a detailed plan document:
 **Commit**: `<type>(<scope>): <message>`
 **Changes**:
 
-- <specific change>
-- <specific change>
+- [ ] <specific change>
+- [ ] <specific change>
 
 ### Step 2: <description>
 
@@ -302,17 +322,23 @@ Generate a detailed plan document:
 - [ ] Integration tests for <flow>
 - [ ] Manual testing: <steps>
 
-## Definition of Done
+## Not in Scope
 
-- [ ] All implementation steps complete
-- [ ] Tests passing
-- [ ] Type-check passing
-- [ ] Lint passing
-- [ ] Ready for PR
+Items explicitly deferred from this issue. Helps prevent scope creep during implementation.
 
-## Notes
+| Item | Reason | Follow-up |
+|------|--------|-----------|
+| <deferred item> | <why not now> | <issue # or "none"> |
 
-<Any considerations, risks, or questions>
+_If nothing is deferred, write "No items deferred."_
+
+## Discovery Log
+
+Runtime discoveries made during implementation. Starts empty — populated by the implement skill as work progresses.
+
+<!-- Entries added by implement skill:
+- [YYYY-MM-DD HH:MM] <discovery description>
+-->
 ```
 
 ### Phase 5: Validate Plan
@@ -352,9 +378,9 @@ See `.claude/skills/board-manager/SKILL.md` for command reference and IDs.
 ### Phase 7: Save and Report
 
 1. **Save development plan:**
-   - Write to `plan_path` (from Phase 1.8 discovery)
-   - If the project rule specifies a different naming convention, encode that in `plan_filename` before writing
-   - If using a project-specific template (from Phase 1.8), ensure the plan follows it
+   - Check the host project's CLAUDE.md or planning rules for a preferred plan directory (e.g., `docs/exec-plans/`, `docs/plans/`)
+   - If a convention exists, follow it — use the project's naming pattern and template
+   - If no convention exists, write to `docs/dev-plans/issue-<number>-<short-desc>.md`
 
 2. **Report summary:**
    - Key findings

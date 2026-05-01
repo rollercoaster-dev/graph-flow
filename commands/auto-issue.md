@@ -52,15 +52,30 @@ WRONG understanding:
 /auto-issue 123 --visual --figma-url https://figma.com/design/...
 ```
 
+## Team Isolation
+
+**CRITICAL: When this workflow runs inside a team worker, sub-agents MUST NOT join the team.**
+
+All **Agent** calls in this workflow (issue-researcher, review agents, auto-fixer) are internal implementation details — they should be standalone background agents, not team members.
+
+**Rules for all Agent calls in this workflow:**
+- **Never** pass `team_name` to Agent calls
+- Always use `run_in_background: true` for sub-agents
+- The team lead should only see the worker running this workflow, not its internal sub-agents
+
+These rules are **Agent-only**. `Task` calls use a different API and do not accept `team_name` or `run_in_background` — do not apply these options to Task.
+
+This prevents zombie agents that the team lead can't control and eliminates idle notification noise from internal sub-agents.
+
 ## Workflow
 
 ```text
 Phase 1:   Setup          → Skill(setup)
 Phase 1.5: Visual Design  → Skill(visual-test, { mode: "design" })   [if --visual]
 Phase 1.6: Visual Before  → Skill(visual-test, { mode: "before" })   [if --visual]
-Phase 2:   Research        → Task(issue-researcher)
+Phase 2:   Research        → Agent(issue-researcher) [standalone, no team_name]
 Phase 3:   Implement       → Skill(implement)
-Phase 4:   Review          → Skill(review)
+Phase 4:   Review          → Skill(review) [internally spawns standalone agents]
 Phase 4.5: Visual After    → Skill(visual-test, { mode: "after" })   [if --visual]
 Phase 5:   Finalize        → Skill(finalize)
 ```
@@ -210,9 +225,10 @@ Store screenshot paths in workflow state for the finalize phase.
 ## Phase 2: Research
 
 ```text
-Task(issue-researcher):
+Agent(issue-researcher):
   Input:  { issue_number: <N> }
   Output: { plan_path, complexity, commit_count }
+  Options: { run_in_background: true }  # standalone — no team_name
 ```
 
 The issue-researcher will:
@@ -220,8 +236,7 @@ The issue-researcher will:
 - Discover the project's plan conventions (location, template) from `.claude/rules/`, `CLAUDE.md`, or existing plan directories
 - Analyze codebase using Glob, Grep, Read
 - Check dependencies
-- Create the development plan at the discovered location, using the graph-flow fallback only when the project does not define its own convention
-- Return the exact `plan_path` to the saved plan; do not infer or reconstruct it in later phases
+- Create dev plan (path follows host project conventions, default: `docs/dev-plans/issue-<number>-<short-desc>.md`)
 
 **If `--dry-run`:** Stop here, display plan, exit.
 
@@ -261,7 +276,7 @@ Skill(review):
 The review skill will:
 
 - Run `/simplify` for code quality, reuse, and efficiency improvements
-- Spawn review agents in parallel (as Task subagents)
+- Spawn standalone background review agents in parallel (do not pass team_name)
 - Classify findings by severity
 - Auto-fix critical findings (up to 3 attempts each)
 - Return summary with unresolved findings
@@ -297,7 +312,6 @@ Skill(finalize):
 The finalize skill will:
 
 - Run final validation
-- Clean up the discovered plan file at the exact `plan_path` from Phase 2, if the workflow created one
 - Push branch
 - Create PR
 - Update board to "Blocked"

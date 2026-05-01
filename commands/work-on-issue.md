@@ -183,8 +183,7 @@ The issue-researcher will:
 - Discover the project's plan conventions (location, template) from `.claude/rules/`, `CLAUDE.md`, or existing plan directories
 - Analyze codebase using Glob, Grep, Read
 - Check dependencies
-- Create the development plan at the discovered location, using the graph-flow fallback only when the project does not define its own convention
-- Return the exact `plan_path` to the saved plan so Gate 2 and Phase 3 use the same artifact
+- Create dev plan (path follows host project conventions, default: `docs/dev-plans/issue-<number>-<short-desc>.md`)
 
 ---
 
@@ -222,6 +221,7 @@ Skill(implement):
 
 The implement skill handles the full implementation cycle with per-commit gates:
 
+- Reads the development plan from the `plan_path` returned by Phase 2
 - Makes changes per plan step
 - Runs validation (type-check, lint)
 - Shows diff and proposed commit message at each gate
@@ -307,7 +307,6 @@ Skill(finalize):
 The finalize skill will:
 
 - Run final validation
-- Clean up the discovered plan file at the exact `plan_path` from Phase 2, if the workflow created one
 - Push branch
 - Create PR
 - Update board to "Blocked"

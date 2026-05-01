@@ -1,7 +1,8 @@
 ---
 name: review
 description: Coordinates review agents and manages auto-fix loop. Spawns code-reviewer, test-analyzer, silent-failure-hunter in parallel, classifies findings, and attempts fixes for critical issues.
-allowed-tools: Bash, Read, Glob, Grep, Skill, Task
+allowed-tools: Bash, Read, Glob, Grep, Skill, Agent
+context: fork
 ---
 
 # Review Skill
@@ -38,8 +39,8 @@ Coordinates code review and manages the auto-fix cycle.
 
 ### Side Effects
 
-1. Spawns review agents (parallel or sequential)
-2. Spawns auto-fixer for critical findings
+1. Spawns review agents as standalone background agents (parallel or sequential, never as team members)
+2. Spawns auto-fixer as standalone background agent for critical findings
 3. Creates fix commits
 4. Logs all actions to checkpoint
 
@@ -73,6 +74,19 @@ Additional review agents can be defined in the project's `.claude/agents/` direc
 ```bash
 git diff main --name-only
 ```
+
+**Read dev plan (if it exists):**
+
+Look for the dev plan in the project's plan directory:
+
+```bash
+ls docs/dev-plans/issue-*.md docs/plans/issue-*.md docs/exec-plans/issue-*.md 2>/dev/null
+```
+
+If multiple files match, use the one whose filename contains the current issue number. If a plan exists for the current issue:
+1. Read the **Intent Verification** section — these are the success criteria
+2. Read the **Not in Scope** section — these items should NOT have been implemented
+3. Store both for use in the output summary
 
 **Check for project-specific agents:**
 
@@ -108,20 +122,22 @@ This complements the review agents which focus on bugs, test gaps, and silent fa
 
 ### Step 2: Spawn Review Agents
 
+**CRITICAL: Team isolation.** All review agents are internal sub-agents — they MUST be spawned as standalone background agents, never as team members. Do NOT pass `team_name` to any Agent call. This prevents zombie team members and idle notification noise when the review skill runs inside a team worker.
+
 **If parallel mode (default):**
 
-Spawn all agents simultaneously using Task tool with multiple calls:
+Spawn all agents simultaneously using the Agent tool with `run_in_background: true` (no `team_name`):
 
 ```text
-Task(pr-review-toolkit:code-reviewer): "Review code changes for issue workflow <workflow_id>"
-Task(pr-review-toolkit:pr-test-analyzer): "Analyze test coverage for changes"
-Task(pr-review-toolkit:silent-failure-hunter): "Check for silent failures in changes"
-Task(openbadges-compliance-reviewer): "Check OB spec compliance" (if badge code AND agent exists in project)
+Agent(pr-review-toolkit:code-reviewer, run_in_background: true): "Review code changes for issue workflow <workflow_id>"
+Agent(pr-review-toolkit:pr-test-analyzer, run_in_background: true): "Analyze test coverage for changes"
+Agent(pr-review-toolkit:silent-failure-hunter, run_in_background: true): "Check for silent failures in changes"
+Agent(openbadges-compliance-reviewer, run_in_background: true): "Check OB spec compliance" (if badge code AND agent exists in project)
 ```
 
 **If sequential mode:**
 
-Spawn each agent one at a time, collecting results.
+Spawn each agent one at a time using the Agent tool (no `team_name`), collecting results.
 
 ### Step 3: Collect and Normalize Findings
 
@@ -156,8 +172,8 @@ attempt = 0
 while not fixed AND attempt < max_retry:
     attempt++
 
-    Spawn auto-fixer:
-    Task(auto-fixer): "Fix: <finding.message> in <finding.file>:<finding.line>"
+    Spawn auto-fixer (standalone — no team_name):
+    Agent(auto-fixer, run_in_background: true): "Fix: <finding.message> in <finding.file>:<finding.line>"
 
     If fix successful:
         finding.fixed = true
@@ -240,6 +256,14 @@ UNRESOLVED (require manual attention):
 NON-CRITICAL (for PR reviewer):
 - [code-reviewer] src/baz.ts:15 - Consider extracting helper (confidence: 72)
 - [test-analyzer] Missing edge case test for empty input (gap: 4)
+
+PLAN COMPLIANCE: (omit entire section if no plan exists)
+- Intent Verification: <N>/<M> criteria met
+  - N = number of plan-specified criteria satisfied by the implementation
+  - M = total criteria listed under "## Intent Verification" in the plan
+- Scope: clean | scope creep detected (<details if any>)
+  - "clean" = no items from "Not in Scope" were implemented AND all changed files fall within the plan's "Affected Areas"
+  - "scope creep detected" = any "Not in Scope" item was implemented, OR files outside "Affected Areas" were changed — list the specific items/files as details
 
 Summary: <unresolved> unresolved critical findings
 ```

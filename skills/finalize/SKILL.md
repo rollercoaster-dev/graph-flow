@@ -15,7 +15,7 @@ Completes the workflow by creating PR and cleaning up.
 | Field              | Type    | Required | Description                                            |
 | ------------------ | ------- | -------- | ------------------------------------------------------ |
 | `issue_number`     | number  | Yes      | GitHub issue number                                    |
-| `plan_path`        | string  | No       | Exact development plan path to clean up after PR creation |
+| `plan_path`        | string  | No       | Exact development plan path to read for Intent Verification, Decisions, and Discovery Log extraction into the PR body |
 | `findings_summary` | object  | No       | Summary from review phase                              |
 | `force`            | boolean | No       | Create PR even with unresolved issues (default: false) |
 | `skip_board`       | boolean | No       | Skip board update (default: false)                     |
@@ -36,8 +36,7 @@ Completes the workflow by creating PR and cleaning up.
 1. Pushes branch to remote
 2. Creates GitHub PR
 3. Updates board to "Blocked" (awaiting review)
-4. Cleans up the issue's discovered development plan file at `plan_path`, if provided
-5. Sends Telegram notification with PR link
+4. Sends Telegram notification with PR link
 
 ## Prerequisites
 
@@ -135,6 +134,29 @@ Determine scope from primary package affected.
 
 **Create PR:**
 
+**Read dev plan (if it exists):**
+
+Before creating the PR, look for the dev plan to extract Intent Verification and Decisions:
+
+```bash
+ls docs/dev-plans/issue-*.md docs/plans/issue-*.md docs/exec-plans/issue-*.md 2>/dev/null
+```
+
+If multiple files match, use the one whose filename contains the current issue number. If found, extract:
+- **Intent Verification** section (with check status from implementation)
+- **Decisions** table (key architectural choices)
+- **Discovery Log** entries (if any, for notable runtime findings)
+
+If no plan file exists, omit the Intent Verification and Key Decisions sections from the PR body.
+
+**Extraction logic:**
+
+1. **Intent Verification** — extract every checkbox line (`- [ ]` or `- [x]`) between the `## Intent Verification` heading and the next `##` heading. Preserve check status verbatim.
+2. **Key Decisions** — extract the markdown table under `## Key Decisions` (or `## Decisions`). Skip the header and separator rows; re-emit as a two-column `| Decision | Rationale |` table in the PR body. If the table is empty or absent, omit the section.
+3. **Discovery Log** — extract timestamped entries of the form `- [YYYY-MM-DD HH:MM] <text>` under the `## Discovery Log` heading (entries may be wrapped in an HTML comment block; strip `<!-- … -->` delimiters before parsing). If no entries exist, omit the section from the PR body.
+
+**Create PR:**
+
 ```bash
 gh pr create --title "<type>(<scope>): <description> (#<issue_number>)" --body "$(cat <<'PRBODY'
 ## Summary
@@ -144,6 +166,22 @@ gh pr create --title "<type>(<scope>): <description> (#<issue_number>)" --body "
 ## Changes
 
 <bullet list of key changes>
+
+## Intent Verification
+
+<Copy from dev plan with check status. If no plan exists, omit this section.>
+
+- [x] <met criterion>
+- [x] <met criterion>
+- [ ] <unmet criterion, if any — explain why>
+
+## Key Decisions
+
+<Summarize from Decisions table. If no plan or no decisions, omit this section.>
+
+| Decision | Rationale |
+|----------|-----------|
+| <what> | <why> |
 
 ## Test Plan
 
@@ -200,14 +238,6 @@ a-board-update({ issueNumber: <issue_number>, status: "Blocked" })
 ```
 
 **If board update fails:** Log warning, continue.
-
-### Step 5.5: Clean Up Plan File (if plan_path provided)
-
-- Delete the file at the exact `plan_path` passed into this skill.
-- Do not reconstruct a fallback location or infer the path from `issue_number`.
-- If the file is already missing, log a warning and continue.
-
-Callers must pass the exact `plan_path` returned by the research phase so cleanup targets the canonical plan artifact.
 
 ### Step 6: Send Notification (unless skip_notify)
 

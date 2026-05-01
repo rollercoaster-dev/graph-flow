@@ -2,6 +2,7 @@
 name: auto-issue
 description: Fully autonomous issue-to-PR workflow. Use when a worker should execute one issue end-to-end without human gates.
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Skill, Task
+context: fork
 ---
 
 # Auto-Issue Skill
@@ -72,9 +73,9 @@ Store screenshot paths in workflow state. Both calls are best-effort — if skip
 
 ### Phase 2: Research
 
-Run issue analysis with the issue-researcher agent using `Task`. The researcher discovers the project's plan conventions (Phase 1.8 in the researcher workflow) and saves the plan at the appropriate location, using the project-configured plan directory when one exists and otherwise falling back to the graph-flow default convention.
+Run issue analysis with the issue-researcher agent using the `Agent` tool — standalone (no `team_name`) with `run_in_background: true` to match the nested-agent prevention rules in `commands/auto-issue.md`. The researcher determines the plan path based on host project conventions (e.g., `docs/exec-plans/`, `docs/plans/`). Default fallback: `docs/dev-plans/issue-<number>-<short-desc>.md`.
 
-Capture `plan_path` from the researcher output and pass that exact value through the rest of the workflow. Do not assume or reconstruct a default location.
+Capture `plan_path` from the researcher output and pass that exact value through the rest of the workflow.
 
 If `dry_run=true`, return the plan path and stop.
 

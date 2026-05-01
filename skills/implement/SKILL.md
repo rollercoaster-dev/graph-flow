@@ -161,9 +161,8 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`, `ci`
    ```
 
 2. **Load development plan:**
-   - Read from the `plan_path` provided by the caller (required input)
-   - The path is determined by the issue-researcher based on project conventions
-   - Do not reconstruct a fallback path if `plan_path` is missing or different
+   - Read from the path provided by the caller (`plan_path` input)
+   - The researcher agent determines this path based on host project conventions
 
 ### Phase 2: Execute Plan Step by Step
 
@@ -208,6 +207,35 @@ For each step in the development plan:
    - Confirm commit made
    - Show files changed
    - Note any deviations from plan
+
+8. **Update the dev plan (live plan maintenance):**
+   - Check off completed items in the Implementation Plan section (change `- [ ]` to `- [x]`)
+   - **On deviation:** Add a timestamped entry to the Discovery Log section:
+     ```markdown
+     - [YYYY-MM-DD HH:MM] <what changed and why>
+     ```
+     Also log to checkpoint with this exact payload:
+     ```
+     c-update({
+       issueNumber,
+       workflowId,
+       type: "deviation",
+       discovery: "<deviation description>",
+       timestamp: "<ISO-8601>"
+     })
+     ```
+   - **On new decision:** Add a row to the Decisions table with ID, decision, alternatives, rationale.
+     Also log to checkpoint with this exact payload:
+     ```
+     c-update({
+       issueNumber,
+       workflowId,
+       type: "decision",
+       decision: { id, decision, alternatives, rationale },
+       timestamp: "<ISO-8601>"
+     })
+     ```
+   - **On explicit deferral:** Add to the Not in Scope table with item, reason, and follow-up issue (if any)
 
 ### Phase 3: Handle Deviations
 
@@ -259,6 +287,12 @@ After all commits:
    - Is it under ~500 lines?
    - Does each commit stand alone?
    - Is the branch focused?
+
+5. **Verify Intent (plan-aware check):**
+   - Read the dev plan's Intent Verification section
+   - For each criterion, verify it is met by the implementation
+   - Check off met criteria in the plan (change `- [ ]` to `- [x]`)
+   - If any criteria are NOT met, report which ones failed and why. In gated workflows (work-on-issue), stop and wait for user approval before continuing. In autonomous workflows (auto-issue), log the gap and proceed
 
 ### Phase 5: Report Completion
 
