@@ -1,0 +1,6 @@
+interface:
+  display_name: "graph-flow finalize"
+  short_description: "Push the branch and open the pull request for a graph-flow workflow."
+  default_prompt: "Use graph-flow finalize for the current issue workflow and open the pull request."
+policy:
+  allow_implicit_invocation: false

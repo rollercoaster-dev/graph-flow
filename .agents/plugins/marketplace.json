@@ -1,0 +1,20 @@
+{
+  "name": "graph-flow-local",
+  "interface": {
+    "displayName": "graph-flow Local Plugins"
+  },
+  "plugins": [
+    {
+      "name": "graph-flow",
+      "source": {
+        "source": "local",
+        "path": "./plugins/graph-flow"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

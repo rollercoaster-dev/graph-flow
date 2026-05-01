@@ -1,0 +1,6 @@
+interface:
+  display_name: "graph-flow setup"
+  short_description: "Fetch issue context and prepare the feature branch."
+  default_prompt: "Use graph-flow setup for issue #31 and tell me which branch and workflow state you created."
+policy:
+  allow_implicit_invocation: false

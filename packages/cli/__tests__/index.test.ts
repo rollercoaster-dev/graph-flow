@@ -135,6 +135,61 @@ describe("graph-flow CLI", () => {
     );
   });
 
+  test("init --codex writes project-scoped Codex config without changing .mcp.json behavior", async () => {
+    const result = await runCli(
+      scriptPath,
+      [
+        "init",
+        "--project",
+        projectDir,
+        "--skip-code",
+        "--skip-docs",
+        "--codex",
+      ],
+      { CLAUDE_PROJECT_DIR: projectDir },
+      repoRoot,
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("MCP config:");
+    expect(result.stdout).toContain("Codex Configuration:");
+
+    const codexReady = await waitForPath(
+      join(projectDir, ".codex", "config.toml"),
+      2000,
+    );
+    expect(codexReady).toBe(true);
+
+    const codexConfig = await Bun.file(
+      join(projectDir, ".codex", "config.toml"),
+    ).text();
+    expect(codexConfig).toContain("[mcp_servers.graph-flow]");
+    expect(codexConfig).toContain(`CLAUDE_PROJECT_DIR = "${projectDir}"`);
+
+    // The --codex flag must not regress the .mcp.json that the default flow writes.
+    const mcpReady = await waitForPath(join(projectDir, ".mcp.json"), 2000);
+    expect(mcpReady).toBe(true);
+
+    const mcpConfig = JSON.parse(
+      await Bun.file(join(projectDir, ".mcp.json")).text(),
+    ) as {
+      mcpServers: {
+        "graph-flow": {
+          command: string;
+          args: string[];
+          env: { CLAUDE_PROJECT_DIR: string };
+        };
+      };
+    };
+    expect(mcpConfig.mcpServers["graph-flow"].command).toBe("bunx");
+    expect(mcpConfig.mcpServers["graph-flow"].args).toEqual([
+      "@graph-flow/mcp",
+    ]);
+    expect(mcpConfig.mcpServers["graph-flow"].env.CLAUDE_PROJECT_DIR).toBe(
+      projectDir,
+    );
+  });
+
   test("deprecated tool aliases are routed", async () => {
     const result = await runCli(
       scriptPath,

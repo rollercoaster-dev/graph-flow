@@ -37,7 +37,10 @@ Prepares everything needed before implementation work begins.
 
 ## Prerequisites
 
-Requires graph-flow MCP tools. If unavailable, run `/graph-flow:init` first, then restart Claude Code.
+Requires graph-flow MCP tools. If unavailable, bootstrap the current host first:
+
+- Claude Code: run `/graph-flow:init`, then restart Claude Code
+- Codex: run `graph-flow init --codex` (or `graph-flow init` if you only need `.mcp.json`)
 
 ## Workflow
 

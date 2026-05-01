@@ -1,0 +1,6 @@
+interface:
+  display_name: "graph-flow work-on-issue"
+  short_description: "Run one issue with explicit user checkpoints between phases."
+  default_prompt: "Use graph-flow work-on-issue for issue #31 and pause for approval between the main phases."
+policy:
+  allow_implicit_invocation: false

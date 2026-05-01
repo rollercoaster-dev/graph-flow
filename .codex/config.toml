@@ -1,0 +1,22 @@
+# Repo-scoped Codex configuration for graph-flow contributors.
+#
+# This file wires the agent layer files in .codex/agents/ into Codex's
+# `agents.<role>` configuration so Codex actually loads them. Without this
+# wiring the layer files are inert — Codex does not auto-discover
+# .codex/agents/*.toml.
+#
+# `graph-flow init --codex` may append a managed [mcp_servers.graph-flow]
+# block below; that managed region is preserved across re-runs and does not
+# affect the agent entries below.
+
+[agents.docs_researcher]
+description = "Read-only graph-flow researcher for setup docs, workflow docs, and host-integration questions."
+config_file = ".codex/agents/docs-researcher.toml"
+
+[agents.issue_worker]
+description = "Implementation-focused graph-flow worker for issue execution on the current repository."
+config_file = ".codex/agents/issue-worker.toml"
+
+[agents.pr_reviewer]
+description = "Read-heavy graph-flow reviewer focused on correctness, regressions, and missing tests."
+config_file = ".codex/agents/pr-reviewer.toml"
